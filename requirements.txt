@@ -1,5 +1,12 @@
-# Scraper_Audio - dipendenze
-yt-dlp
-requests
-rich
-mutagen   # opzionale: tagging metadati/copertina dei file .m4a
+# Scraper_Audio - dipendenze Python
+#
+# NB: serve anche FFmpeg nel PATH (non installabile via pip):
+#   winget install Gyan.FFmpeg
+#
+# yt-dlp va aggiornato spesso (YouTube cambia le API interne):
+#   pip install -U yt-dlp
+
+yt-dlp>=2026.6.9
+requests>=2.31
+rich>=13.0
+mutagen>=1.47   # opzionale: tagging metadati/copertina dei file .m4a
