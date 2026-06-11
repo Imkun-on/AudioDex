@@ -175,6 +175,20 @@ def _format_size(bytes_val: int | float | None) -> str:
     return f'{mb:.1f} MB'
 
 
+def _format_views(views: int | float | None) -> str:
+    """Converte un conteggio di visualizzazioni in forma compatta (es. 2.1 Mrd)."""
+    if not views:
+        return '—'
+    views = int(views)
+    if views >= 1_000_000_000:
+        return f'{views / 1_000_000_000:.1f} Mrd'
+    if views >= 1_000_000:
+        return f'{views / 1_000_000:.1f} Mln'
+    if views >= 1_000:
+        return f'{views / 1_000:.0f} K'
+    return str(views)
+
+
 def _clean_track_title(title: str) -> str:
     """Ripulisce il titolo YouTube dalle decorazioni non musicali.
 
@@ -266,6 +280,7 @@ def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[di
                         'title': info.get('title', 'Sconosciuto'),
                         'uploader': info.get('uploader') or info.get('channel') or '??',
                         'duration': info.get('duration'),
+                        'views': info.get('view_count'),
                         'url': info.get('webpage_url', f"https://www.youtube.com/watch?v={info['id']}"),
                     })
                 return results
@@ -278,6 +293,7 @@ def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[di
                     'title': entry.get('title', 'Sconosciuto'),
                     'uploader': entry.get('uploader') or entry.get('channel') or '??',
                     'duration': entry.get('duration'),
+                    'views': entry.get('view_count'),
                     'url': entry.get('url', entry.get('webpage_url', f'https://www.youtube.com/watch?v={vid_id}')),
                 })
     except Exception as e:
@@ -337,6 +353,7 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
                         'title': info.get('title', 'Sconosciuto'),
                         'uploader': info.get('uploader') or info.get('channel') or '??',
                         'duration': info.get('duration'),
+                        'views': info.get('view_count'),
                         'url': info.get('webpage_url', url),
                     })
                 return playlist_title, entries
@@ -349,6 +366,7 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
                     'title': entry.get('title', 'Sconosciuto'),
                     'uploader': entry.get('uploader') or entry.get('channel') or '??',
                     'duration': entry.get('duration'),
+                    'views': entry.get('view_count'),
                     'url': entry.get('url', entry.get('webpage_url', f'https://www.youtube.com/watch?v={vid_id}')),
                 })
     except Exception as e:
@@ -371,16 +389,18 @@ def _display_search_results(results: list[dict], table_title: str = 'Risultati r
         expand=False,
     )
     table.add_column('#', style='bold yellow', justify='right', width=4)
-    table.add_column('Titolo', style='white', max_width=55, no_wrap=True)
+    table.add_column('Titolo', style='white', max_width=50, no_wrap=True)
     table.add_column('Artista/Canale', style='bright_magenta', max_width=25, no_wrap=True)
     table.add_column('Durata', style='cyan', justify='right', width=8)
+    table.add_column('Views', style='green', justify='right', width=9)
 
     for i, r in enumerate(results, 1):
         table.add_row(
             str(i),
-            r['title'][:55],
+            r['title'][:50],
             (r.get('uploader') or '??')[:25],
             _format_duration(r.get('duration')),
+            _format_views(r.get('views')),
         )
 
     console.print()
