@@ -57,7 +57,7 @@ python Scraper_Audio.py
 - **Solo audio, mai il video**: viene scaricato esclusivamente il flusso `bestaudio` e convertito nel formato scelto (`m4a`, `mp3`, `opus`) — un brano occupa pochi MB invece di centinaia
 - **Download paralleli** con pool di thread configurabile (default 3) e **doppia barra di avanzamento live**: una complessiva sulle tracce e una per ogni file in corso, con velocità e tempo stimato
 - **Tagging automatico dei metadati**: titolo, artista, album, numero traccia e **copertina** incorporata nel file (via mutagen)
-- **Testi sincronizzati stile karaoke**: per ogni traccia viene cercato il testo con i timestamp su [LRCLIB](https://lrclib.net) e salvato come file `.lrc` accanto all'audio (oltre che nei tag) — i lettori compatibili mostrano il testo riga per riga mentre il brano suona
+- **Testi sincronizzati stile karaoke**: per ogni traccia viene cercato il testo con i timestamp su [LRCLIB](https://lrclib.net) e **incorporato nei tag del file audio** — un file unico che porta con sé anche il testo; i lettori compatibili lo mostrano riga per riga mentre il brano suona
 - **Playlist organizzate**: ogni playlist/album viene scaricato in una sottocartella con il suo nome, con i numeri di traccia nell'ordine originale
 - **Anti-duplicati**: le tracce già presenti su disco vengono saltate (`skip`), così si può rilanciare lo stesso download senza riscaricare nulla
 - **Retry automatici** con backoff esponenziale e jitter (fino a 4 tentativi per traccia)
@@ -315,21 +315,20 @@ Se mutagen non è installato il tagging viene semplicemente saltato: i file audi
 
 ## Testi sincronizzati (karaoke)
 
-Dopo ogni download riuscito, il programma interroga **[LRCLIB](https://lrclib.net)** (API gratuita, senza chiave) con artista, titolo e durata della traccia. Se esiste il testo sincronizzato:
+Dopo ogni download riuscito, il programma interroga **[LRCLIB](https://lrclib.net)** (API gratuita, senza chiave) con artista, titolo e durata della traccia. Se il testo esiste, viene **incorporato direttamente nel tag `©lyr` del file m4a**, in formato LRC con i timestamp: il brano resta **un file unico** che porta con sé anche il testo, su PC come su telefono.
 
-- viene salvato come **file `.lrc`** con lo stesso nome del file audio (`Canzone.m4a` + `Canzone.lrc`): i lettori compatibili (VLC, Poweramp, Musicolet, Jellyfin, Plex...) lo mostrano **riga per riga in stile karaoke** mentre il brano suona
-- viene anche **incorporato nel tag `©lyr`** del file m4a, così il testo viaggia dentro il file stesso
+I lettori che leggono il testo dai tag (Musicolet, Oto Music, AIMP, Samsung Music su Android; MusicBee, foobar2000, AIMP su PC) lo mostrano **riga per riga in stile karaoke**; quelli più basilari lo mostrano come testo statico.
 
 Dettagli del funzionamento:
 
 - il titolo YouTube viene **ripulito** dalle decorazioni (`(Official Video)`, `[HD]`, `(Lyrics)`, ...) prima della ricerca, e i titoli nel formato `Artista - Brano` vengono separati nei due campi
 - prima si tenta la **corrispondenza esatta** artista+titolo+durata, poi una ricerca libera scartando i risultati con durata troppo diversa (>10 s: probabilmente live o remix)
-- un file `.lrc` pesa **pochi KB** (~0,1% dell'audio): l'impatto sullo spazio è trascurabile
+- il testo pesa **pochi KB** (~0,1% dell'audio): l'impatto sulla dimensione del file è trascurabile
 - se il testo non esiste o la rete fallisce **non succede nulla**: i testi sono un extra, mai un motivo di fallimento del download
 - il riepilogo finale mostra quante tracce hanno ottenuto il testo (`♫ Testi karaoke`)
 - per disattivare la ricerca: `--no-lyrics`
 
-Esempio di file `.lrc` generato:
+Esempio del testo incorporato (formato LRC):
 
 ```
 [00:18.98] We're no strangers to love

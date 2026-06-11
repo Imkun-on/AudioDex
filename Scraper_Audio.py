@@ -539,14 +539,14 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
       1. salta subito se il file esiste già su disco (status 'skip');
       2. scarica il solo flusso audio (mai il video) e lo converte nel
          formato richiesto tramite ffmpeg;
-      3. cerca il testo sincronizzato su LRCLIB: se trovato lo salva come
-         file .lrc accanto all'audio (karaoke nei lettori compatibili);
-      4. scrive i tag, la copertina e il testo nel file;
+      3. cerca il testo sincronizzato su LRCLIB e, se trovato, lo incorpora
+         nei tag del file audio (un file unico, nessun .lrc separato);
+      4. scrive anche titolo, artista, album e copertina nei tag;
       5. registra il download nel database globale.
     In caso di errore riprova fino a MAX_RETRIES volte con attesa crescente.
 
     Restituisce {'title', 'status' ('ok'/'skip'/'fail'), 'file', 'error',
-    'lyrics' (True se è stato trovato il testo sincronizzato)}.
+    'lyrics' (True se è stato trovato e incorporato il testo)}.
     """
     title = entry.get('title', 'Sconosciuto')
     url = entry.get('url', '')
@@ -623,8 +623,9 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         break
 
                 if os.path.isfile(final_file):
-                    # Testo sincronizzato: file .lrc accanto all'audio (stesso
-                    # nome), così i lettori lo mostrano in stile karaoke.
+                    # Testo: incorporato direttamente nei tag del file audio
+                    # (formato LRC con i timestamp), così il brano resta un
+                    # file unico che porta con sé anche il testo.
                     synced, plain = (None, None)
                     if fetch_lyrics:
                         synced, plain = _fetch_lyrics(
@@ -632,15 +633,9 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                             info.get('artist') or info.get('uploader') or uploader,
                             info.get('duration') or entry.get('duration'),
                         )
-                        if synced:
-                            lrc_path = os.path.splitext(final_file)[0] + '.lrc'
-                            try:
-                                with open(lrc_path, 'w', encoding='utf-8') as lf:
-                                    lf.write(synced)
-                                result['lyrics'] = True
-                                log.info('Testo sincronizzato trovato: %s', title)
-                            except OSError as e:
-                                log.warning('Impossibile salvare .lrc per %s: %s', title, e)
+                        if synced or plain:
+                            result['lyrics'] = True
+                            log.info('Testo trovato: %s', title)
 
                     thumbnail = info.get('thumbnail')
                     _tag_m4a(
