@@ -46,6 +46,7 @@ python Scraper_Audio.py
 - [Database globale](#database-globale)
 - [Gestione degli errori e tracce fallite](#gestione-degli-errori-e-tracce-fallite)
 - [Formati di output](#formati-di-output)
+- [Changelog](#changelog)
 - [Licenza e note](#licenza-e-note)
 
 ---
@@ -141,7 +142,7 @@ python Scraper_Audio.py
 1. **Avvio**: banner, controllo dello spazio disco, inizializzazione del database
 2. **Cerca o incolla**: digita un nome di canzone/artista per cercare, oppure incolla direttamente un URL
 3. **Selezione**: scegli quali risultati scaricare (numero, intervallo, elenco, `all`)
-4. **Download**: le tracce vengono scaricate in parallelo con barre di avanzamento live
+4. **Download**: le tracce vengono scaricate in parallelo con barre di avanzamento live; ogni file viene taggato (titolo, artista, album, copertina) e arricchito del testo sincronizzato se disponibile
 5. **Riepilogo**: pannello finale con scaricate / già presenti / fallite
 6. Il loop riparte: nuova ricerca o `q` per uscire
 
@@ -380,6 +381,30 @@ Dettagli tecnici:
 | `opus` | Ogg/Opus | Massima efficienza qualità/dimensione; supporto dispositivi meno diffuso |
 
 > **Consiglio:** lascia `m4a` se non hai esigenze particolari — è il formato in cui YouTube serve l'audio, quindi non c'è alcuna conversione né perdita.
+
+---
+
+## Changelog
+
+### 2026-06-11
+
+**Correzioni**
+
+- **Ricerca YouTube riparata**: l'opzione `default_search` di yt-dlp restituiva sempre 0 risultati con le versioni recenti — ora la ricerca usa il prefisso esplicito `ytsearchN:`. Aggiornato anche yt-dlp alla 2026.6.9 e vincolata come versione minima in `requirements.txt`
+- **Import compatibile con gli IDE**: `scraper_db` viene importato come `from Database_Globale import scraper_db` invece che tramite manipolazione di `sys.path`, così Pylance/VS Code lo risolvono senza falsi errori
+- **Fallback artista/canale**: i campi `uploader`/`channel` con valore `None` non producono più "None" nelle tabelle
+
+**Modifiche**
+
+- **Solo audio**: rimosso del tutto il percorso di download video. Il default è passato da `mp4` (video completo) a `m4a` (solo traccia audio): file di pochi MB invece di centinaia, a parità di qualità sonora. Formati disponibili: `m4a`, `mp3`, `opus`
+- **Documentazione del codice in italiano**: ogni funzione, classe e modulo ha una docstring che spiega cosa fa e perché esiste; commenti mirati sulle parti non ovvie (opzioni yt-dlp, threading, database)
+
+**Nuove funzionalità**
+
+- **Testi sincronizzati stile karaoke**: dopo ogni download il testo con i timestamp viene cercato su LRCLIB e incorporato nei tag del file audio (formato LRC) — un file unico con dentro anche il testo. Riepilogo con conteggio `♫ Testi karaoke`; disattivabile con `--no-lyrics`
+- **Playlist e video privati**: nuova opzione `--cookies-from-browser <browser>` che autentica yt-dlp con i cookie del browser; documentata anche l'alternativa più semplice (playlist "Non in elenco")
+- **`requirements.txt`** con versioni minime e note su FFmpeg e sull'aggiornamento frequente di yt-dlp
+- **Repository GitHub privata** con `.gitignore` che esclude contenuti scaricati, database locale e log
 
 ---
 
