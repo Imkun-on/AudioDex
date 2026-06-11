@@ -1,0 +1,23 @@
+# Contenuti scaricati (pesanti + copyright): mai su GitHub
+download_audio/
+failed_tracks.txt
+
+# Database locale (condiviso con gli altri scraper)
+*.db
+*.db-shm
+*.db-wal
+
+# Log
+logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / sistema
+.vscode/
+Thumbs.db
+desktop.ini
