@@ -53,7 +53,7 @@ python Scraper_Audio.py
 
 ## Caratteristiche
 
-- **Ricerca su YouTube per nome** di canzone o artista, con risultati in una tabella numerata (titolo, canale, durata, views) e selezione flessibile: numero singolo, intervallo (`1-5`), elenco (`1,3,7`) o `all`
+- **Ricerca su YouTube per nome** di canzone o artista, con risultati in una tabella numerata e selezione flessibile: numero singolo, intervallo (`1-5`), elenco (`1,3,7`) o `all`. Le colonne separano **titolo** e **artista** (ricavato dal formato `Artista - Brano` o dal canale), con durata e views quando disponibili
 - **Elenco completo delle tracce di una playlist** prima della conferma di download, con le stesse colonne della ricerca
 - **Download diretto da URL** di video singoli, playlist e album (YouTube `playlist?list=`, link con `&list=`, e riconoscimento dei pattern playlist di Spotify/SoundCloud)
 - **Solo audio, mai il video**: viene scaricato esclusivamente il flusso `bestaudio` e convertito nel formato scelto (`m4a`, `mp3`, `opus`) — un brano occupa pochi MB invece di centinaia
@@ -404,7 +404,8 @@ Dettagli tecnici:
 
 - **Testi sincronizzati stile karaoke**: dopo ogni download il testo con i timestamp viene cercato su LRCLIB e incorporato nei tag del file audio (formato LRC) — un file unico con dentro anche il testo. Riepilogo con conteggio `♫ Testi karaoke`; disattivabile con `--no-lyrics`
 - **Playlist e video privati**: nuova opzione `--cookies-from-browser <browser>` che autentica yt-dlp con i cookie del browser; documentata anche l'alternativa più semplice (playlist "Non in elenco")
-- **Tabella delle tracce di una playlist** mostrata prima della conferma di download, e colonna **Views** (formato compatto: `2.1 Mrd`, `45 Mln`, `350 K`) in tutte le tabelle. I like non sono mostrati: YouTube non li espone nei dati leggeri delle liste e recuperarli costerebbe ~5 s per traccia
+- **Tabella delle tracce di una playlist** mostrata prima della conferma di download, e colonna **Views** (formato compatto: `2.1 Mrd`, `45 Mln`, `350 K`) dove YouTube fornisce il dato — nelle playlist non lo espone, quindi lì la colonna è nascosta. I like non sono mostrati: recuperarli costerebbe ~5 s per traccia
+- **Colonne Titolo e Artista separate**: l'artista viene ricavato dal titolo (`Artista - Brano`) o dal nome del canale, e il titolo viene ripulito dalle decorazioni (`(Official Video)`, `(Lyrics)`, ...)
 - **`requirements.txt`** con versioni minime e note su FFmpeg e sull'aggiornamento frequente di yt-dlp
 - **Repository GitHub privata** con `.gitignore` che esclude contenuti scaricati, database locale e log
 
