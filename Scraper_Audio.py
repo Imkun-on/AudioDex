@@ -50,6 +50,9 @@ except ImportError:
 
 SYM_NOTE = '[accent]♫[/accent]'
 
+# API pubblica e gratuita di testi sincronizzati (formato LRC), senza chiave.
+LRCLIB_API = 'https://lrclib.net/api'
+
 
 def _print_banner() -> None:
     """Stampa il banner ASCII colorato 'AudioDex' all'avvio del programma."""
@@ -158,6 +161,65 @@ def _format_size(bytes_val: int | float | None) -> str:
     if mb >= 1024:
         return f'{mb / 1024:.1f} GB'
     return f'{mb:.1f} MB'
+
+
+def _clean_track_title(title: str) -> str:
+    """Ripulisce il titolo YouTube dalle decorazioni non musicali.
+
+    Rimuove le parentesi tipo '(Official Video)', '[HD]', '(Lyrics)' ecc.,
+    che farebbero fallire la ricerca del testo nei database di lyrics.
+    """
+    cleaned = re.sub(
+        r'[\(\[][^)\]]*(official|video|lyric|audio|visualizer|hd|4k|remaster|m/?v)[^)\]]*[\)\]]',
+        '', title, flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip(' -_|')
+    return cleaned or title
+
+
+def _fetch_lyrics(title: str, artist: str, duration: int | float | None) -> tuple[str | None, str | None]:
+    """Cerca su LRCLIB il testo sincronizzato (karaoke) di una traccia.
+
+    Restituisce (testo_sincronizzato_lrc, testo_semplice); entrambi None se
+    non trovato. Prima tenta la corrispondenza esatta artista+titolo+durata,
+    poi una ricerca libera scartando i risultati con durata troppo diversa
+    (>10s: probabilmente versione live o remix). Qualsiasi errore di rete
+    viene solo loggato: i testi sono un extra, mai un motivo di fallimento.
+    """
+    cleaned = _clean_track_title(title)
+    artist = (artist or '').removesuffix(' - Topic').strip()
+    track = cleaned
+    # Titoli nel formato 'Artista - Brano': più affidabili del nome canale
+    if ' - ' in cleaned:
+        maybe_artist, maybe_track = cleaned.split(' - ', 1)
+        artist, track = maybe_artist.strip(), maybe_track.strip()
+
+    headers = {'User-Agent': 'AudioDex/1.0 (https://github.com/Imkun-on/Scraper_Audio)'}
+    try:
+        if artist and duration:
+            resp = requests.get(
+                f'{LRCLIB_API}/get',
+                params={'artist_name': artist, 'track_name': track, 'duration': int(duration)},
+                headers=headers, timeout=REQUEST_TIMEOUT,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data.get('instrumental'):
+                    return data.get('syncedLyrics'), data.get('plainLyrics')
+
+        params = {'track_name': track, 'artist_name': artist} if artist else {'q': track}
+        resp = requests.get(f'{LRCLIB_API}/search', params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+        if resp.status_code == 200:
+            for item in resp.json():
+                if item.get('instrumental'):
+                    continue
+                if duration and item.get('duration') and abs(item['duration'] - duration) > 10:
+                    continue
+                if item.get('syncedLyrics') or item.get('plainLyrics'):
+                    return item.get('syncedLyrics'), item.get('plainLyrics')
+    except Exception as e:
+        log.debug("LRCLIB errore per '%s': %s", title, e)
+    return None, None
 
 
 def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[dict]:
@@ -336,6 +398,9 @@ def _display_download_summary(results: list[dict]) -> None:
 
     summary_table.add_row('Tracce totali', f'[bold]{len(results)}[/bold]')
     summary_table.add_row(f'{SYM_OK} Scaricate', f'[success]{ok}[/success]')
+    lyrics_found = sum(1 for r in results if r.get('lyrics'))
+    if lyrics_found > 0:
+        summary_table.add_row(f'{SYM_NOTE} Testi karaoke', f'[info]{lyrics_found}[/info]')
     if skip > 0:
         summary_table.add_row(f"{SYM_DOT} Gia' presenti", f'[info]{skip}[/info]')
     if fail > 0:
@@ -359,8 +424,8 @@ def _display_download_summary(results: list[dict]) -> None:
 
 def _tag_m4a(filepath: str, title: str | None = None, artist: str | None = None,
              album: str | None = None, track_num: int | None = None,
-             thumbnail_url: str | None = None) -> None:
-    """Scrive i metadati (titolo, artista, album, n. traccia, copertina) nel file.
+             thumbnail_url: str | None = None, lyrics: str | None = None) -> None:
+    """Scrive i metadati (titolo, artista, album, n. traccia, copertina, testo) nel file.
 
     I file .m4a usano il container MP4, quindi i tag seguono lo standard
     iTunes (©nam, ©ART, ...). La copertina viene scaricata dalla thumbnail
@@ -386,6 +451,8 @@ def _tag_m4a(filepath: str, title: str | None = None, artist: str | None = None,
             tags['©alb'] = [album]
         if track_num:
             tags['trkn'] = [(track_num, 0)]
+        if lyrics:
+            tags['©lyr'] = [lyrics]
 
         if thumbnail_url:
             try:
@@ -464,24 +531,28 @@ class _YtDlpProgressHook:
 
 def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                     track_num: int | None = None, album: str | None = None,
-                    progress: Progress | None = None, task_id=None) -> dict:
+                    progress: Progress | None = None, task_id=None,
+                    fetch_lyrics: bool = True) -> dict:
     """Scarica una singola traccia come file audio e ne registra i metadati.
 
     Flusso completo:
       1. salta subito se il file esiste già su disco (status 'skip');
       2. scarica il solo flusso audio (mai il video) e lo converte nel
          formato richiesto tramite ffmpeg;
-      3. scrive i tag e la copertina nel file;
-      4. registra il download nel database globale.
+      3. cerca il testo sincronizzato su LRCLIB: se trovato lo salva come
+         file .lrc accanto all'audio (karaoke nei lettori compatibili);
+      4. scrive i tag, la copertina e il testo nel file;
+      5. registra il download nel database globale.
     In caso di errore riprova fino a MAX_RETRIES volte con attesa crescente.
 
-    Restituisce {'title', 'status' ('ok'/'skip'/'fail'), 'file', 'error'}.
+    Restituisce {'title', 'status' ('ok'/'skip'/'fail'), 'file', 'error',
+    'lyrics' (True se è stato trovato il testo sincronizzato)}.
     """
     title = entry.get('title', 'Sconosciuto')
     url = entry.get('url', '')
     uploader = entry.get('uploader', '')
 
-    result = {'title': title, 'status': 'fail', 'file': '', 'error': ''}
+    result = {'title': title, 'status': 'fail', 'file': '', 'error': '', 'lyrics': False}
 
     if _shutdown_event.is_set():
         result['error'] = 'shutdown'
@@ -552,6 +623,25 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         break
 
                 if os.path.isfile(final_file):
+                    # Testo sincronizzato: file .lrc accanto all'audio (stesso
+                    # nome), così i lettori lo mostrano in stile karaoke.
+                    synced, plain = (None, None)
+                    if fetch_lyrics:
+                        synced, plain = _fetch_lyrics(
+                            info.get('title', title),
+                            info.get('artist') or info.get('uploader') or uploader,
+                            info.get('duration') or entry.get('duration'),
+                        )
+                        if synced:
+                            lrc_path = os.path.splitext(final_file)[0] + '.lrc'
+                            try:
+                                with open(lrc_path, 'w', encoding='utf-8') as lf:
+                                    lf.write(synced)
+                                result['lyrics'] = True
+                                log.info('Testo sincronizzato trovato: %s', title)
+                            except OSError as e:
+                                log.warning('Impossibile salvare .lrc per %s: %s', title, e)
+
                     thumbnail = info.get('thumbnail')
                     _tag_m4a(
                         final_file,
@@ -560,6 +650,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         album=album or info.get('album'),
                         track_num=track_num,
                         thumbnail_url=thumbnail,
+                        lyrics=synced or plain,
                     )
 
                     result['status'] = 'ok'
@@ -595,7 +686,8 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
 
 
 def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4a',
-                   album: str | None = None, max_workers: int = MAX_DOWNLOAD_WORKERS) -> list[dict]:
+                   album: str | None = None, max_workers: int = MAX_DOWNLOAD_WORKERS,
+                   fetch_lyrics: bool = True) -> list[dict]:
     """Scarica più tracce in parallelo mostrando le barre di avanzamento.
 
     Usa un pool di thread (max_workers download simultanei) e due barre
@@ -661,6 +753,7 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                     download_single, entry, output_dir, audio_format,
                     track_num=i + 1, album=album,
                     progress=file_progress, task_id=tid,
+                    fetch_lyrics=fetch_lyrics,
                 )
                 futures[future] = i
 
@@ -811,8 +904,11 @@ def main() -> None:
                         help=f'Worker paralleli (default: {MAX_DOWNLOAD_WORKERS})')
     parser.add_argument('--max-results', type=int, default=MAX_SEARCH_RESULTS,
                         help=f'Risultati ricerca max (default: {MAX_SEARCH_RESULTS})')
+    parser.add_argument('--no-lyrics', action='store_true',
+                        help='Non cercare i testi sincronizzati (.lrc) su LRCLIB')
 
     args = parser.parse_args()
+    fetch_lyrics = not args.no_lyrics
 
     signal.signal(signal.SIGINT, _signal_handler)
 
@@ -864,13 +960,13 @@ def main() -> None:
                         entries = selected
                     album_name = _sanitize_filename(title)
                     sub_dir = os.path.join(output_dir, album_name)
-                    results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers)
+                    results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
                 else:
                     title, entries = get_playlist_entries(query)
                     if not entries:
                         console.print('[error]Impossibile estrarre info dal URL.[/error]')
                         continue
-                    results = download_batch(entries, output_dir, args.format, max_workers=args.workers)
+                    results = download_batch(entries, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
 
                 _display_download_summary(results)
                 _export_failed(output_dir, results, entries)
@@ -883,7 +979,7 @@ def main() -> None:
                 selected = _select_from_results(results)
                 if not selected:
                     continue
-                dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers)
+                dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
                 _display_download_summary(dl_results)
                 _export_failed(output_dir, dl_results, selected)
 
@@ -899,7 +995,7 @@ def main() -> None:
         selected = _select_from_results(results)
         if not selected:
             return
-        dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers)
+        dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
         _display_download_summary(dl_results)
         _export_failed(output_dir, dl_results, selected)
         return
@@ -913,13 +1009,13 @@ def main() -> None:
             _display_playlist_info(title, entries)
             album_name = _sanitize_filename(title)
             sub_dir = os.path.join(output_dir, album_name)
-            results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers)
+            results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
         else:
             title, entries = get_playlist_entries(args.url)
             if not entries:
                 console.print('[error]Impossibile estrarre info.[/error]')
                 return
-            results = download_batch(entries, output_dir, args.format, max_workers=args.workers)
+            results = download_batch(entries, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
 
         _display_download_summary(results)
         _export_failed(output_dir, results, entries)
