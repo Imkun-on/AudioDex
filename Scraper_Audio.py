@@ -128,9 +128,46 @@ def _retry_delay(attempt: int) -> float:
     return retry_delay(attempt, base=RETRY_BASE_DELAY, jitter=(1.0, 3.0))
 
 
+# yt-dlp sostituisce i caratteri vietati da Windows (/ : | ? * " < >) con dei
+# "sosia" Unicode a tutta larghezza (es. / -> ⧸, : -> ：, | -> ｜). Alcuni
+# telefoni rifiutano questi nomi durante la copia via cavo USB, quindi li
+# riconvertiamo in '_': lo stesso simbolo usato per i caratteri vietati, così
+# il nome resta coerente con il controllo dei file "gia' scaricati".
+_LOOKALIKE_MAP = str.maketrans({
+    '⧸': '_', '⧹': '_',  # ⧸ ⧹  (al posto di / \)
+    '／': '_', '＼': '_',  # ／ ＼  (al posto di / \)
+    '：': '_',                 # ：     (al posto di :)
+    '｜': '_',                 # ｜     (al posto di |)
+    '？': '_', '＊': '_',  # ？ ＊  (al posto di ? *)
+    '＂': '_',                 # ＂     (al posto di ")
+    '＜': '_', '＞': '_',  # ＜ ＞  (al posto di < >)
+})
+
+# Blocchi Unicode di emoji e simboli pittografici: anche questi mandano in
+# errore la copia verso il telefono, quindi li togliamo del tutto.
+_EMOJI_RE = re.compile(
+    '[\U0001F000-\U0001FAFF'  # emoji, emoticon e simboli pittografici
+    '\U00002600-\U000027BF'   # simboli vari e dingbat
+    '\U00002300-\U000023FF'   # simboli tecnici (orologi, ecc.)
+    '\U00002B00-\U00002BFF'   # stelle e frecce decorative
+    '︀-️'           # selettori di variazione (emoji a colori)
+    '‍]+'                # giunzione a larghezza zero (emoji composte)
+)
+
+
 def _sanitize_filename(name: str) -> str:
-    """Sostituisce con '_' i caratteri vietati da Windows nei nomi file."""
-    return re.sub(r'[<>:"/\\|?*]', '_', name).strip()
+    """Rende il nome del file compatibile con Windows e con i telefoni.
+
+    Oltre a sostituire con '_' i caratteri vietati da Windows, riconverte i
+    "sosia" Unicode che yt-dlp usa al loro posto (⧸ ： ｜ ...) e rimuove le
+    emoji: in entrambi i casi alcuni telefoni rifiuterebbero il file durante
+    la copia via cavo USB.
+    """
+    name = name.translate(_LOOKALIKE_MAP)
+    name = _EMOJI_RE.sub('', name)
+    name = re.sub(r'[<>:"/\\|?*]', '_', name)
+    name = re.sub(r'\s{2,}', ' ', name).strip()
+    return name.rstrip(' .')
 
 
 def _check_disk_space(path: str) -> bool:
@@ -683,6 +720,21 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         break
 
                 if os.path.isfile(final_file):
+                    # Ripulisce il nome dai "sosia" Unicode e dalle emoji che
+                    # yt-dlp lascia nel nome del file: così il brano si copia
+                    # senza intoppi sul telefono via cavo USB.
+                    folder, current = os.path.split(final_file)
+                    stem, ext = os.path.splitext(current)
+                    clean = _sanitize_filename(stem)
+                    if clean and clean != stem:
+                        target = os.path.join(folder, clean + ext)
+                        if not os.path.exists(target):
+                            try:
+                                os.replace(final_file, target)
+                                final_file = target
+                            except OSError as exc:
+                                log.warning('Rinomina del file non riuscita: %s', exc)
+
                     # Testo: incorporato direttamente nei tag del file audio
                     # (formato LRC con i timestamp), così il brano resta un
                     # file unico che porta con sé anche il testo.
