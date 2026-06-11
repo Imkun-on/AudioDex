@@ -357,10 +357,13 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
     return playlist_title, entries
 
 
-def _display_search_results(results: list[dict]) -> None:
-    """Mostra i risultati di ricerca in una tabella numerata (per la selezione)."""
+def _display_search_results(results: list[dict], table_title: str = 'Risultati ricerca') -> None:
+    """Mostra un elenco di tracce in una tabella numerata (per la selezione).
+
+    Usata sia per i risultati di ricerca sia per le tracce di una playlist.
+    """
     table = Table(
-        title='Risultati ricerca',
+        title=table_title,
         box=ROUNDED,
         border_style='bright_blue',
         header_style='bold bright_cyan',
@@ -964,6 +967,7 @@ def main() -> None:
                         console.print('[error]Nessuna traccia trovata nella playlist.[/error]')
                         continue
                     _display_playlist_info(title, entries)
+                    _display_search_results(entries, table_title='Tracce della playlist')
                     console.print(f'\n[dim_label]Scaricare tutte le {len(entries)} tracce? (s/n)[/dim_label]')
                     answer = console.input('[bold]> [/bold]').strip().lower()
                     if answer != 's':
@@ -1020,6 +1024,7 @@ def main() -> None:
                 console.print('[error]Nessuna traccia trovata.[/error]')
                 return
             _display_playlist_info(title, entries)
+            _display_search_results(entries, table_title='Tracce della playlist')
             album_name = _sanitize_filename(title)
             sub_dir = os.path.join(output_dir, album_name)
             results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
