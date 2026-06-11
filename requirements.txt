@@ -1,0 +1,5 @@
+# Scraper_Audio - dipendenze
+yt-dlp
+requests
+rich
+mutagen   # opzionale: tagging metadati/copertina dei file .m4a
