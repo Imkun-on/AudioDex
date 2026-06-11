@@ -95,6 +95,18 @@ log = setup_logger('scraper_audio', 'scraper_audio.log')
 # in modo pulito appena terminano quelli in corso.
 _shutdown_event = threading.Event()
 
+# Impostato da --cookies-from-browser: yt-dlp legge i cookie del browser
+# indicato e si presenta a YouTube autenticato. Serve per playlist e video
+# privati, che altrimenti risultano "inesistenti".
+_cookies_browser: str | None = None
+
+
+def _apply_cookies(ydl_opts: dict) -> dict:
+    """Aggiunge le opzioni cookie a un dict di opzioni yt-dlp, se richieste."""
+    if _cookies_browser:
+        ydl_opts['cookiesfrombrowser'] = (_cookies_browser,)
+    return ydl_opts
+
 
 def _signal_handler(signum, frame):
     """Gestisce Ctrl+C: il primo chiede l'arresto pulito, il secondo forza l'uscita."""
@@ -232,11 +244,11 @@ def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[di
     log.info("Ricerca YouTube: '%s'", query)
     results = []
 
-    ydl_opts = {
+    ydl_opts = _apply_cookies({
         'quiet': True,
         'no_warnings': True,
         'extract_flat': True,
-    }
+    })
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -302,13 +314,13 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
         url = _normalize_playlist_url(url)
         log.debug('URL normalizzato: %s', url)
 
-    ydl_opts = {
+    ydl_opts = _apply_cookies({
         'quiet': True,
         'no_warnings': True,
         'extract_flat': True,
         'ignoreerrors': True,
         'noplaylist': False,
-    }
+    })
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -574,7 +586,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
     # Solo audio: niente traccia video, il file occupa una frazione dello spazio.
     # 'FFmpegExtractAudio' converte (o rimuxa senza ricodifica, quando il
     # formato sorgente coincide) nel formato scelto dall'utente.
-    ydl_opts = {
+    ydl_opts = _apply_cookies({
         'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'outtmpl': outtmpl,
         'quiet': True,
@@ -589,7 +601,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
         }],
         'writethumbnail': False,
         'noplaylist': True,
-    }
+    })
 
     if progress and task_id is not None:
         hook = _YtDlpProgressHook(progress, task_id, title)
@@ -900,10 +912,16 @@ def main() -> None:
     parser.add_argument('--max-results', type=int, default=MAX_SEARCH_RESULTS,
                         help=f'Risultati ricerca max (default: {MAX_SEARCH_RESULTS})')
     parser.add_argument('--no-lyrics', action='store_true',
-                        help='Non cercare i testi sincronizzati (.lrc) su LRCLIB')
+                        help='Non cercare i testi sincronizzati su LRCLIB')
+    parser.add_argument('--cookies-from-browser', type=str, default=None,
+                        choices=['firefox', 'chrome', 'edge', 'brave', 'opera', 'vivaldi'],
+                        help='Usa i cookie del browser indicato per accedere a playlist/video privati')
 
     args = parser.parse_args()
     fetch_lyrics = not args.no_lyrics
+
+    global _cookies_browser
+    _cookies_browser = args.cookies_from_browser
 
     signal.signal(signal.SIGINT, _signal_handler)
 
