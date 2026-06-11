@@ -203,6 +203,23 @@ def _clean_track_title(title: str) -> str:
     return cleaned or title
 
 
+def _split_artist_title(title: str, uploader: str | None = None) -> tuple[str, str]:
+    """Separa artista e brano dal titolo di un video YouTube.
+
+    I titoli musicali sono quasi sempre nel formato 'Artista - Brano
+    (decorazioni)': dopo la pulizia delle decorazioni, la parte prima del
+    trattino è l'artista. Se il formato manca, come artista si usa il nome
+    del canale (senza il suffisso ' - Topic' dei canali auto-generati).
+    Restituisce (artista, brano); artista può essere stringa vuota.
+    """
+    cleaned = _clean_track_title(title)
+    if ' - ' in cleaned:
+        artist, track = cleaned.split(' - ', 1)
+        return artist.strip(), track.strip()
+    artist = (uploader or '').removesuffix(' - Topic').strip()
+    return artist, cleaned
+
+
 def _fetch_lyrics(title: str, artist: str, duration: int | float | None) -> tuple[str | None, str | None]:
     """Cerca su LRCLIB il testo sincronizzato (karaoke) di una traccia.
 
@@ -212,13 +229,7 @@ def _fetch_lyrics(title: str, artist: str, duration: int | float | None) -> tupl
     (>10s: probabilmente versione live o remix). Qualsiasi errore di rete
     viene solo loggato: i testi sono un extra, mai un motivo di fallimento.
     """
-    cleaned = _clean_track_title(title)
-    artist = (artist or '').removesuffix(' - Topic').strip()
-    track = cleaned
-    # Titoli nel formato 'Artista - Brano': più affidabili del nome canale
-    if ' - ' in cleaned:
-        maybe_artist, maybe_track = cleaned.split(' - ', 1)
-        artist, track = maybe_artist.strip(), maybe_track.strip()
+    artist, track = _split_artist_title(title, artist)
 
     headers = {'User-Agent': 'AudioDex/1.0 (https://github.com/Imkun-on/Scraper_Audio)'}
     try:
@@ -388,20 +399,28 @@ def _display_search_results(results: list[dict], table_title: str = 'Risultati r
         row_styles=['', 'dim'],
         expand=False,
     )
+    # Nelle playlist YouTube non fornisce le views: la colonna compare
+    # solo quando almeno una riga ha il dato (es. risultati di ricerca).
+    show_views = any(r.get('views') for r in results)
+
     table.add_column('#', style='bold yellow', justify='right', width=4)
-    table.add_column('Titolo', style='white', max_width=50, no_wrap=True)
-    table.add_column('Artista/Canale', style='bright_magenta', max_width=25, no_wrap=True)
+    table.add_column('Titolo', style='white', max_width=45, no_wrap=True)
+    table.add_column('Artista', style='bright_magenta', max_width=25, no_wrap=True)
     table.add_column('Durata', style='cyan', justify='right', width=8)
-    table.add_column('Views', style='green', justify='right', width=9)
+    if show_views:
+        table.add_column('Views', style='green', justify='right', width=9)
 
     for i, r in enumerate(results, 1):
-        table.add_row(
+        artist, track = _split_artist_title(r['title'], r.get('uploader'))
+        row = [
             str(i),
-            r['title'][:50],
-            (r.get('uploader') or '??')[:25],
+            track[:45],
+            (artist or '??')[:25],
             _format_duration(r.get('duration')),
-            _format_views(r.get('views')),
-        )
+        ]
+        if show_views:
+            row.append(_format_views(r.get('views')))
+        table.add_row(*row)
 
     console.print()
     console.print(table)
