@@ -168,15 +168,15 @@ Modalita' interattiva
 
 ♫ Cerca o incolla URL > linkin park in the end
 
-                        Risultati ricerca
-╭──────┬───────────────────────────────────────────┬───────────────┬────────╮
-│    # │ Titolo                                    │ Artista/Canale│ Durata │
-├──────┼───────────────────────────────────────────┼───────────────┼────────┤
-│    1 │ In The End [Official HD Music Video]      │ Linkin Park   │   3:54 │
-│    2 │ In the End                                │ Linkin Park   │   3:36 │
-│    3 │ Linkin Park - In The End (Audio)          │ YOUMUSIC      │   3:31 │
-│  ... │                                           │               │        │
-╰──────┴───────────────────────────────────────────┴───────────────┴────────╯
+                            Risultati ricerca
+╭──────┬───────────────────────────────┬──────────────┬────────┬─────────╮
+│    # │ Titolo                        │ Artista      │ Durata │   Views │
+├──────┼───────────────────────────────┼──────────────┼────────┼─────────┤
+│    1 │ In The End                    │ Linkin Park  │   3:54 │ 290 Mln │
+│    2 │ In the End                    │ Linkin Park  │   3:36 │ 1.2 Mrd │
+│    3 │ In The End                    │ Linkin Park  │   3:31 │  45 Mln │
+│  ... │                               │              │        │         │
+╰──────┴───────────────────────────────┴──────────────┴────────┴─────────╯
 
 Seleziona: numero singolo (3), intervallo (1-5), multipli (1,3,7),
 all per tutti, q per uscire
@@ -215,6 +215,16 @@ Incollando l'URL di una playlist (o di un video che appartiene a una playlist, t
 │ Tracce: 9   Durata totale: 33:18           │
 ╰────────────────────────────────────────────╯
 
+                Tracce della playlist
+╭──────┬─────────────────────────┬──────────────┬────────╮
+│    # │ Titolo                  │ Artista      │ Durata │
+├──────┼─────────────────────────┼──────────────┼────────┤
+│    1 │ Na Dne                  │ Molchat Doma │   3:31 │
+│    2 │ Tantsevat               │ Molchat Doma │   3:33 │
+│    3 │ Volny                   │ Molchat Doma │   3:25 │
+│  ... │                         │              │        │
+╰──────┴─────────────────────────┴──────────────┴────────╯
+
 Scaricare tutte le 9 tracce? (s/n)
 > s
 
@@ -227,7 +237,9 @@ Scaricare tutte le 9 tracce? (s/n)
 ⠋ #9 Коммерсанты     ██░░░░░░░░░░░░░  11%  0.4/3.5 MB  1.7 MB/s
 ```
 
-Le tracce finiscono in una **sottocartella con il nome dell'album** (`download_audio/Molchat Doma - Etazhi/`), taggate con album e numero di traccia nell'ordine della playlist. Rispondendo `n` alla domanda, si apre la selezione manuale (`1-5`, `1,3,7`, ecc.).
+Le tracce finiscono in una **sottocartella con il nome dell'album** (`download_audio/Molchat Doma - Etazhi/`), taggate con album e numero di traccia nell'ordine della playlist. Rispondendo `n` alla domanda, si apre la selezione manuale (`1-5`, `1,3,7`, ecc.) usando i numeri della tabella.
+
+> Nelle playlist la colonna **Views** non compare: YouTube non fornisce quel dato nell'elenco delle tracce (solo titolo e durata). L'artista viene ricavato dal titolo `Artista - Brano`; dove il formato manca compare `??`.
 
 ---
 
