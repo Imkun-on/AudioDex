@@ -22,7 +22,7 @@
 </div>
 
 ```bash
-git clone <url-della-tua-repo>
+git clone https://github.com/Imkun-on/Scraper_Audio.git
 cd Scraper_Audio
 pip install -r requirements.txt
 python Scraper_Audio.py
