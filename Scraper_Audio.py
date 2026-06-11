@@ -1,6 +1,8 @@
 # Scraper_Audio.py
-# Downloader audio da YouTube (singoli brani e playlist) con UI Rich,
-# tagging dei metadati .m4a via mutagen e registrazione su database globale.
+# Downloader audio da YouTube (singoli brani e playlist) con UI Rich:
+# scarica il solo flusso audio, tagga i metadati e la copertina via mutagen,
+# incorpora il testo sincronizzato (karaoke) da LRCLIB e registra ogni
+# download sul database SQLite globale condiviso con gli altri scraper.
 from __future__ import annotations
 
 import argparse
@@ -262,9 +264,10 @@ def _fetch_lyrics(title: str, artist: str, duration: int | float | None) -> tupl
 def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[dict]:
     """Cerca brani su YouTube e restituisce i metadati dei risultati.
 
-    Usa la ricerca interna di yt-dlp con 'extract_flat': ottiene solo titolo,
-    canale, durata e URL senza scaricare nulla. La lista serve a mostrare i
-    risultati all'utente e fargli scegliere cosa scaricare.
+    Usa la ricerca interna di yt-dlp con 'extract_flat': ottiene solo i
+    metadati (titolo, canale, durata, views, URL) senza scaricare nulla.
+    La lista serve a mostrare i risultati all'utente e fargli scegliere
+    cosa scaricare.
     """
     log.info("Ricerca YouTube: '%s'", query)
     results = []
@@ -329,9 +332,12 @@ def _normalize_playlist_url(url: str) -> str:
 def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
     """Recupera titolo e tracce di una playlist/album, o di un singolo video.
 
-    Come per la ricerca, 'extract_flat' scarica solo i metadati. Con
-    'ignoreerrors' i video privati o rimossi vengono saltati invece di far
-    fallire l'intera playlist. Restituisce (titolo, lista di tracce).
+    Come per la ricerca, 'extract_flat' scarica solo i metadati — ma per
+    le voci di una playlist YouTube fornisce SOLO titolo e durata (niente
+    canale né views): l'artista mostrato in tabella viene quindi ricavato
+    dal titolo. Con 'ignoreerrors' i video privati o rimossi vengono
+    saltati invece di far fallire l'intera playlist; le playlist private
+    richiedono --cookies-from-browser. Restituisce (titolo, lista tracce).
     """
     log.info('Recupero playlist: %s', url)
     entries = []
@@ -933,6 +939,9 @@ def main() -> None:
       - --search "testo"  -> ricerca una tantum con selezione dei risultati;
       - --url <link>      -> download diretto di un video o di una playlist.
     Le playlist vengono scaricate in una sottocartella col nome dell'album.
+    Opzioni trasversali: --format (m4a/mp3/opus), --workers (parallelismo),
+    --no-lyrics (salta i testi karaoke), --cookies-from-browser (accesso
+    a playlist e video privati con i cookie del browser).
     """
     parser = argparse.ArgumentParser(
         description='AudioDex - Downloader audio da YouTube',
