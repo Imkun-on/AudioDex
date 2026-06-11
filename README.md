@@ -257,7 +257,15 @@ python Scraper_Audio.py --url "https://..." --format mp3 --output "D:\Musica" --
 | `--format {m4a,mp3,opus}` | `-f` | `m4a` | Formato audio di output (solo audio, mai video) |
 | `--workers <n>` | `-w` | `3` | Numero di download paralleli |
 | `--max-results <n>` | — | `15` | Numero massimo di risultati di ricerca |
-| `--no-lyrics` | — | disattivato | Non cercare i testi sincronizzati (`.lrc`) su LRCLIB |
+| `--no-lyrics` | — | disattivato | Non cercare i testi sincronizzati su LRCLIB |
+| `--cookies-from-browser <browser>` | — | — | Usa i cookie del browser (`firefox`, `chrome`, `edge`, ...) per accedere a playlist e video **privati** |
+
+### Playlist private
+
+Se incolli l'URL di una tua playlist **privata**, YouTube risponde "The playlist does not exist": senza autenticazione la playlist è invisibile. Due soluzioni:
+
+1. **Consigliata:** su YouTube imposta la playlist su **"Non in elenco"** — non diventa pubblica (è visibile solo a chi ha il link) e l'URL funziona subito senza altre opzioni
+2. Per tenerla privata: avvia con `--cookies-from-browser firefox` (o il tuo browser) — yt-dlp legge i cookie e si presenta a YouTube autenticato come te. **Nota per Windows:** con Chrome/Edge la lettura dei cookie può fallire per la cifratura recente del browser (chiudi il browser prima di provare); con **Firefox** funziona in modo affidabile
 
 Senza `--search` né `--url` si avvia la **modalità interattiva**.
 
