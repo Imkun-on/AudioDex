@@ -1,4 +1,4 @@
-# Scraper_Audio.py
+# AudioDex.py
 # Downloader audio da YouTube (singoli brani e playlist) con UI Rich:
 # scarica il solo flusso audio, tagga i metadati e la copertina via mutagen,
 # incorpora il testo sincronizzato (karaoke) da LRCLIB e registra ogni
@@ -96,7 +96,7 @@ AUDIO_EXTS = frozenset({'m4a', 'mp3', 'opus'})
 VIDEO_EXTS = frozenset({'mp4', 'mkv'})
 
 
-log = setup_logger('scraper_audio', 'scraper_audio.log')
+log = setup_logger('audiodex', 'audiodex.log')
 
 
 # Evento condiviso tra i thread: quando viene impostato (primo Ctrl+C) i
@@ -277,7 +277,7 @@ def _fetch_lyrics(title: str, artist: str, duration: int | float | None) -> tupl
     """
     artist, track = _split_artist_title(title, artist)
 
-    headers = {'User-Agent': 'AudioDex/1.0 (https://github.com/Imkun-on/Scraper_Audio)'}
+    headers = {'User-Agent': 'AudioDex/1.0 (https://github.com/Imkun-on/AudioDex)'}
     try:
         if artist and duration:
             resp = requests.get(
@@ -1339,7 +1339,7 @@ def _export_failed(output_dir: str, results: list[dict], entries: list[dict]) ->
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write('# Tracce fallite\n')
-            f.write('# Per ritentare, copia gli URL e usa: python Scraper_Audio.py --url <URL>\n#\n')
+            f.write('# Per ritentare, copia gli URL e usa: python AudioDex.py --url <URL>\n#\n')
             for r in failed:
                 matching = [e for e in entries if e['title'] == r['title']]
                 url = matching[0]['url'] if matching else '??'
@@ -1469,7 +1469,7 @@ def main() -> None:
 
     parser.add_argument('--output', '-o', type=str,
                         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download_audio'),
-                        help='Cartella output (default: Scraper_Audio/download_audio)')
+                        help='Cartella output (default: AudioDex/download_audio)')
     parser.add_argument('--media', '-m', type=str, default=None,
                         choices=['audio', 'video'],
                         help='Scarica solo audio o il video intero. Se omesso, in '
