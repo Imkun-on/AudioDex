@@ -88,6 +88,13 @@ REQUEST_TIMEOUT = 30       # Timeout (secondi) delle richieste HTTP
 MIN_DISK_SPACE_MB = 200    # Sotto questa soglia di spazio libero si chiede conferma
 MAX_SEARCH_RESULTS = 15    # Numero massimo di risultati mostrati per una ricerca
 
+# Estensioni per tipo di media. Servono al controllo anti-duplicati: un
+# brano gia' scaricato in .m4a non deve far saltare il download dello
+# stesso titolo in video (e viceversa), mentre tra formati dello stesso
+# tipo il file esistente vale comunque come "gia' fatto".
+AUDIO_EXTS = frozenset({'m4a', 'mp3', 'opus'})
+VIDEO_EXTS = frozenset({'mp4', 'mkv'})
+
 
 log = setup_logger('scraper_audio', 'scraper_audio.log')
 
@@ -366,19 +373,25 @@ def _normalize_playlist_url(url: str) -> str:
     return url
 
 
-def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
-    """Recupera titolo e tracce di una playlist/album, o di un singolo video.
+def get_playlist_entries(url: str) -> tuple[str, list[dict], dict]:
+    """Recupera titolo, tracce e dati d'insieme di una playlist/album.
 
     Come per la ricerca, 'extract_flat' scarica solo i metadati — ma per
     le voci di una playlist YouTube fornisce SOLO titolo e durata (niente
     canale né views): l'artista mostrato in tabella viene quindi ricavato
-    dal titolo. Con 'ignoreerrors' i video privati o rimossi vengono
-    saltati invece di far fallire l'intera playlist; le playlist private
-    richiedono --cookies-from-browser. Restituisce (titolo, lista tracce).
+    dal titolo. A livello di **playlist**, invece, la stessa chiamata
+    riporta canale, visualizzazioni complessive, data di modifica e
+    visibilità: li restituiamo nel terzo valore, così il pannello di
+    riepilogo non costa una richiesta in più.
+
+    Con 'ignoreerrors' i video privati o rimossi vengono saltati invece
+    di far fallire l'intera playlist; le playlist private richiedono
+    --cookies-from-browser. Restituisce (titolo, tracce, dati playlist).
     """
     log.info('Recupero playlist: %s', url)
     entries = []
     playlist_title = 'Playlist'
+    meta: dict = {}
 
     if _is_playlist_url(url):
         url = _normalize_playlist_url(url)
@@ -396,8 +409,15 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if not info:
-                return playlist_title, []
+                return playlist_title, [], meta
             playlist_title = info.get('title', 'Playlist')
+            meta = {
+                'channel': info.get('channel') or info.get('uploader'),
+                'views': info.get('view_count'),
+                'modified': info.get('modified_date'),
+                'availability': info.get('availability'),
+                'count': info.get('playlist_count'),
+            }
             raw_entries = info.get('entries', [])
             if not raw_entries:
                 # Forse è un video singolo invece di una playlist
@@ -409,9 +429,14 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
                         'duration': info.get('duration'),
                         'views': info.get('view_count'),
                         'url': info.get('webpage_url', url),
+                        'index': 1,
                     })
-                return playlist_title, entries
-            for entry in raw_entries:
+                return playlist_title, entries, meta
+            # 'index' è la posizione nella playlist di origine, non nella lista
+            # che restituiamo: le voci saltate (video privati o rimossi) non
+            # fanno scalare le successive, e una selezione parziale conserva
+            # comunque la numerazione originale.
+            for pos, entry in enumerate(raw_entries, 1):
                 if not entry:
                     continue
                 vid_id = entry.get('id', '')
@@ -422,11 +447,136 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict]]:
                     'duration': entry.get('duration'),
                     'views': entry.get('view_count'),
                     'url': entry.get('url', entry.get('webpage_url', f'https://www.youtube.com/watch?v={vid_id}')),
+                    'index': entry.get('playlist_index') or pos,
                 })
+
+            # Dimensione della playlist intera: fissa la larghezza dello
+            # zero-padding anche quando se ne scarica solo un pezzo, così i
+            # numeri restano allineati con quelli già presenti in cartella.
+            playlist_size = max((e['index'] for e in entries), default=0)
+            for e in entries:
+                e['playlist_size'] = playlist_size
     except Exception as e:
         log.error('Errore recupero playlist: %s', e)
 
-    return playlist_title, entries
+    return playlist_title, entries, meta
+
+
+def get_video_details(url: str) -> dict | None:
+    """Recupera i metadati completi di un singolo video, senza scaricarlo.
+
+    A differenza di get_playlist_entries qui NON si usa 'extract_flat':
+    serve l'estrazione piena, l'unica che riporta visualizzazioni, mi
+    piace, iscritti al canale, categoria e lingua. Costa un paio di
+    secondi, accettabili per un video solo (su una playlist intera
+    sarebbero secondi per traccia, ed è il motivo per cui lì restiamo
+    sull'estrazione veloce). Restituisce None se il video non esiste o
+    non è accessibile.
+    """
+    ydl_opts = _apply_cookies({
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+    })
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info and info.get('entries'):
+                # URL di playlist passato per errore: si prende il primo
+                info = info['entries'][0]
+            return info or None
+    except Exception as e:
+        log.error('Errore info video: %s', e)
+        return None
+
+
+# Codici lingua più frequenti su YouTube, in forma leggibile. Gli altri
+# vengono mostrati com'è (il codice ISO resta comunque comprensibile).
+_LINGUE = {
+    'it': 'Italiano', 'en': 'Inglese', 'es': 'Spagnolo', 'fr': 'Francese',
+    'de': 'Tedesco', 'pt': 'Portoghese', 'ru': 'Russo', 'ja': 'Giapponese',
+    'ko': 'Coreano', 'zh': 'Cinese', 'ar': 'Arabo', 'nl': 'Olandese',
+    'pl': 'Polacco', 'tr': 'Turco', 'hi': 'Hindi', 'sv': 'Svedese',
+    'ro': 'Rumeno', 'el': 'Greco', 'uk': 'Ucraino', 'cs': 'Ceco',
+}
+
+
+def _format_language(code: str | None) -> str | None:
+    """Converte un codice lingua ('en', 'it-IT') nel nome esteso."""
+    if not code:
+        return None
+    return _LINGUE.get(code.split('-')[0].lower(), code)
+
+
+def _format_upload_date(raw: str | None) -> str:
+    """Converte la data di pubblicazione da 'AAAAMMGG' a 'GG/MM/AAAA'."""
+    if not raw or len(raw) != 8 or not raw.isdigit():
+        return '—'
+    return f'{raw[6:8]}/{raw[4:6]}/{raw[0:4]}'
+
+
+def _display_video_card(info: dict) -> None:
+    """Mostra la scheda di un video: canale, numeri, categoria, durata.
+
+    È il riepilogo che si vede dopo aver incollato un URL, prima di
+    confermare il download: serve a capire a colpo d'occhio se il video
+    è quello giusto. I campi assenti (YouTube non sempre li espone)
+    vengono semplicemente omessi invece di mostrare un vuoto.
+    """
+    table = Table(show_header=False, box=None, padding=(0, 2), expand=False)
+    table.add_column('Campo', style='dim_label', no_wrap=True)
+    table.add_column('Valore', style='white')
+
+    righe = [
+        ('📺', 'Canale', info.get('uploader') or info.get('channel')),
+        ('👁', 'Visualizzazioni', _format_views(info.get('view_count'))),
+        ('👍', 'Mi piace', _format_views(info.get('like_count'))),
+        ('👥', 'Iscritti', _format_views(info.get('channel_follower_count'))),
+        ('🏷', 'Categoria', (info.get('categories') or [None])[0]),
+        ('🗣', 'Lingua', _format_language(info.get('language'))),
+        ('📅', 'Pubblicato', _format_upload_date(info.get('upload_date'))),
+        ('⏱', 'Durata', _format_duration(info.get('duration'))),
+    ]
+    # I segnaposto dei formattatori ('—', '??:??') indicano un dato che
+    # YouTube non ha esposto: meglio togliere la riga che mostrare un vuoto.
+    for icona, etichetta, valore in righe:
+        if valore and str(valore) not in ('—', '??:??'):
+            table.add_row(f'{icona}  {etichetta}', str(valore))
+
+    capitoli = info.get('chapters') or []
+    if capitoli:
+        table.add_row('📑  Capitoli', f'{len(capitoli)} sezioni')
+
+    console.print()
+    console.print(Panel(
+        table,
+        title=f"[title]🎬 {info.get('title', 'Sconosciuto')[:60]}[/title]",
+        border_style='bright_blue',
+        box=ROUNDED,
+        expand=False,
+        padding=(1, 2),
+    ))
+
+
+def _confirm_video(info: dict) -> bool:
+    """Mostra la scheda del video e chiede conferma prima di scaricare."""
+    _display_video_card(info)
+    answer = console.input(
+        '\n[bold]Procedo con il download di questo video? (s/n): [/bold]'
+    ).strip().lower()
+    return answer in ('s', 'si', 'sì', 'y', 'yes')
+
+
+def _entry_from_info(info: dict, url: str) -> dict:
+    """Costruisce la entry di download dai metadati completi di un video."""
+    return {
+        'id': info.get('id', ''),
+        'title': info.get('title', 'Sconosciuto'),
+        'uploader': info.get('uploader') or info.get('channel') or '??',
+        'duration': info.get('duration'),
+        'views': info.get('view_count'),
+        'url': info.get('webpage_url', url),
+    }
 
 
 def _display_search_results(results: list[dict], table_title: str = 'Risultati ricerca') -> None:
@@ -469,17 +619,56 @@ def _display_search_results(results: list[dict], table_title: str = 'Risultati r
     console.print(table)
 
 
-def _display_playlist_info(title: str, entries: list[dict]) -> None:
-    """Mostra un pannello riassuntivo della playlist: titolo, tracce, durata totale."""
+_VISIBILITA = {
+    'public': 'Pubblica',
+    'unlisted': 'Non in elenco',
+    'private': 'Privata',
+}
+
+
+def _display_playlist_info(title: str, entries: list[dict], meta: dict | None = None) -> None:
+    """Mostra la scheda della playlist: canale, tracce, durata, visualizzazioni.
+
+    I dati d'insieme arrivano da get_playlist_entries, che li ricava dalla
+    stessa chiamata usata per l'elenco: nessuna richiesta aggiuntiva. I
+    campi che YouTube non espone vengono omessi.
+    """
+    meta = meta or {}
     total_duration = sum(e.get('duration', 0) or 0 for e in entries)
+
+    table = Table(show_header=False, box=None, padding=(0, 2), expand=False)
+    table.add_column('Campo', style='dim_label', no_wrap=True)
+    table.add_column('Valore', style='white')
+
+    righe = [
+        ('📺', 'Canale', meta.get('channel')),
+        ('🎵', 'Tracce', str(len(entries))),
+        ('⏱', 'Durata totale', _format_duration(total_duration)),
+        ('👁', 'Visualizzazioni', _format_views(meta.get('views'))),
+        ('📅', 'Aggiornata', _format_upload_date(meta.get('modified'))),
+        ('🔓', 'Visibilità', _VISIBILITA.get(meta.get('availability') or '')),
+    ]
+    for icona, etichetta, valore in righe:
+        if valore and str(valore) not in ('—', '??:??'):
+            table.add_row(f'{icona}  {etichetta}', str(valore))
+
+    # Se YouTube dichiara più video di quelli estratti, la differenza sono
+    # voci private o rimosse: meglio dirlo che lasciar contare all'utente.
+    dichiarati = meta.get('count')
+    if dichiarati and dichiarati > len(entries):
+        table.add_row(
+            '⚠  Non disponibili',
+            f'[warning]{dichiarati - len(entries)} (privati o rimossi)[/warning]',
+        )
+
     console.print()
     console.print(Panel(
-        f'[title]{title}[/title]\n'
-        f'[dim_label]Tracce:[/dim_label] [ep]{len(entries)}[/ep]   '
-        f'[dim_label]Durata totale:[/dim_label] [ep]{_format_duration(total_duration)}[/ep]',
+        table,
+        title=f'[title]💿 {title[:60]}[/title]',
         border_style='bright_blue',
         box=ROUNDED,
         expand=False,
+        padding=(1, 2),
     ))
 
 
@@ -571,24 +760,134 @@ def _tag_m4a(filepath: str, title: str | None = None, artist: str | None = None,
         log.warning('Errore tagging %s: %s', os.path.basename(filepath), e)
 
 
-def _is_already_downloaded(title: str, output_dir: str) -> str | None:
+def _track_prefix(track_num: int | None, total: int | None) -> str:
+    """Costruisce il prefisso numerico del nome file (es. '01 - ').
+
+    Serve a far comparire i brani sul disco (e quindi sul telefono, che
+    ordina per nome file) nello stesso ordine della playlist di origine.
+    Le cifre sono zero-padded sul totale delle tracce, minimo due, così
+    l'ordinamento alfabetico coincide con quello numerico.
+    """
+    if not track_num:
+        return ''
+    width = max(2, len(str(total or track_num)))
+    return f'{track_num:0{width}d} - '
+
+
+def _is_already_downloaded(title: str, output_dir: str, prefix: str = '',
+                           exts: frozenset[str] = AUDIO_EXTS) -> str | None:
     """Controlla se la traccia è già stata scaricata nella cartella di destinazione.
 
-    Confronta il titolo sanificato con i nomi dei file esistenti, ignorando
-    l'estensione. I file sotto i 10 KB vengono considerati download
-    incompleti e quindi da rifare. Restituisce il percorso del file trovato
-    oppure None: evita di riscaricare le stesse tracce nei run successivi.
+    Confronta il titolo sanificato con i nomi dei file esistenti, tra quelli
+    con un'estensione in `exts` (i formati equivalenti: audio con audio,
+    video con video — così un brano gia' scaricato in .m4a non fa saltare
+    lo stesso titolo richiesto in video). I file sotto i 10 KB vengono
+    considerati download incompleti e quindi da rifare. Restituisce il
+    percorso del file trovato oppure None: evita di riscaricare le stesse
+    tracce nei run successivi.
+
+    Con un prefisso di traccia riconosce anche i file scaricati da versioni
+    precedenti — cioè *senza* numero — e li rinomina invece di riscaricarli.
+    I file che hanno già un numero diverso NON vengono toccati: in una
+    playlist con due tracce omonime (succede: stesso brano in versione
+    singolo e in versione album) si contenderebbero lo stesso file,
+    rinominandolo a vicenda e lasciandone scaricare una sola.
     """
-    safe_title = _sanitize_filename(title).lower()
     if not os.path.isdir(output_dir):
         return None
+
+    safe_title = _sanitize_filename(title)
+    wanted = (prefix + safe_title).lower()
+
+    fallback = None
     for f in os.listdir(output_dir):
-        name_no_ext = os.path.splitext(f)[0].lower()
-        if name_no_ext == safe_title:
-            full = os.path.join(output_dir, f)
+        name_no_ext, ext = os.path.splitext(f)
+        if ext.lstrip('.').lower() not in exts:
+            continue
+        name_no_ext = name_no_ext.lower()
+        full = os.path.join(output_dir, f)
+        if name_no_ext == wanted:
             if os.path.getsize(full) > 10240:
                 return full
+            continue
+        if prefix and name_no_ext == safe_title.lower():
+            if os.path.getsize(full) > 10240:
+                fallback = full
+
+    if fallback:
+        # Stesso brano senza numerazione: basta rinominarlo.
+        target = os.path.join(output_dir, _wanted_name(prefix, title, fallback))
+        if not os.path.exists(target):
+            try:
+                os.replace(fallback, target)
+                log.info('Rinumerato: %s', os.path.basename(target))
+                return target
+            except OSError as exc:
+                log.warning('Rinumerazione non riuscita: %s', exc)
+        return fallback
     return None
+
+
+def _wanted_name(prefix: str, title: str, existing_path: str) -> str:
+    """Nome file atteso per una traccia: prefisso + titolo + estensione attuale."""
+    ext = os.path.splitext(existing_path)[1]
+    return _sanitize_filename(prefix + _sanitize_filename(title)) + ext
+
+
+class _PhaseTracker:
+    """Tiene le barre di avanzamento delle quattro fasi di ogni traccia.
+
+    Scaricare un brano non è un solo passaggio: dopo il trasferimento dei
+    byte c'è la conversione FFmpeg, la ricerca del testo su LRCLIB e il
+    tagging con la copertina. Con una sola barra il file sembrava fermo al
+    100% mentre in realtà stava ancora lavorando; qui ogni fase ha la sua
+    barra, che conta quante tracce l'hanno superata.
+
+    I metodi sono chiamati dai thread di download, quindi lo stato è
+    protetto da un lock. Ogni fase viene contata **una volta sola** per
+    traccia: un retry che rifà il download non la conteggia due volte.
+    """
+
+    PHASES = (
+        ('download', 'Download   '),
+        ('convert', 'Conversione'),
+        ('lyrics', 'Testi      '),
+        ('tag', 'Tag        '),
+    )
+
+    def __init__(self, progress: Progress, total: int, skip: frozenset[str] = frozenset()):
+        self._progress = progress
+        self._lock = threading.Lock()
+        self._seen: dict[int, set[str]] = {}
+        self._tasks = {
+            name: progress.add_task(label, total=total)
+            for name, label in self.PHASES if name not in skip
+        }
+
+    def done(self, key: int, phase: str) -> None:
+        """Segna che la traccia `key` ha superato la fase indicata.
+
+        Le fasi senza barra (perché non pertinenti al tipo di download)
+        vengono ignorate: chi le segnala non deve sapere quali sono attive.
+        """
+        with self._lock:
+            if phase not in self._tasks:
+                return
+            reached = self._seen.setdefault(key, set())
+            if phase in reached:
+                return
+            reached.add(phase)
+            self._progress.advance(self._tasks[phase])
+
+    def finish(self, key: int) -> None:
+        """Chiude tutte le fasi rimaste aperte per una traccia.
+
+        Serve a fine lavorazione: una traccia saltata non attraversa alcuna
+        fase, e una fallita si ferma a metà. Senza questo, le barre non
+        arriverebbero mai in fondo pur essendo il lavoro concluso.
+        """
+        for name, _ in self.PHASES:
+            self.done(key, name)
 
 
 class _YtDlpProgressHook:
@@ -600,10 +899,11 @@ class _YtDlpProgressHook:
     impostata al primo valore disponibile.
     """
 
-    def __init__(self, progress: Progress, task_id, title: str):
+    def __init__(self, progress: Progress, task_id, title: str, on_downloaded=None):
         self.progress = progress
         self.task_id = task_id
         self.title = title
+        self.on_downloaded = on_downloaded
         self._started = False
         self._total = 0
 
@@ -622,6 +922,9 @@ class _YtDlpProgressHook:
             elif d['status'] == 'finished':
                 if self._started and self._total > 0:
                     self.progress.update(self.task_id, completed=self._total)
+                # I byte sono arrivati: da qui in poi lavora FFmpeg.
+                if self.on_downloaded:
+                    self.on_downloaded()
         except Exception:
             pass
 
@@ -629,16 +932,22 @@ class _YtDlpProgressHook:
 def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                     track_num: int | None = None, album: str | None = None,
                     progress: Progress | None = None, task_id=None,
-                    fetch_lyrics: bool = True) -> dict:
-    """Scarica una singola traccia come file audio e ne registra i metadati.
+                    fetch_lyrics: bool = True, total_tracks: int | None = None,
+                    numbered: bool = False, on_phase=None,
+                    media: str = 'audio') -> dict:
+    """Scarica una singola traccia e ne registra i metadati.
+
+    Con media='audio' (default) scarica il solo flusso audio; con
+    media='video' scarica anche la traccia video e unisce i due flussi.
 
     Flusso completo:
       1. salta subito se il file esiste già su disco (status 'skip');
-      2. scarica il solo flusso audio (mai il video) e lo converte nel
-         formato richiesto tramite ffmpeg;
-      3. cerca il testo sincronizzato su LRCLIB e, se trovato, lo incorpora
-         nei tag del file audio (un file unico, nessun .lrc separato);
-      4. scrive anche titolo, artista, album e copertina nei tag;
+      2. scarica il flusso richiesto e lo converte/unisce nel formato
+         scelto tramite ffmpeg;
+      3. *(solo audio)* cerca il testo sincronizzato su LRCLIB e, se
+         trovato, lo incorpora nei tag (un file unico, nessun .lrc);
+      4. scrive titolo, artista, album e copertina nei tag — nei video
+         solo per l'mp4, che condivide il container MP4 con l'm4a;
       5. registra il download nel database globale.
     In caso di errore riprova fino a MAX_RETRIES volte con attesa crescente.
 
@@ -655,41 +964,99 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
         result['error'] = 'shutdown'
         return result
 
-    existing = _is_already_downloaded(title, output_dir)
+    prefix = _track_prefix(track_num, total_tracks) if numbered else ''
+    is_video = media == 'video'
+
+    existing = _is_already_downloaded(
+        title, output_dir, prefix,
+        exts=VIDEO_EXTS if is_video else AUDIO_EXTS,
+    )
     if existing:
         log.info("Gia' scaricato: %s", title)
         result['status'] = 'skip'
         result['file'] = os.path.basename(existing)
         if progress and task_id is not None:
-            progress.update(task_id, completed=progress.tasks[task_id].total or 1, total=1)
+            # Barra piena: la traccia c'è già, non serve leggere il totale
+            # precedente (Progress.tasks è una lista posizionale, e con i
+            # task rimossi a mano a mano l'indice non è più il TaskID).
+            progress.update(task_id, total=1, completed=1)
         return result
 
     os.makedirs(output_dir, exist_ok=True)
 
-    outtmpl = os.path.join(output_dir, '%(title)s.%(ext)s')
+    # Il prefisso numerico entra nel nome del file: sul disco (e sul telefono,
+    # che ordina per nome) le tracce restano nell'ordine della playlist.
+    outtmpl = os.path.join(output_dir, f'{prefix}%(title)s.%(ext)s')
 
-    # Solo audio: niente traccia video, il file occupa una frazione dello spazio.
-    # 'FFmpegExtractAudio' converte (o rimuxa senza ricodifica, quando il
-    # formato sorgente coincide) nel formato scelto dall'utente.
     ydl_opts = _apply_cookies({
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'outtmpl': outtmpl,
         'quiet': True,
         'no_warnings': True,
         'ignoreerrors': False,
         'retries': MAX_RETRIES,
         'fragment_retries': MAX_RETRIES,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': audio_format,
-            'preferredquality': '0',
-        }],
         'writethumbnail': False,
         'noplaylist': True,
     })
 
+    if is_video:
+        # Video completo: YouTube serve video e audio come flussi separati
+        # (le risoluzioni alte non hanno audio incorporato), quindi si
+        # scarica il meglio di entrambi e ffmpeg li unisce nel container
+        # scelto. Il fallback 'best' copre i video a flusso unico.
+        ydl_opts['format'] = (
+            f'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+            if audio_format == 'mp4' else 'bestvideo+bestaudio/best'
+        )
+        ydl_opts['merge_output_format'] = audio_format
+
+        # Metadati scritti da ffmpeg durante il merge: titolo, autore, data
+        # e i capitoli del video. Funziona su qualsiasi container, ed è
+        # l'unica via per il Matroska, che mutagen non sa taggare.
+        ydl_opts['postprocessors'] = [
+            {'key': 'FFmpegMetadata', 'add_metadata': True, 'add_chapters': True},
+        ]
+
+        # Album e numero di traccia non stanno nell'info di yt-dlp: li
+        # ricaviamo noi dalla playlist, quindi vanno passati a mano come
+        # argomenti extra di ffmpeg. Senza, un video di playlist perderebbe
+        # proprio i due campi che tengono insieme una raccolta.
+        extra_meta = []
+        if album:
+            extra_meta += ['-metadata', f'album={album}']
+        if track_num:
+            extra_meta += ['-metadata', f'track={track_num}']
+        if extra_meta:
+            ydl_opts['postprocessor_args'] = {'metadata': extra_meta}
+        if audio_format == 'mkv':
+            # Nel Matroska la copertina è un allegato: la incorpora yt-dlp,
+            # perché mutagen non scrive i metadati mkv. Nell'mp4 invece
+            # ci pensa _tag_m4a più sotto, insieme a tutto il resto.
+            ydl_opts['writethumbnail'] = True
+            ydl_opts['postprocessors'].append(
+                {'key': 'EmbedThumbnail', 'already_have_thumbnail': False}
+            )
+    else:
+        # Solo audio: niente traccia video, il file occupa una frazione
+        # dello spazio. 'FFmpegExtractAudio' converte (o rimuxa senza
+        # ricodifica, quando il formato sorgente coincide).
+        ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio/best'
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': audio_format,
+            'preferredquality': '0',
+        }]
+
+    def phase(name: str) -> None:
+        """Segnala il superamento di una fase, se c'è un tracker collegato."""
+        if on_phase:
+            on_phase(name)
+
     if progress and task_id is not None:
-        hook = _YtDlpProgressHook(progress, task_id, title)
+        hook = _YtDlpProgressHook(
+            progress, task_id, title,
+            on_downloaded=lambda: phase('download'),
+        )
         ydl_opts['progress_hooks'] = [hook]
 
     for attempt in range(1, MAX_RETRIES + 1):
@@ -709,7 +1076,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
 
                 if not os.path.isfile(final_file):
                     # Fallback: cerca il file per nome ed estensione
-                    safe = _sanitize_filename(info.get('title', title)).lower()
+                    safe = _sanitize_filename(prefix + _sanitize_filename(info.get('title', title))).lower()
                     for f in os.listdir(output_dir):
                         if not f.lower().endswith(f'.{final_ext}'):
                             continue
@@ -735,11 +1102,16 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                             except OSError as exc:
                                 log.warning('Rinomina del file non riuscita: %s', exc)
 
+                    # FFmpeg ha finito: il file nel formato richiesto esiste.
+                    phase('convert')
+
                     # Testo: incorporato direttamente nei tag del file audio
                     # (formato LRC con i timestamp), così il brano resta un
                     # file unico che porta con sé anche il testo.
+                    # Il testo si scrive nel tag ©lyr, che esiste solo nel
+                    # container MP4: vale per m4a e mp4, non per il mkv.
                     synced, plain = (None, None)
-                    if fetch_lyrics:
+                    if fetch_lyrics and final_ext != 'mkv':
                         synced, plain = _fetch_lyrics(
                             info.get('title', title),
                             info.get('artist') or info.get('uploader') or uploader,
@@ -748,17 +1120,21 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         if synced or plain:
                             result['lyrics'] = True
                             log.info('Testo trovato: %s', title)
+                    phase('lyrics')
 
-                    thumbnail = info.get('thumbnail')
-                    _tag_m4a(
-                        final_file,
-                        title=info.get('title', title),
-                        artist=info.get('artist') or info.get('uploader') or uploader,
-                        album=album or info.get('album'),
-                        track_num=track_num,
-                        thumbnail_url=thumbnail,
-                        lyrics=synced or plain,
-                    )
+                    # I tag iTunes vivono nel container MP4: valgono per
+                    # .m4a e .mp4, non per il Matroska (.mkv).
+                    if final_ext != 'mkv':
+                        _tag_m4a(
+                            final_file,
+                            title=info.get('title', title),
+                            artist=info.get('artist') or info.get('uploader') or uploader,
+                            album=album or info.get('album'),
+                            track_num=track_num,
+                            thumbnail_url=info.get('thumbnail'),
+                            lyrics=synced or plain,
+                        )
+                    phase('tag')
 
                     result['status'] = 'ok'
                     result['file'] = os.path.basename(final_file)
@@ -775,6 +1151,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                         duration_secs=info.get('duration') or entry.get('duration') or 0,
                         audio_format=audio_format,
                         track_number=track_num or 0,
+                        media_kind=media,
                     )
 
                     return result
@@ -794,7 +1171,8 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
 
 def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4a',
                    album: str | None = None, max_workers: int = MAX_DOWNLOAD_WORKERS,
-                   fetch_lyrics: bool = True) -> list[dict]:
+                   fetch_lyrics: bool = True, numbered: bool = False,
+                   media: str = 'audio') -> list[dict]:
     """Scarica più tracce in parallelo mostrando le barre di avanzamento.
 
     Usa un pool di thread (max_workers download simultanei) e due barre
@@ -802,15 +1180,34 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
     file in corso. Un Ctrl+C ferma l'accodamento di nuove tracce lasciando
     finire quelle già partite. I risultati vengono riordinati secondo
     l'ordine originale delle entry (i thread terminano in ordine sparso).
+
+    Con numbered=True i file vengono salvati con il numero di traccia in
+    testa al nome ('01 - Titolo.m4a'): i download finiscono in ordine
+    sparso, ma sul disco le tracce restano nell'ordine della playlist.
+    Il numero è quello della playlist di origine (campo 'index' della
+    entry), non la posizione nella lista passata: scaricando solo le
+    tracce 5-8 i file restano '05'-'08'.
     """
     os.makedirs(output_dir, exist_ok=True)
     total = len(entries)
-    results = []
+    results_by_index: dict[int, dict] = {}
     stopped_early = False
 
+    # Larghezza dello zero-padding: la dimensione della playlist di origine
+    # se nota, altrimenti il numero di traccia più alto da scaricare.
+    highest = max(
+        (max(e.get('index') or 0, e.get('playlist_size') or 0) for e in entries),
+        default=total,
+    ) or total
+
+    kind = 'video' if media == 'video' else 'audio'
     console.print()
-    console.rule('[phase]⬇ Download audio[/phase]', style='bright_green')
-    console.print(f'  [dim_label]Thread:[/dim_label] [info]{max_workers}[/info]  [dim_label]Tracce:[/dim_label] [bold]{total}[/bold]\n')
+    console.rule(f'[phase]⬇ Download {kind}[/phase]', style='bright_green')
+    console.print(
+        f'  [dim_label]Thread:[/dim_label] [info]{max_workers}[/info]  '
+        f'[dim_label]Tracce:[/dim_label] [bold]{total}[/bold]  '
+        f'[dim_label]Formato:[/dim_label] [info]{audio_format}[/info]\n'
+    )
 
     overall_progress = Progress(
         SpinnerColumn('dots', style='bright_green'),
@@ -822,6 +1219,18 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
         TimeElapsedColumn(),
         TextColumn('[dim]→[/dim]'),
         TimeRemainingColumn(),
+        console=console,
+        expand=False,
+    )
+
+    # Una barra per fase: scaricare un brano non è un passaggio solo, e
+    # senza queste il file sembrava fermo al 100% mentre convertiva,
+    # cercava il testo o scriveva i tag.
+    phase_progress = Progress(
+        SpinnerColumn('dots', style='bright_blue'),
+        TextColumn('[bright_blue]{task.description}'),
+        BarColumn(bar_width=32, style='bar.back', complete_style='bright_blue', finished_style='bold blue'),
+        MofNCompleteColumn(),
         console=console,
         expand=False,
     )
@@ -840,8 +1249,21 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
     )
 
     overall_task = overall_progress.add_task('Tracce', total=total)
+    # Nel Matroska il testo non è scrivibile, quindi non viene nemmeno
+    # cercato: senza lavoro da fare, quella barra non ha senso.
+    phases = _PhaseTracker(
+        phase_progress, total,
+        skip=frozenset({'lyrics'}) if audio_format == 'mkv' else frozenset(),
+    )
 
-    with Live(Group(overall_progress, file_progress), console=console, refresh_per_second=10):
+    layout = Group(
+        overall_progress,
+        phase_progress,
+        Text('  ' + '─' * 46, style='dim'),
+        file_progress,
+    )
+
+    with Live(layout, console=console, refresh_per_second=10):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
             task_ids = {}
@@ -850,17 +1272,21 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                 if _shutdown_event.is_set():
                     stopped_early = True
                     break
+                track_num = entry.get('index') or (i + 1)
                 tid = file_progress.add_task(
-                    f"[bold]#{i + 1}[/bold] {entry['title'][:40]}",
+                    f"[bold]#{track_num}[/bold] {entry['title'][:40]}",
                     total=None,
                     visible=True,
                 )
                 task_ids[i] = tid
                 future = executor.submit(
                     download_single, entry, output_dir, audio_format,
-                    track_num=i + 1, album=album,
+                    track_num=track_num, album=album,
                     progress=file_progress, task_id=tid,
                     fetch_lyrics=fetch_lyrics,
+                    total_tracks=highest, numbered=numbered,
+                    on_phase=lambda name, k=i: phases.done(k, name),
+                    media=media,
                 )
                 futures[future] = i
 
@@ -877,8 +1303,12 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                     }
                     log.error('Eccezione download: %s', e)
 
-                results.append(result)
+                results_by_index[idx] = result
                 overall_progress.advance(overall_task)
+                # Traccia conclusa: chiude le fasi non attraversate (una
+                # saltata non ne fa nessuna, una fallita si ferma a metà),
+                # così le barre arrivano in fondo insieme al lavoro.
+                phases.finish(idx)
 
                 tid = task_ids.get(idx)
                 if tid is not None:
@@ -890,9 +1320,9 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                         f.cancel()
                     break
 
-    results.sort(key=lambda r: next((i for i, e in enumerate(entries) if e['title'] == r['title']), 999))
-
-    return results
+    # Ricostruisce l'ordine originale dalla posizione della entry, non dal
+    # titolo: titoli duplicati o rinominati non spostano più le tracce.
+    return [results_by_index[i] for i in sorted(results_by_index)]
 
 
 def _export_failed(output_dir: str, results: list[dict], entries: list[dict]) -> None:
@@ -972,6 +1402,39 @@ def _select_from_results(results: list[dict]) -> list[dict]:
         console.print('[error]Selezione non valida. Riprova.[/error]')
 
 
+def _ask_media_type() -> tuple[str, str] | None:
+    """Chiede se scaricare il video intero o il solo audio.
+
+    Restituisce (media, formato) con media in {'audio', 'video'}, oppure
+    None se l'utente annulla. Il formato proposto è quello nativo di
+    YouTube per il tipo scelto (m4a / mp4): in entrambi i casi non serve
+    ricodificare, quindi non si perde qualità.
+    """
+    table = Table(show_header=False, box=ROUNDED, border_style='bright_blue',
+                  padding=(0, 2), expand=False)
+    table.add_column('N', style='bold yellow', justify='right', width=3)
+    table.add_column('Scelta')
+    table.add_row('1', f'{SYM_NOTE} [bold]Solo audio[/bold] [dim](m4a)[/dim]\n'
+                       '  [dim]pochi MB, taggato, con il testo karaoke[/dim]')
+    table.add_row('2', '🎬 [bold]Video intero[/bold] [dim](mp4)[/dim]\n'
+                       '  [dim]immagine + audio, file molto più grande[/dim]')
+
+    console.print()
+    console.print(table)
+
+    while True:
+        choice = console.input(
+            '\n[bold]Cosa scarico? (1 = audio · 2 = video · q = annulla): [/bold]'
+        ).strip().lower()
+        if choice in ('q', 'quit', 'esci'):
+            return None
+        if choice in ('1', 'a', 'audio', ''):
+            return 'audio', 'm4a'
+        if choice in ('2', 'v', 'video'):
+            return 'video', 'mp4'
+        console.print('[error]Scelta non valida. Riprova.[/error]')
+
+
 def _is_playlist_url(url: str) -> bool:
     """Riconosce dall'URL se si tratta di una playlist o di un album.
 
@@ -1007,9 +1470,15 @@ def main() -> None:
     parser.add_argument('--output', '-o', type=str,
                         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download_audio'),
                         help='Cartella output (default: Scraper_Audio/download_audio)')
-    parser.add_argument('--format', '-f', type=str, default='m4a',
-                        choices=['m4a', 'mp3', 'opus'],
-                        help='Formato audio, solo audio senza video (default: m4a)')
+    parser.add_argument('--media', '-m', type=str, default=None,
+                        choices=['audio', 'video'],
+                        help='Scarica solo audio o il video intero. Se omesso, in '
+                             'modalità interattiva viene chiesto; con --search/--url '
+                             'il default è audio')
+    parser.add_argument('--format', '-f', type=str, default=None,
+                        choices=['m4a', 'mp3', 'opus', 'mp4', 'mkv'],
+                        help='Formato del file (audio: m4a/mp3/opus · video: mp4/mkv). '
+                             'Default: m4a per l\'audio, mp4 per il video')
     parser.add_argument('--workers', '-w', type=int, default=MAX_DOWNLOAD_WORKERS,
                         help=f'Worker paralleli (default: {MAX_DOWNLOAD_WORKERS})')
     parser.add_argument('--max-results', type=int, default=MAX_SEARCH_RESULTS,
@@ -1022,6 +1491,21 @@ def main() -> None:
 
     args = parser.parse_args()
     fetch_lyrics = not args.no_lyrics
+
+    # Tipo di media e formato: coerenti tra loro. Un --format video implica
+    # --media video (e viceversa), così non serve ricordarsi entrambi.
+    media = args.media
+    fmt = args.format
+    if fmt in VIDEO_EXTS:
+        if media == 'audio':
+            parser.error(f"--format {fmt} è un formato video, incompatibile con --media audio")
+        media = 'video'
+    elif fmt in AUDIO_EXTS:
+        if media == 'video':
+            parser.error(f"--format {fmt} è un formato audio, incompatibile con --media video")
+        media = 'audio'
+    if media and not fmt:
+        fmt = 'mp4' if media == 'video' else 'm4a'
 
     global _cookies_browser
     _cookies_browser = args.cookies_from_browser
@@ -1051,6 +1535,12 @@ def main() -> None:
             f"{SYM_DOT} Digita [accent]q[/accent] per uscire\n"
         )
 
+        def resolve_media() -> tuple[str, str] | None:
+            """Tipo di media da scaricare: da riga di comando o chiesto ora."""
+            if media:
+                return media, fmt
+            return _ask_media_type()
+
         while not _shutdown_event.is_set():
             try:
                 query = console.input(f'\n{SYM_NOTE} [bold]Cerca o incolla URL > [/bold]').strip()
@@ -1062,11 +1552,11 @@ def main() -> None:
 
             if query.startswith(('http://', 'https://', 'www.')):
                 if _is_playlist_url(query):
-                    title, entries = get_playlist_entries(query)
+                    title, entries, meta = get_playlist_entries(query)
                     if not entries:
                         console.print('[error]Nessuna traccia trovata nella playlist.[/error]')
                         continue
-                    _display_playlist_info(title, entries)
+                    _display_playlist_info(title, entries, meta)
                     _display_search_results(entries, table_title='Tracce della playlist')
                     console.print(f'\n[dim_label]Scaricare tutte le {len(entries)} tracce? (s/n)[/dim_label]')
                     answer = console.input('[bold]> [/bold]').strip().lower()
@@ -1075,15 +1565,28 @@ def main() -> None:
                         if not selected:
                             continue
                         entries = selected
+                    choice = resolve_media()
+                    if not choice:
+                        continue
+                    mtype, mfmt = choice
                     album_name = _sanitize_filename(title)
                     sub_dir = os.path.join(output_dir, album_name)
-                    results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+                    results = download_batch(entries, sub_dir, mfmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=mtype)
                 else:
-                    title, entries = get_playlist_entries(query)
-                    if not entries:
+                    console.print('\n[dim]Recupero le informazioni del video...[/dim]')
+                    info = get_video_details(query)
+                    if not info:
                         console.print('[error]Impossibile estrarre info dal URL.[/error]')
                         continue
-                    results = download_batch(entries, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+                    if not _confirm_video(info):
+                        console.print('[dim]Annullato.[/dim]')
+                        continue
+                    entries = [_entry_from_info(info, query)]
+                    choice = resolve_media()
+                    if not choice:
+                        continue
+                    mtype, mfmt = choice
+                    results = download_batch(entries, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype)
 
                 _display_download_summary(results)
                 _export_failed(output_dir, results, entries)
@@ -1096,12 +1599,21 @@ def main() -> None:
                 selected = _select_from_results(results)
                 if not selected:
                     continue
-                dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+                choice = resolve_media()
+                if not choice:
+                    continue
+                mtype, mfmt = choice
+                dl_results = download_batch(selected, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype)
                 _display_download_summary(dl_results)
                 _export_failed(output_dir, dl_results, selected)
 
         console.print('\n[dim]Arrivederci![/dim]\n')
         return
+
+    # Fuori dalla modalità interattiva non si fanno domande: senza --media
+    # esplicito si scarica l'audio, com'è sempre stato.
+    media = media or 'audio'
+    fmt = fmt or 'm4a'
 
     if args.search:
         results = search_youtube(args.search, args.max_results)
@@ -1112,28 +1624,32 @@ def main() -> None:
         selected = _select_from_results(results)
         if not selected:
             return
-        dl_results = download_batch(selected, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+        dl_results = download_batch(selected, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media)
         _display_download_summary(dl_results)
         _export_failed(output_dir, dl_results, selected)
         return
 
     if args.url:
         if _is_playlist_url(args.url):
-            title, entries = get_playlist_entries(args.url)
+            title, entries, meta = get_playlist_entries(args.url)
             if not entries:
                 console.print('[error]Nessuna traccia trovata.[/error]')
                 return
-            _display_playlist_info(title, entries)
+            _display_playlist_info(title, entries, meta)
             _display_search_results(entries, table_title='Tracce della playlist')
             album_name = _sanitize_filename(title)
             sub_dir = os.path.join(output_dir, album_name)
-            results = download_batch(entries, sub_dir, args.format, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+            results = download_batch(entries, sub_dir, fmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=media)
         else:
-            title, entries = get_playlist_entries(args.url)
-            if not entries:
+            info = get_video_details(args.url)
+            if not info:
                 console.print('[error]Impossibile estrarre info.[/error]')
                 return
-            results = download_batch(entries, output_dir, args.format, max_workers=args.workers, fetch_lyrics=fetch_lyrics)
+            # Scheda mostrata anche qui, ma senza chiedere conferma: con
+            # --url si è già dichiarato cosa si vuole scaricare.
+            _display_video_card(info)
+            entries = [_entry_from_info(info, args.url)]
+            results = download_batch(entries, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media)
 
         _display_download_summary(results)
         _export_failed(output_dir, results, entries)
