@@ -25,12 +25,12 @@
 </div>
 
 ```bash
-git clone https://github.com/Imkun-on/Scraper_Audio.git
-cd Scraper_Audio
+git clone https://github.com/Imkun-on/AudioDex.git
+cd AudioDex
 pip install -r requirements.txt
 
-python Scraper_Audio.py                                    # modalità interattiva
-python Scraper_Audio.py --url "https://www.youtube.com/playlist?list=..."
+python AudioDex.py                                    # modalità interattiva
+python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
 ```
 
 ---
@@ -212,7 +212,7 @@ pip install yt-dlp requests rich mutagen
 ## 🚀 Uso ed esempi
 
 ```bash
-python Scraper_Audio.py
+python AudioDex.py
 ```
 
 ### Il flusso interattivo, passo per passo
@@ -390,18 +390,18 @@ Per saltare la modalità interattiva:
 
 ```bash
 # Ricerca una tantum (mostra i risultati e chiede la selezione)
-python Scraper_Audio.py --search "daft punk get lucky"
+python AudioDex.py --search "daft punk get lucky"
 
 # Download diretto di un video o di una playlist
-python Scraper_Audio.py --url "https://www.youtube.com/watch?v=..."
-python Scraper_Audio.py --url "https://www.youtube.com/playlist?list=..."
+python AudioDex.py --url "https://www.youtube.com/watch?v=..."
+python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
 
 # In mp3, in una cartella personalizzata, con 5 download paralleli
-python Scraper_Audio.py --url "https://..." --format mp3 --output "D:\Musica" --workers 5
+python AudioDex.py --url "https://..." --format mp3 --output "D:\Musica" --workers 5
 
 # Video intero invece del solo audio (mp4)
-python Scraper_Audio.py --url "https://..." --media video
-python Scraper_Audio.py --url "https://..." --format mkv     # --media video implicito
+python AudioDex.py --url "https://..." --media video
+python AudioDex.py --url "https://..." --format mkv     # --media video implicito
 ```
 
 > Con `--search`/`--url` il default resta **audio**: la domanda non viene posta, così gli script non restano appesi a un prompt.
@@ -600,8 +600,8 @@ Dettagli del funzionamento:
 ## 🧩 Architettura del progetto
 
 ```
-Scraper_Audio/
-├── Scraper_Audio.py          # CLI principale: ricerca, selezione, download, UI Rich
+AudioDex/
+├── AudioDex.py          # CLI principale: ricerca, selezione, download, UI Rich
 ├── Shared/
 │   ├── __init__.py
 │   ├── logger_setup.py       # Logger su file + tema/simboli Rich condivisi
@@ -611,7 +611,7 @@ Scraper_Audio/
 │   └── scraper_metadata.db   # Il database (creato automaticamente, escluso da git)
 ├── download_audio/           # Cartella di output (creata automaticamente, esclusa da git)
 ├── logs/
-│   └── scraper_audio.log     # Log dettagliato di ogni sessione (escluso da git)
+│   └── audiodex.log     # Log dettagliato di ogni sessione (escluso da git)
 ├── requirements.txt          # Dipendenze Python
 └── README.md
 ```
@@ -640,8 +640,8 @@ Dettagli tecnici:
 ## 🧯 Gestione degli errori e tracce fallite
 
 - Ogni traccia fallita (dopo tutti i retry) finisce nel **riepilogo finale**, con il motivo dell'errore nel log
-- Titoli e URL delle tracce fallite vengono salvati in **`failed_tracks.txt`** nella cartella di output, pronti per ritentare con `python Scraper_Audio.py --url <URL>` senza rifare la ricerca
-- Il log completo di ogni sessione è in `logs/scraper_audio.log` — il logger scrive **solo su file**: righe di log a video rovinerebbero le barre di avanzamento live
+- Titoli e URL delle tracce fallite vengono salvati in **`failed_tracks.txt`** nella cartella di output, pronti per ritentare con `python AudioDex.py --url <URL>` senza rifare la ricerca
+- Il log completo di ogni sessione è in `logs/audiodex.log` — il logger scrive **solo su file**: righe di log a video rovinerebbero le barre di avanzamento live
 - 🛑 **Ctrl+C**: il primo avvia l'arresto pulito (finiscono i download in corso, si annullano quelli in coda), il secondo forza l'uscita immediata
 
 ---
