@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/LRCLIB-testi_karaoke-8B5CF6?logo=musicbrainz&logoColor=white" alt="LRCLIB">
   <img src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-solo_audio-EC1C24?logo=itunes&logoColor=white" alt="Formati">
+  <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
 </p>
 
 <p align="center">
@@ -87,7 +88,9 @@ python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
 
 **Capitolo 16 — [📝 Changelog](#-changelog)**
 
-**Capitolo 17 — [🔒 Licenza e note legali](#-licenza-e-note-legali)**
+**Capitolo 17 — [📜 Note legali](#-note-legali)**
+
+**Capitolo 18 — [📄 Licenza](#-licenza)**
 
 ---
 
@@ -714,14 +717,26 @@ Dettagli tecnici:
 - **Tabella delle tracce di una playlist** mostrata prima della conferma di download, e colonna **Views** (formato compatto: `2.1 Mrd`, `45 Mln`, `350 K`) dove YouTube fornisce il dato — nelle playlist non lo espone, quindi lì la colonna è nascosta. I like non sono mostrati: recuperarli costerebbe ~5 s per traccia
 - **Colonne Titolo e Artista separate**: l'artista viene ricavato dal titolo (`Artista - Brano`) o dal nome del canale, e il titolo viene ripulito dalle decorazioni (`(Official Video)`, `(Lyrics)`, …)
 - **`requirements.txt`** con versioni minime e note su FFmpeg e sull'aggiornamento frequente di yt-dlp
-- **Repository GitHub privata** con `.gitignore` che esclude contenuti scaricati, database locale e log
+- **Repository GitHub** con `.gitignore` che esclude contenuti scaricati, database locale e log
 
 ---
 
-## 🔒 Licenza e note legali
+## 📜 Note legali
 
-Questo progetto è destinato a **uso personale, educativo e di ricerca**.
-
-Il download di contenuti da YouTube è soggetto ai [Termini di Servizio di YouTube](https://www.youtube.com/t/terms) e alle norme sul **diritto d'autore** della tua giurisdizione: assicurati di scaricare solo contenuti di cui hai il diritto di fruire offline. Usalo in modo responsabile.
+AudioDex scarica contenuti da YouTube. L'uso potrebbe essere soggetto ai [Termini di Servizio di YouTube](https://www.youtube.com/t/terms) e alle norme sul **diritto d'autore** della tua giurisdizione. È pensato per uso **personale ed educativo** (es. ascoltare offline musica di cui hai i diritti): usalo in modo responsabile e solo per contenuti di cui hai il diritto di fruire.
 
 Le librerie utilizzate (yt-dlp, Rich, mutagen, requests) sono distribuite con le rispettive licenze open source.
+
+---
+
+## 📄 Licenza
+
+Rilasciato sotto **[PolyForm Noncommercial License 1.0.0](LICENSE)**.
+
+In breve — **non è un riassunto legale, fa fede il testo della licenza**:
+
+- ✅ **Puoi** usare, studiare, modificare e ridistribuire AudioDex per **scopi non commerciali**: uso personale, ricerca, progetti hobbistici, e uso da parte di **enti caritatevoli o educativi** (scuole, università).
+- ❌ **Non puoi** usarlo per scopi commerciali: venderlo, offrirlo come servizio a pagamento, o usarlo nell'attività di un'azienda.
+- 📎 Se lo ridistribuisci, devi **allegare la licenza** (o il suo URL) e mantenere la riga `Required Notice:`.
+
+> Serve un uso commerciale? Scrivimi: una licenza separata è negoziabile.
