@@ -58,18 +58,22 @@ LRCLIB_API = 'https://lrclib.net/api'
 
 def _print_banner() -> None:
     """Stampa il banner ASCII colorato 'AudioDex' all'avvio del programma."""
+    # Stringhe grezze (r'...'): il disegno è fitto di backslash e con le
+    # sequenze di escape normali diventerebbe illeggibile da correggere.
     banner_lines = [
-        '    ___             ___           _____                                ',
-        '   /   | __  ______/ (_)___      / ___/______________ _____  ___  _____',
-        '  / /| |/ / / / __  / / __ \\     \\__ \\/ ___/ ___/ __ `/ __ \\/ _ \\/ ___/',
-        ' / ___ / /_/ / /_/ / / /_/ /    ___/ / /__/ /  / /_/ / /_/ /  __/ /    ',
-        '/_/  |_\\__,_/\\__,_/_/\\____/____/____/\\___/_/   \\__,_/ .___/\\___/_/     ',
-        '                         /_____/                   /_/                 ',
+        r'    ___             ___       ____           ',
+        r'   /   | __  ______/ (_)___  / __ \___  _  __',
+        r'  / /| |/ / / / __  / / __ \/ / / / _ \| |/_/',
+        r' / ___ / /_/ / /_/ / / /_/ / /_/ /  __/>  <  ',
+        r'/_/  |_\__,_/\__,_/_/\____/_____/\___/_/|_|  ',
     ]
     colors = ['bright_magenta', 'magenta', 'bright_blue', 'blue', 'bright_cyan', 'cyan']
     text = Text()
     for i, line in enumerate(banner_lines):
-        text.append(line + '\n', style=Style(color=colors[i % len(colors)], bold=True))
+        # A capo solo *tra* le righe: sull'ultima lascerebbe una riga
+        # vuota in fondo al pannello.
+        suffisso = '\n' if i < len(banner_lines) - 1 else ''
+        text.append(line + suffisso, style=Style(color=colors[i % len(colors)], bold=True))
     console.print()
     console.print(Panel(
         Align.center(text),
