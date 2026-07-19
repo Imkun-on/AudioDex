@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS downloads (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
 
     scraper_type    TEXT NOT NULL,       -- 'audio', 'manga', 'anime'
+    media_kind      TEXT DEFAULT '',     -- 'audio' / 'video' per lo scraper audio; '' per gli altri
 
     -- Campi universali
     source_id       TEXT NOT NULL,       -- YouTube video ID / MangaDex chapter UUID / AnimeUnity episode ID
@@ -60,7 +62,11 @@ CREATE TABLE IF NOT EXISTS downloads (
     episode_number  TEXT DEFAULT '',
     anime_type      TEXT DEFAULT '',
 
-    UNIQUE(scraper_type, source_id)
+    -- media_kind fa parte della chiave: lo stesso video YouTube può essere
+    -- scaricato sia come audio sia come video, e sono due file distinti che
+    -- meritano due righe. Per manga e anime la colonna resta '' e il
+    -- vincolo si comporta come prima.
+    UNIQUE(scraper_type, source_id, media_kind)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scraper_type ON downloads(scraper_type);
@@ -86,14 +92,76 @@ def _get_conn() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Crea tabella e indici se non esistono."""
+    """Crea tabella e indici se non esistono, e aggiorna gli schemi vecchi."""
     try:
         conn = _get_conn()
         conn.executescript(_SCHEMA)
         conn.commit()
+        _migrate_media_kind(conn)
         log.debug("Database inizializzato: %s", DB_PATH)
     except Exception as e:
         log.warning("Errore init database: %s", e)
+
+
+def _migrate_media_kind(conn: sqlite3.Connection) -> None:
+    """Porta un database pre-esistente allo schema con 'media_kind'.
+
+    Prima il vincolo era UNIQUE(scraper_type, source_id): scaricare lo
+    stesso video prima in audio e poi in video sovrascriveva la riga
+    invece di tenerne due. La chiave ora comprende 'media_kind', ma
+    SQLite non sa modificare un vincolo con ALTER TABLE: l'unica via è
+    ricostruire la tabella e ricopiare i dati.
+
+    L'operazione è protetta su tre fronti: si esce subito se lo schema è
+    già aggiornato, si fa una **copia di sicurezza** del file prima di
+    toccarlo, e la ricostruzione avviene in un'unica transazione (o
+    riesce tutta, o il database resta com'era).
+    """
+    columns = [r['name'] for r in conn.execute("PRAGMA table_info(downloads)")]
+    if not columns or 'media_kind' in columns:
+        return  # tabella appena creata dallo schema nuovo, o già migrata
+
+    log.info("Migrazione database: aggiunta di 'media_kind' alla chiave univoca")
+
+    # Il WAL può contenere scritture non ancora nel file principale:
+    # senza questo passaggio la copia di sicurezza sarebbe incompleta.
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        backup = DB_PATH + '.backup-pre-media-kind'
+        if not os.path.exists(backup):
+            shutil.copy2(DB_PATH, backup)
+            log.info("Copia di sicurezza del database: %s", backup)
+    except Exception as e:
+        log.warning("Copia di sicurezza non riuscita, migrazione annullata: %s", e)
+        return
+
+    # Si copiano solo le colonne presenti in entrambi gli schemi, così la
+    # migrazione regge anche se il vecchio file ne ha qualcuna in meno.
+    shared = [c for c in columns if c != 'id']
+    cols_sql = ', '.join(shared)
+
+    try:
+        conn.execute("PRAGMA foreign_keys=OFF")
+        with conn:  # transazione: commit se tutto va bene, rollback se no
+            conn.execute("ALTER TABLE downloads RENAME TO downloads_old")
+            conn.executescript(_SCHEMA)
+            conn.execute(
+                f"INSERT INTO downloads ({cols_sql}) SELECT {cols_sql} FROM downloads_old"
+            )
+            # Le righe storiche dello scraper audio sono tutte download
+            # audio (il ramo video non esisteva ancora). Vanno etichettate,
+            # altrimenti riscaricare una vecchia traccia creerebbe una
+            # seconda riga invece di aggiornare la sua.
+            conn.execute(
+                "UPDATE downloads SET media_kind='audio' "
+                "WHERE scraper_type='audio' AND (media_kind IS NULL OR media_kind='')"
+            )
+            conn.execute("DROP TABLE downloads_old")
+        conn.execute("PRAGMA foreign_keys=ON")
+        moved = conn.execute("SELECT COUNT(*) FROM downloads").fetchone()[0]
+        log.info("Migrazione completata: %d righe conservate", moved)
+    except Exception as e:
+        log.warning("Migrazione fallita (i dati restano intatti): %s", e)
 
 
 def _now_iso() -> str:
@@ -130,22 +198,25 @@ def record_audio_download(
     duration_secs: float = 0,
     audio_format: str = '',
     track_number: int = 0,
+    media_kind: str = 'audio',
 ) -> None:
-    """Registra un brano audio scaricato.
+    """Registra un brano (o un video) scaricato.
 
-    'INSERT OR REPLACE' sul vincolo UNIQUE(scraper_type, source_id):
-    riscaricare la stessa traccia aggiorna la riga esistente invece di
-    creare un duplicato.
+    'INSERT OR REPLACE' sul vincolo UNIQUE(scraper_type, source_id,
+    media_kind): riscaricare la stessa traccia **nello stesso formato**
+    aggiorna la riga esistente invece di duplicarla, mentre la versione
+    audio e quella video dello stesso video YouTube convivono come due
+    righe distinte — sono due file diversi sul disco.
     """
     try:
         conn = _get_conn()
         conn.execute(
             """INSERT OR REPLACE INTO downloads
-               (scraper_type, source_id, title, source_url, file_path,
+               (scraper_type, media_kind, source_id, title, source_url, file_path,
                 file_size_bytes, downloaded_at, collection_name, collection_id,
                 artist, duration_secs, audio_format, track_number)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            ('audio', source_id, title, source_url, _relative_path(file_path),
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ('audio', media_kind, source_id, title, source_url, _relative_path(file_path),
              file_size_bytes, _now_iso(), collection_name, collection_id,
              artist, duration_secs, audio_format, track_number),
         )
@@ -220,15 +291,21 @@ def record_anime_download(
 
 # === QUERY ===
 
-def is_recorded(scraper_type: str, source_id: str) -> bool:
-    """Indica se un download è già registrato (per saltare i duplicati)."""
+def is_recorded(scraper_type: str, source_id: str, media_kind: str | None = None) -> bool:
+    """Indica se un download è già registrato (per saltare i duplicati).
+
+    Senza `media_kind` risponde "sì" per qualunque versione; passandolo
+    ('audio' o 'video') si chiede se esiste **quella** versione, utile
+    ora che lo stesso video può essere presente in entrambe.
+    """
     try:
         conn = _get_conn()
-        row = conn.execute(
-            "SELECT 1 FROM downloads WHERE scraper_type=? AND source_id=?",
-            (scraper_type, source_id),
-        ).fetchone()
-        return row is not None
+        query = "SELECT 1 FROM downloads WHERE scraper_type=? AND source_id=?"
+        params = [scraper_type, source_id]
+        if media_kind is not None:
+            query += " AND media_kind=?"
+            params.append(media_kind)
+        return conn.execute(query, params).fetchone() is not None
     except Exception:
         return False
 
