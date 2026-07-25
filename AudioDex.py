@@ -1,8 +1,31 @@
-# AudioDex.py
-# Downloader audio da YouTube (singoli brani e playlist) con UI Rich:
-# scarica il solo flusso audio, tagga i metadati e la copertina via mutagen,
-# incorpora il testo sincronizzato (karaoke) da LRCLIB e registra ogni
-# download sul database SQLite globale condiviso con gli altri scraper.
+"""AudioDex — downloader audio da YouTube con interfaccia da terminale.
+
+A cosa serve
+    Trasformare un link YouTube in file audio veri: taggati, con copertina,
+    con il testo sincronizzato dentro e numerati nell'ordine della playlist.
+    Scarica il solo flusso audio (o il video intero, se richiesto), senza
+    ricodificare quando il formato di partenza coincide con quello voluto.
+
+Perché esiste
+    I convertitori online impongono pubblicità, tetti di durata e una
+    traccia alla volta, e restituiscono file senza metadati né ordine. Qui
+    un solo comando copre un album intero e produce file già pronti per la
+    libreria musicale.
+
+Come è organizzato il file
+    1. costanti e utilità di formato (durate, dimensioni, visualizzazioni);
+    2. sanificazione dei nomi file, compatibile con Windows e con i telefoni;
+    3. interrogazione di YouTube tramite yt-dlp (ricerca, playlist, video);
+    4. presentazione Rich (tabelle, schede, riepiloghi);
+    5. download vero e proprio, con parallelismo, retry e barre di fase;
+    6. tagging con mutagen e testi sincronizzati da LRCLIB;
+    7. ``main()`` con la modalità interattiva e quella da riga di comando.
+
+Dipendenze esterne
+    yt-dlp e FFmpeg sono obbligatori; mutagen è opzionale (senza, si perde
+    solo il tagging); LRCLIB è un servizio pubblico senza chiave, e un suo
+    malfunzionamento non fa mai fallire un download.
+"""
 from __future__ import annotations
 
 import argparse
@@ -57,7 +80,13 @@ LRCLIB_API = 'https://lrclib.net/api'
 
 
 def _print_banner() -> None:
-    """Stampa il banner ASCII colorato 'AudioDex' all'avvio del programma."""
+    """Stampa il banner ASCII colorato 'AudioDex' all'avvio del programma.
+
+    Non ha alcuna funzione tecnica: serve a dare al programma un'identità
+    riconoscibile e a segnare con chiarezza l'inizio di una sessione quando
+    il terminale contiene già l'output di comandi precedenti. Le righe sono
+    colorate a sfumatura, una tinta per riga.
+    """
     # Stringhe grezze (r'...'): il disegno è fitto di backslash e con le
     # sequenze di escape normali diventerebbe illeggibile da correggere.
     banner_lines = [
@@ -99,6 +128,22 @@ MAX_SEARCH_RESULTS = 15    # Numero massimo di risultati mostrati per una ricerc
 AUDIO_EXTS = frozenset({'m4a', 'mp3', 'opus'})
 VIDEO_EXTS = frozenset({'mp4', 'mkv'})
 
+# Flusso da chiedere a YouTube per ogni formato di uscita. Il criterio è
+# scaricare il codec che YouTube serve già nativamente: quando sorgente e
+# destinazione coincidono ffmpeg si limita a cambiare contenitore, copiando
+# l'audio byte per byte, e non c'è nessuna seconda compressione con perdita.
+#   m4a  -> AAC ~128 kbps  (itag 140), copia diretta
+#   opus -> Opus ~160 kbps (itag 251), copia diretta
+#   mp3  -> YouTube non lo serve mai: la conversione è inevitabile, quindi si
+#           parte dal flusso di qualità più alta disponibile (di norma Opus).
+# Ogni voce termina con dei ripieghi progressivi, per i video che non
+# espongono il codec preferito.
+AUDIO_SOURCE_FORMATS = {
+    'm4a': 'bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best',
+    'opus': 'bestaudio[acodec=opus]/bestaudio[ext=webm]/bestaudio/best',
+    'mp3': 'bestaudio/best',
+}
+
 
 log = setup_logger('audiodex', 'audiodex.log')
 
@@ -115,14 +160,35 @@ _cookies_browser: str | None = None
 
 
 def _apply_cookies(ydl_opts: dict) -> dict:
-    """Aggiunge le opzioni cookie a un dict di opzioni yt-dlp, se richieste."""
+    """Aggiunge le opzioni cookie a un dict di opzioni yt-dlp, se richieste.
+
+    Le opzioni yt-dlp vengono costruite in cinque punti diversi del file
+    (ricerca, playlist, scheda video, download audio, download video) e tutti
+    devono presentarsi a YouTube con la stessa identità. Centralizzare qui
+    l'innesto dei cookie evita che aggiungendo una nuova chiamata ci si
+    dimentichi di autenticarla, con l'effetto di vedere sparire proprio le
+    playlist private per cui l'opzione era stata attivata.
+
+    Modifica e restituisce lo stesso dict, per potersi incastrare
+    direttamente nell'espressione che lo crea.
+    """
     if _cookies_browser:
         ydl_opts['cookiesfrombrowser'] = (_cookies_browser,)
     return ydl_opts
 
 
 def _signal_handler(signum, frame):
-    """Gestisce Ctrl+C: il primo chiede l'arresto pulito, il secondo forza l'uscita."""
+    """Gestisce Ctrl+C: il primo chiede l'arresto pulito, il secondo forza l'uscita.
+
+    Interrompere di colpo dei download paralleli lascerebbe sul disco file
+    troncati che il controllo anti-duplicati potrebbe scambiare per tracce
+    complete. Il primo Ctrl+C imposta quindi un evento condiviso: i download
+    già avviati arrivano in fondo, quelli in coda vengono annullati.
+
+    Il secondo Ctrl+C serve come via di fuga se qualcosa resta bloccato — per
+    esempio una richiesta di rete appesa — e usa ``os._exit`` per terminare
+    davvero senza attendere i thread.
+    """
     if _shutdown_event.is_set():
         log.warning('Secondo Ctrl+C - terminazione forzata')
         os._exit(1)
@@ -205,7 +271,16 @@ def _check_disk_space(path: str) -> bool:
 
 
 def _format_duration(seconds: int | float | None) -> str:
-    """Converte una durata in secondi nel formato leggibile M:SS o H:MM:SS."""
+    """Converte una durata in secondi nel formato leggibile M:SS o H:MM:SS.
+
+    Le ore compaiono solo quando servono davvero: scrivere `0:03:54` per un
+    brano di quattro minuti allungherebbe la colonna di tutte le righe della
+    tabella per un dato quasi sempre nullo.
+
+    Un valore assente diventa `??:??` invece di `0:00`, perché sono due cose
+    diverse: la prima è un dato che YouTube non ha fornito, la seconda una
+    traccia di durata zero.
+    """
     if not seconds:
         return '??:??'
     seconds = int(seconds)
@@ -216,7 +291,14 @@ def _format_duration(seconds: int | float | None) -> str:
 
 
 def _format_size(bytes_val: int | float | None) -> str:
-    """Converte una dimensione in byte in una stringa leggibile (MB o GB)."""
+    """Converte una dimensione in byte in una stringa leggibile (MB o GB).
+
+    Si passa ai gigabyte oltre i 1024 MB: è la soglia che serve da quando
+    esiste il download video, dove un singolo file supera tranquillamente il
+    gigabyte e leggere `3891.4 MB` costringerebbe a contare le cifre.
+
+    Come per le durate, un valore assente resta esplicito (`?? MB`).
+    """
     if not bytes_val:
         return '?? MB'
     mb = bytes_val / 1048576
@@ -226,7 +308,18 @@ def _format_size(bytes_val: int | float | None) -> str:
 
 
 def _format_views(views: int | float | None) -> str:
-    """Converte un conteggio di visualizzazioni in forma compatta (es. 2.1 Mrd)."""
+    """Converte un conteggio di visualizzazioni in forma compatta (es. 2.1 Mrd).
+
+    Le visualizzazioni servono a distinguere a colpo d'occhio la versione
+    ufficiale di un brano dai ricaricamenti: per quello basta l'ordine di
+    grandezza, mentre `1.247.883.201` occuperebbe mezza tabella. Le migliaia
+    si arrotondano all'unità (`350 K`), sopra il milione si tiene un decimale
+    perché lì la differenza tra `1.2 Mrd` e `1.9 Mrd` è informativa.
+
+    La stessa funzione formatta anche i mi piace e gli iscritti al canale.
+    Restituisce un trattino lungo quando il dato manca, così la scheda del
+    video può omettere la riga invece di mostrarla vuota.
+    """
     if not views:
         return '—'
     views = int(views)
@@ -506,14 +599,33 @@ _LINGUE = {
 
 
 def _format_language(code: str | None) -> str | None:
-    """Converte un codice lingua ('en', 'it-IT') nel nome esteso."""
+    """Converte un codice lingua ('en', 'it-IT') nel nome esteso.
+
+    La variante regionale viene scartata (`it-IT` → `it`): nella scheda di un
+    video interessa la lingua, non il paese, e distinguere `en-US` da `en-GB`
+    aggiungerebbe rumore senza aggiungere informazione.
+
+    I codici fuori tabella vengono restituiti tali e quali invece di essere
+    nascosti: una sigla ISO resta comunque interpretabile, e la tabella delle
+    lingue copre solo le più frequenti su YouTube.
+    """
     if not code:
         return None
     return _LINGUE.get(code.split('-')[0].lower(), code)
 
 
 def _format_upload_date(raw: str | None) -> str:
-    """Converte la data di pubblicazione da 'AAAAMMGG' a 'GG/MM/AAAA'."""
+    """Converte la data di pubblicazione da 'AAAAMMGG' a 'GG/MM/AAAA'.
+
+    yt-dlp restituisce le date come stringa compatta senza separatori
+    (`20171005`), illeggibile a colpo d'occhio. Qui si passa alla forma
+    italiana giorno/mese/anno.
+
+    La conversione è volutamente fatta a mano invece che con ``datetime``: il
+    formato è fisso e non serve alcun fuso orario, mentre un parsing vero
+    solleverebbe eccezioni su valori malformati che qui si vogliono solo
+    ignorare. Il controllo su lunghezza e cifre basta a scartarli.
+    """
     if not raw or len(raw) != 8 or not raw.isdigit():
         return '—'
     return f'{raw[6:8]}/{raw[4:6]}/{raw[0:4]}'
@@ -563,7 +675,19 @@ def _display_video_card(info: dict) -> None:
 
 
 def _confirm_video(info: dict) -> bool:
-    """Mostra la scheda del video e chiede conferma prima di scaricare."""
+    """Mostra la scheda del video e chiede conferma prima di scaricare.
+
+    Esiste perché un URL incollato può facilmente non essere quello giusto —
+    un ricaricamento, una cover, un live — e un video pesa da 20 a 100 volte
+    l'audio: meglio due secondi di lettura che un download da rifare.
+
+    Viene usata **solo** in modalità interattiva. Con ``--url`` la scheda si
+    vede lo stesso ma senza domanda, altrimenti uno script resterebbe appeso
+    a un prompt.
+
+    Accetta come conferma sia le forme italiane sia quelle inglesi: chi usa
+    un terminale digita `y` per riflesso.
+    """
     _display_video_card(info)
     answer = console.input(
         '\n[bold]Procedo con il download di questo video? (s/n): [/bold]'
@@ -572,7 +696,20 @@ def _confirm_video(info: dict) -> bool:
 
 
 def _entry_from_info(info: dict, url: str) -> dict:
-    """Costruisce la entry di download dai metadati completi di un video."""
+    """Costruisce la entry di download dai metadati completi di un video.
+
+    Il resto del programma lavora su "entry", dizionari con sempre le stesse
+    sei chiavi, prodotti dalla ricerca e dall'estrazione delle playlist.
+    L'estrazione piena di un singolo video restituisce invece decine di campi
+    con nomi diversi: questa funzione li riduce alla forma comune, così
+    ``download_batch`` non deve sapere da dove arriva ciò che riceve.
+
+    Ogni campo ha un ripiego, perché la scheda di un video può essere
+    incompleta e un ``None`` che arrivasse fino alle tabelle vi comparirebbe
+    stampato come testo. Per l'URL si preferisce ``webpage_url``, la forma
+    canonica ripulita da YouTube, e si ricade su quello incollato dall'utente
+    solo se manca: è ciò che elimina i parametri di Mix e tracciamento.
+    """
     return {
         'id': info.get('id', ''),
         'title': info.get('title', 'Sconosciuto'),
@@ -677,7 +814,20 @@ def _display_playlist_info(title: str, entries: list[dict], meta: dict | None = 
 
 
 def _display_download_summary(results: list[dict]) -> None:
-    """Mostra il riepilogo finale: quante tracce scaricate, già presenti, fallite."""
+    """Mostra il riepilogo finale: quante tracce scaricate, già presenti, fallite.
+
+    Dopo una playlist lunga le barre di avanzamento sono scorse via e il
+    terminale non dice più com'è andata: questo pannello è il verdetto, e
+    l'unico punto in cui compaiono i titoli delle tracce fallite.
+
+    I tre esiti restano distinti perché richiedono azioni diverse: `skip`
+    significa che il file c'era già ed è tutto a posto, `fail` che va
+    ritentato. Le righe che valgono zero non vengono stampate, per non
+    suggerire un problema dove non c'è.
+
+    Il colore del bordo e l'icona seguono la presenza di fallimenti, così
+    l'esito si legge senza mettersi a contare i numeri.
+    """
     ok = sum(1 for r in results if r['status'] == 'ok')
     fail = sum(1 for r in results if r['status'] == 'fail')
     skip = sum(1 for r in results if r['status'] == 'skip')
@@ -833,7 +983,21 @@ def _is_already_downloaded(title: str, output_dir: str, prefix: str = '',
 
 
 def _wanted_name(prefix: str, title: str, existing_path: str) -> str:
-    """Nome file atteso per una traccia: prefisso + titolo + estensione attuale."""
+    """Nome file atteso per una traccia: prefisso + titolo + estensione attuale.
+
+    Serve alla rinumerazione dei file scaricati con una versione precedente,
+    quando ancora non esisteva il numero di traccia nel nome: calcola come
+    *dovrebbe* chiamarsi oggi quel file, per poterlo rinominare invece di
+    riscaricarlo.
+
+    L'estensione viene presa dal file esistente e non dal formato richiesto:
+    un `.mp3` già in cartella va rinominato restando `.mp3`, altrimenti si
+    otterrebbe un nome che promette un contenuto diverso da quello reale.
+
+    La sanificazione è applicata due volte di proposito — prima al titolo, poi
+    all'intero nome — perché il prefisso numerico è generato dal programma ed
+    è già sicuro, mentre il secondo passaggio normalizza la stringa completa.
+    """
     ext = os.path.splitext(existing_path)[1]
     return _sanitize_filename(prefix + _sanitize_filename(title)) + ext
 
@@ -860,8 +1024,27 @@ class _PhaseTracker:
     )
 
     def __init__(self, progress: Progress, total: int, skip: frozenset[str] = frozenset()):
+        """Crea una barra per ogni fase pertinente al download in corso.
+
+        Parametri
+        ---------
+        progress : Progress
+            La barra Rich condivisa su cui registrare le quattro attività.
+        total : int
+            Numero di tracce da elaborare: è il fondo scala di ogni barra.
+        skip : frozenset[str]
+            Fasi da non mostrare affatto. Serve ai download video, dove i
+            testi karaoke non vengono cercati: una barra ferma a zero per
+            tutta la sessione sembrerebbe un blocco invece di una scelta.
+
+        Le etichette sono riempite di spazi a lunghezza uguale perché le
+        barre partano tutte dalla stessa colonna: disallineate darebbero
+        l'impressione di un errore di stampa.
+        """
         self._progress = progress
         self._lock = threading.Lock()
+        # Fasi già superate da ciascuna traccia, per non contarle due volte
+        # quando un retry ripercorre passaggi già fatti.
         self._seen: dict[int, set[str]] = {}
         self._tasks = {
             name: progress.add_task(label, total=total)
@@ -904,6 +1087,24 @@ class _YtDlpProgressHook:
     """
 
     def __init__(self, progress: Progress, task_id, title: str, on_downloaded=None):
+        """Lega questo hook alla barra di una singola traccia.
+
+        Parametri
+        ---------
+        progress, task_id
+            La barra Rich e l'identificativo dell'attività da aggiornare.
+        title : str
+            Titolo della traccia, tenuto per i messaggi diagnostici.
+        on_downloaded : callable | None
+            Richiamata quando l'ultimo byte è arrivato. Serve a segnalare al
+            tracker delle fasi che il download è finito e che da lì in poi
+            sta lavorando FFmpeg: senza, la barra "Download" resterebbe
+            indietro per tutta la conversione.
+
+        ``_started`` e ``_total`` esistono perché la dimensione del file non
+        è nota alla prima chiamata: si registra il primo totale utile e lo si
+        riusa alla fine per portare la barra esattamente al fondo scala.
+        """
         self.progress = progress
         self.task_id = task_id
         self.title = title
@@ -912,7 +1113,23 @@ class _YtDlpProgressHook:
         self._total = 0
 
     def __call__(self, d: dict) -> None:
-        """Callback invocata da yt-dlp con lo stato corrente del download."""
+        """Callback invocata da yt-dlp a ogni blocco scaricato.
+
+        Traduce il dizionario di stato di yt-dlp in aggiornamenti della barra
+        Rich. Gestisce due soli stati: ``downloading``, che porta avanti i
+        byte, e ``finished``, che chiude la barra al 100% e avvisa il
+        chiamante.
+
+        La chiusura esplicita al totale serve perché l'ultimo evento
+        ``downloading`` può arrivare qualche kilobyte prima della fine,
+        lasciando la barra al 99% per sempre.
+
+        L'intero corpo è avvolto in un ``except`` silenzioso di proposito:
+        questa funzione gira dentro il ciclo di download di yt-dlp, e
+        un'eccezione sollevata qui — anche solo per una chiave mancante in un
+        formato di stato inatteso — abortirebbe un download altrimenti sano.
+        Un difetto grafico è sempre preferibile a una traccia persa.
+        """
         try:
             if d['status'] == 'downloading':
                 total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
@@ -1042,9 +1259,11 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
             )
     else:
         # Solo audio: niente traccia video, il file occupa una frazione
-        # dello spazio. 'FFmpegExtractAudio' converte (o rimuxa senza
-        # ricodifica, quando il formato sorgente coincide).
-        ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio/best'
+        # dello spazio. Il flusso richiesto dipende dal formato di uscita
+        # (vedi AUDIO_SOURCE_FORMATS): così 'FFmpegExtractAudio' trova già
+        # il codec giusto e rimuxa senza ricodificare, invece di scaricare
+        # sempre l'AAC e ricomprimerlo una seconda volta.
+        ydl_opts['format'] = AUDIO_SOURCE_FORMATS.get(audio_format, 'bestaudio/best')
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': audio_format,
@@ -1439,6 +1658,51 @@ def _ask_media_type() -> tuple[str, str] | None:
         console.print('[error]Scelta non valida. Riprova.[/error]')
 
 
+# Prefissi degli id di lista che YouTube assegna alle "Mix", cioè le radio
+# generate al volo: My Mix, mix di un artista, mix di un video musicale.
+_MIX_PREFISSI = ('RDMM', 'RDEM', 'RDAMVM', 'RDGMEM', 'RDAO')
+
+
+def _is_mix_url(url: str) -> bool:
+    """Riconosce le Mix di YouTube, che sembrano playlist ma non lo sono.
+
+    Copiando il link dal player di un video, YouTube ci attacca spesso un
+    '&list=RD<idVideo>&start_radio=1': è la radio automatica costruita a
+    partire da quel brano. Non è una playlist apribile — l'URL canonico
+    'playlist?list=RD…' fa rispondere a YouTube *"This playlist type is
+    unviewable"* — quindi va ignorata e si scarica il solo video.
+
+    Restano escluse le liste 'RDCLAK5uy_…', che YouTube Music genera per gli
+    album e che invece sono normalmente consultabili.
+    """
+    if 'start_radio=1' in url:
+        return True
+
+    lista = re.search(r'[?&]list=([\w-]+)', url)
+    if not lista:
+        return False
+    lista = lista.group(1)
+
+    if lista.startswith(_MIX_PREFISSI):
+        return True
+
+    # 'RD' + id del video: la radio del brano che si sta guardando
+    video = re.search(r'[?&]v=([\w-]+)', url)
+    return bool(video and lista == f'RD{video.group(1)}')
+
+
+def _url_ha_video(url: str) -> bool:
+    """True se l'URL contiene comunque l'id di un video singolo.
+
+    È la condizione del ripiego applicato quando l'estrazione di una playlist
+    non produce nulla: se il link porta con sé un `v=`, quel video resta
+    scaricabile anche se la raccolta a cui appartiene è privata, rimossa o di
+    un tipo che YouTube non espone. Meglio consegnare il brano che l'utente
+    stava guardando piuttosto che rifiutare l'intera operazione.
+    """
+    return bool(re.search(r'[?&]v=[\w-]+', url))
+
+
 def _is_playlist_url(url: str) -> bool:
     """Riconosce dall'URL se si tratta di una playlist o di un album.
 
@@ -1446,7 +1710,12 @@ def _is_playlist_url(url: str) -> bool:
     ('/playlist/', '/album/') e SoundCloud ('/sets/'). Serve a decidere se
     creare una sottocartella con il nome dell'album e proporre la
     selezione delle tracce.
+
+    Le Mix sono escluse: hanno un '&list=' ma non sono playlist, e seguirle
+    farebbe fallire il download di un video del tutto normale.
     """
+    if _is_mix_url(url):
+        return False
     return any(x in url for x in ('playlist?list=', '/playlist/', '/album/', '/sets/', '&list='))
 
 
@@ -1555,11 +1824,22 @@ def main() -> None:
                 break
 
             if query.startswith(('http://', 'https://', 'www.')):
-                if _is_playlist_url(query):
+                come_playlist = _is_playlist_url(query)
+                if come_playlist:
                     title, entries, meta = get_playlist_entries(query)
                     if not entries:
-                        console.print('[error]Nessuna traccia trovata nella playlist.[/error]')
-                        continue
+                        # Playlist inaccessibile (privata, rimossa, o di un tipo
+                        # che YouTube non espone): se l'URL porta comunque con sé
+                        # un video, si scarica quello invece di arrendersi.
+                        if _url_ha_video(query):
+                            console.print('[warning]Playlist non accessibile: scarico il '
+                                          'singolo video.[/warning]')
+                            come_playlist = False
+                        else:
+                            console.print('[error]Nessuna traccia trovata nella playlist.[/error]')
+                            continue
+
+                if come_playlist:
                     _display_playlist_info(title, entries, meta)
                     _display_search_results(entries, table_title='Tracce della playlist')
                     console.print(f'\n[dim_label]Scaricare tutte le {len(entries)} tracce? (s/n)[/dim_label]')
@@ -1634,11 +1914,22 @@ def main() -> None:
         return
 
     if args.url:
-        if _is_playlist_url(args.url):
+        come_playlist = _is_playlist_url(args.url)
+        if come_playlist:
             title, entries, meta = get_playlist_entries(args.url)
             if not entries:
-                console.print('[error]Nessuna traccia trovata.[/error]')
-                return
+                # Stesso ripiego della modalità interattiva: un URL che
+                # contiene un video resta scaricabile anche se la playlist
+                # a cui appartiene non è consultabile.
+                if _url_ha_video(args.url):
+                    console.print('[warning]Playlist non accessibile: scarico il '
+                                  'singolo video.[/warning]')
+                    come_playlist = False
+                else:
+                    console.print('[error]Nessuna traccia trovata.[/error]')
+                    return
+
+        if come_playlist:
             _display_playlist_info(title, entries, meta)
             _display_search_results(entries, table_title='Tracce della playlist')
             album_name = _sanitize_filename(title)
