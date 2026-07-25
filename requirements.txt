@@ -10,3 +10,4 @@ yt-dlp>=2026.6.9
 requests>=2.31
 rich>=13.0
 mutagen>=1.47   # opzionale: tagging metadati/copertina dei file .m4a
+pywin32>=306    # solo per BurnDex (masterizzazione CD audio via IMAPI2, Windows)
