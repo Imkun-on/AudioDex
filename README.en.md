@@ -43,21 +43,31 @@
 
 </div>
 
+**Install** — this block is safe to paste as a whole:
+
 ```bash
 git clone https://github.com/Imkun-on/AudioDex.git
 cd AudioDex
 pip install -r requirements.txt
-
-python AudioDex.py                                    # interactive mode
-python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
-
-python BurnDex.py                                     # burn a collection to an audio CD
-python BurnDex.py --info                              # what's in the drive
 ```
 
-> 🌍 **A note on the screenshots.** The tools speak **Italian** at runtime. The terminal
-> transcripts throughout this document are reproduced verbatim, so they show the real
-> Italian output rather than a translation that would not match what you see on screen.
+**Usage** — these lines are alternatives: run **one** at a time.
+
+```bash
+python AudioDex.py                                    # interactive mode
+python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
+```
+
+```bash
+python BurnDex.py --info                              # what's in the drive
+python BurnDex.py                                     # burn a collection to an audio CD
+```
+
+> 🌍 **A note on the screenshots.** Both tools speak **English or Italian** — they ask
+> which one you want on first launch, see [Interface language](#-interface-language).
+> The terminal transcripts throughout this document were captured before the English
+> interface existed, so they show the Italian output verbatim; the layout is identical
+> in English, only the words differ.
 
 ---
 
@@ -73,6 +83,7 @@ python BurnDex.py --info                              # what's in the drive
 - 4.1 [Python](#python)
 - 4.2 [FFmpeg (required)](#ffmpeg-required)
 - 4.3 [Python dependencies](#python-dependencies)
+- 4.4 [🌍 Interface language](#-interface-language)
 
 **Chapter 5 — [🚀 Usage and examples](#-usage-and-examples)**
 - 5.1 [The interactive flow, step by step](#the-interactive-flow-step-by-step)
@@ -225,10 +236,15 @@ FFmpeg extracts and converts the audio into the chosen format: without it a down
 winget install Gyan.FFmpeg
 ```
 
+On macOS:
+
 ```bash
-# macOS
 brew install ffmpeg
-# Linux (Debian/Ubuntu)
+```
+
+On Linux (Debian/Ubuntu):
+
+```bash
 sudo apt install ffmpeg
 ```
 
@@ -250,6 +266,40 @@ pip install pywin32          # BurnDex only (CD burning, Windows)
 > ⚠️ **A note on yt-dlp:** YouTube changes its internal APIs often. If search or downloads stop working, updating almost always fixes it: `pip install -U yt-dlp`
 
 > 💿 **`pywin32` is only needed by BurnDex**, and only on Windows. AudioDex works without it. If it is missing, `BurnDex.py --dry-run` still runs every check on the track list and simply skips querying the drive.
+
+### 🌍 Interface language
+
+**Italian or English.** On first launch, both AudioDex and BurnDex ask which language you want to work in. The question is asked **in English**, because it is the one language anyone who does not speak Italian can certainly read:
+
+```
+┌───────┬────────────┐
+│    1  │  English   │
+│    2  │  Italiano  │
+└───────┴────────────┘
+
+Language / Lingua (1-2, Enter = English):
+```
+
+Choose `1` and **everything** switches to English: prompts, tables, panels, progress bars, summaries, error messages and the `--help` texts. Nothing is left half-translated.
+
+The answer is **remembered** in `settings.json`, next to the scripts, and is not asked again on later runs. To change it:
+
+```bash
+python AudioDex.py --lang ask     # asks again and re-saves the answer
+```
+
+For a single run, without touching the stored preference:
+
+```bash
+python AudioDex.py --lang en --url "https://..."
+python BurnDex.py -l en --info
+```
+
+**What is not translated.** The log files in `logs/` and the code comments stay in Italian: they are for whoever maintains the program, not for whoever uses it.
+
+> ⚙️ **The question is not asked in non-interactive runs.** With `--url`, `--search` or `--yes` there is nobody there to answer, and hanging on a prompt would block a script: the stored preference applies, or Italian if there is not one yet. To pin the language inside a script, use `--lang`.
+
+> 🗣 **Answers work in both languages.** Both `s` and `y` count as confirmation, `q` and `esci` as quit, whichever language you picked: someone running the English interface who types `s` out of habit does not get the operation cancelled.
 
 ---
 
@@ -431,7 +481,7 @@ It exists so you can tell at a glance whether this is the right video before spe
 
 ### Example 4 — Command-line usage
 
-To skip interactive mode:
+To skip interactive mode. Again, these are alternative examples — run one at a time:
 
 ```bash
 # One-off search (shows results and asks for a selection)
@@ -466,6 +516,7 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implied
 | `--max-results <n>` | — | `15` | Maximum number of search results |
 | `--no-lyrics` | — | off | Do not look up synced lyrics on LRCLIB |
 | `--cookies-from-browser <browser>` | — | — | Use browser cookies (`firefox`, `chrome`, `edge`, …) to reach **private** playlists and videos |
+| `--lang {it,en,ask}` | `-l` | *(remembered)* | Interface language for this run. With `ask` the question is asked again and the answer re-saved — see [Interface language](#-interface-language) |
 
 > Without `--search` or `--url`, **interactive mode** starts.
 
@@ -761,10 +812,18 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | System, burners and inserted disc, then exits |
 | `--yes`, `-y` | No questions: all tracks, default speed, no confirmation |
 | `--no-eject` | Do not eject the disc when burning finishes |
+| `--lang`, `-l` | Interface language for this run (`it`/`en`), or `ask` to choose again and save |
+
+Examples — these are **alternatives**, run one at a time. The harmless two first:
 
 ```bash
 python BurnDex.py --info                                        # reconnaissance
 python BurnDex.py -d "download_audio/Molchat Doma - Etazhi" -n  # rehearsal
+```
+
+Then the ones that **actually write to the disc** (do not paste them together with the above):
+
+```bash
 python BurnDex.py -d "download_audio/Molchat Doma - Etazhi"     # burn
 python BurnDex.py -d "..." --speed 24 --yes --no-eject          # unattended
 ```
@@ -981,6 +1040,19 @@ Technical details:
 ---
 
 ## 📝 Changelog
+
+### 2026-07-26
+
+**New**
+
+- 🌍 **Interface in Italian or English.** On first launch both tools ask for the language, **in English**, because it is the one language anyone who does not speak Italian can certainly read. Pick English and everything follows: prompts, tables, panels, bars, summaries, error diagnostics and the `--help` texts. The choice is remembered in `settings.json` and not asked again; `--lang it|en` overrides it for a single run without touching the preference, `--lang ask` asks again. See [Interface language](#-interface-language)
+- 🗣 **Answers accepted in both languages** whichever one is selected: `s`/`si`/`y`/`yes` to confirm, `q`/`esci`/`exit` to quit, `all`/`tutti`/`tutte` to select everything. Someone running the English interface who types `s` out of habit no longer gets the operation cancelled
+
+**Changes**
+
+- 🧱 **Text separated from code**: the phrases shown to the user live in `Shared/strings_audiodex.py` and `Shared/strings_burndex.py`, the machinery that picks between them in `Shared/i18n.py`. Comments, docstrings and file logs stay in Italian: they address whoever maintains the program, not whoever uses it
+- 📅 **Upload date in ISO form in English** (`2013-04-19`) instead of day/month/year: it is the only form that is unambiguous between the American convention, which puts the month first, and the British one, which puts the day first. In Italian it stays `19/04/2013`
+- 🔢 **Large-number abbreviations translated**: `1.2 Mrd` / `4.3 Mln` in Italian become `1.2 B` / `4.3 M` in English
 
 ### 2026-07-25
 

@@ -61,6 +61,14 @@ from rich.table import Column, Table
 from rich.text import Text
 
 from Shared.logger_setup import setup_logger, console, SYM_OK, SYM_FAIL, SYM_ARROW
+from Shared import i18n
+from Shared.strings_burndex import TESTI
+
+# Le frasi mostrate all'utente stanno tutte nel catalogo, in italiano e in
+# inglese; qui si usa la scorciatoia t('chiave'). Commenti, docstring e log su
+# file restano in italiano: si rivolgono a chi legge il codice, non a chi lo usa.
+i18n.register(TESTI)
+t = i18n.t
 
 # pywin32 serve solo per masterizzare davvero: importarlo qui e non in cima
 # permette a --help e alle modalita' di sola lettura di funzionare comunque,
@@ -99,9 +107,9 @@ def _print_banner() -> None:
     text = Text()
     for i, line in enumerate(banner_lines):
         text.append(line + '\n', style=Style(color=colors[i % len(colors)], bold=True))
-    text.append('\nMasterizzatore di CD audio', style=Style(color='white', bold=True))
+    text.append('\n' + t('banner.subtitle'), style=Style(color='white', bold=True))
     text.append('  ·  ', style='dim')
-    text.append('standard Red Book CD-DA', style='dim')
+    text.append(t('banner.standard'), style='dim')
 
     console.print()
     console.print(Panel(
@@ -123,7 +131,8 @@ def _passo(numero: int, totale: int, titolo: str) -> None:
     console.print()
     console.print(Rule(
         Text.assemble(
-            (f' Passo {numero}/{totale} ', Style(color='black', bgcolor='bright_blue', bold=True)),
+            (t('step.label', n=numero, tot=totale),
+             Style(color='black', bgcolor='bright_blue', bold=True)),
             ('  ', ''),
             (titolo.upper(), Style(color='bright_blue', bold=True)),
             ('  ', ''),
@@ -154,7 +163,7 @@ def _barra_capienza(usati: int, capienza: int, larghezza: int = 40) -> Text:
     barra.append('█' * pieni, style=colore)
     barra.append('░' * (larghezza - pieni), style='grey37')
     barra.append(f'  {_sectors_to_minutes(usati):.1f}', style='bold white')
-    barra.append(f' / {_sectors_to_minutes(capienza):.0f} min', style='dim')
+    barra.append(f" / {_sectors_to_minutes(capienza):.0f} {t('common.min')}", style='dim')
     return barra
 
 
@@ -198,11 +207,14 @@ AUDIO_EXTS = frozenset({'.m4a', '.mp3', '.opus', '.mp4', '.wav',
 
 # IMAPI_MEDIA_PHYSICAL_TYPE: solo i valori che possono capitare in un
 # masterizzatore CD/DVD di consumo.
+# Le sigle commerciali (CD-R, DVD+RW, BD-RE...) sono internazionali e restano
+# identiche in ogni lingua. Solo le due voci generiche vanno tradotte, e per
+# quelle qui c'e' la chiave di catalogo invece del testo.
 MEDIA_TYPES = {
-    0: 'sconosciuto', 1: 'CD-ROM', 2: 'CD-R', 3: 'CD-RW',
+    0: 'media.unknown', 1: 'CD-ROM', 2: 'CD-R', 3: 'CD-RW',
     4: 'DVD-ROM', 5: 'DVD-RAM', 6: 'DVD+R', 7: 'DVD+RW',
     8: 'DVD+R DL', 9: 'DVD-R', 10: 'DVD-RW', 11: 'DVD-R DL',
-    12: 'disco', 13: 'BD-ROM', 14: 'BD-R', 15: 'BD-RE',
+    12: 'media.disc', 13: 'BD-ROM', 14: 'BD-R', 15: 'BD-RE',
 }
 
 # Solo su questi tre supporti esiste il formato Red Book: un "CD audio" su
@@ -295,10 +307,10 @@ def _check_tools() -> bool:
     risolve tutto in un colpo invece di scoprire il secondo problema dopo
     aver corretto il primo.
     """
-    mancanti = [t for t in ('ffmpeg', 'ffprobe') if shutil.which(t) is None]
+    mancanti = [exe for exe in ('ffmpeg', 'ffprobe') if shutil.which(exe) is None]
     if mancanti:
-        console.print(f"\n[error]{', '.join(mancanti)} non trovato nel PATH.[/error]")
-        console.print('[dim]Installa con: winget install Gyan.FFmpeg[/dim]\n')
+        console.print(t('tools.missing', tools=', '.join(mancanti)))
+        console.print(t('tools.install_ffmpeg'))
         return False
     return True
 
@@ -326,9 +338,8 @@ def _check_temp_space() -> bool:
         free_mb = shutil.disk_usage(tempfile.gettempdir()).free / 1048576
         if free_mb < MIN_FREE_MB:
             log.warning('Spazio temporaneo basso: %.0f MB liberi', free_mb)
-            console.print(f'\n[warning]ATTENZIONE: solo {free_mb:.0f} MB liberi per i file '
-                          f'temporanei (ne servono ~{MIN_FREE_MB}).[/warning]')
-            return _chiedi('[bold]Continuare? (s/n): [/bold]').lower() == 's'
+            console.print(t('temp.low', free=f'{free_mb:.0f}', need=MIN_FREE_MB))
+            return i18n.is_yes(_chiedi(t('common.continue')))
         return True
     except OSError:
         return True
@@ -371,10 +382,10 @@ def _ordina_tracce(cartella: str) -> tuple[list[str], str]:
                     continue
                 p = os.path.join(cartella, nome)
                 if not os.path.exists(p):
-                    console.print(f'[error]ordine.txt cita un file inesistente: {nome}[/error]')
+                    console.print(t('order.missing_file', name=nome))
                     return [], ''
                 percorsi.append(p)
-        return percorsi, 'ordine.txt'
+        return percorsi, t('order.file')
 
     file_audio = [os.path.join(cartella, n) for n in os.listdir(cartella)
                   if os.path.splitext(n)[1].lower() in AUDIO_EXTS]
@@ -386,9 +397,9 @@ def _ordina_tracce(cartella: str) -> tuple[list[str], str]:
     numeri = [_NUM_PREFIX.match(os.path.basename(p)) for p in file_audio]
     if all(numeri):
         coppie = sorted(zip(file_audio, numeri), key=lambda c: int(c[1].group(1)))
-        return [p for p, _ in coppie], 'numero di traccia nel nome'
+        return [p for p, _ in coppie], t('order.number')
 
-    return sorted(file_audio, key=_data_creazione), 'data di creazione'
+    return sorted(file_audio, key=_data_creazione), t('order.created')
 
 
 def _scegli_cartella(base: str) -> str | None:
@@ -406,9 +417,9 @@ def _scegli_cartella(base: str) -> str | None:
     Ritorna None se l'utente esce o sbaglia la scelta; il chiamante lo
     interpreta come rinuncia e chiude senza toccare nulla.
     """
-    _passo(1, 4, 'Raccolta')
+    _passo(1, 4, t('step.collection'))
     if not os.path.isdir(base):
-        console.print(f'[error]Cartella inesistente: {base}[/error]')
+        console.print(t('common.folder_missing', path=base))
         return None
 
     cartelle = sorted(
@@ -421,31 +432,32 @@ def _scegli_cartella(base: str) -> str | None:
         cartelle.insert(0, base)
 
     if not cartelle:
-        console.print(f'[error]Nessuna raccolta trovata in {base}[/error]')
+        console.print(t('collection.none_found', base=base))
         return None
 
     tabella = Table(box=HEAVY_HEAD, border_style='bright_blue', width=LARGHEZZA,
                     header_style='bold bright_blue', padding=(0, 1))
     tabella.add_column('#', style='dim_label', justify='right', width=2)
-    tabella.add_column('Raccolta', style='bold white', overflow='ellipsis',
+    tabella.add_column(t('collection.column'), style='bold white', overflow='ellipsis',
                        no_wrap=True, ratio=1)
-    tabella.add_column('Tracce', justify='right', style='info', width=6)
-    tabella.add_column('Durata', justify='right', style='info', width=9)
+    tabella.add_column(t('collection.tracks'), justify='right', style='info', width=6)
+    tabella.add_column(t('collection.duration'), justify='right', style='info', width=9)
 
     # La durata complessiva e' il dato che decide se una raccolta ci sta su un
     # disco, ma costa un ffprobe per file: con molte raccolte l'attesa si
     # sente, quindi la si dichiara invece di lasciare il terminale muto.
     righe = []
-    with console.status('[dim]Analisi delle raccolte...[/dim]', spinner='dots'):
+    with console.status(t('collection.scanning'), spinner='dots'):
         for i, c in enumerate(cartelle, 1):
             tracce, _ = _ordina_tracce(c)
-            nome = '[dim]brani singoli[/dim]' if c == base else escape(os.path.basename(c))
+            nome = t('collection.singles') if c == base else escape(os.path.basename(c))
             # Stesso conteggio della scaletta (stacchi inclusi), altrimenti qui
             # si leggerebbe un totale e due schermate dopo un altro.
-            minuti = _sectors_to_minutes(_settori_totali([_durata(t) for t in tracce]))
+            minuti = _sectors_to_minutes(_settori_totali([_durata(p) for p in tracce]))
+            durata = f"{minuti:.1f} {t('common.min')}"
             righe.append((str(i), nome, str(len(tracce)),
-                          f'[warning]{minuti:.1f} min[/warning]' if minuti > SAFE_MINUTES
-                          else f'{minuti:.1f} min'))
+                          f'[warning]{durata}[/warning]' if minuti > SAFE_MINUTES
+                          else durata))
 
     for riga in righe:
         tabella.add_row(*riga)
@@ -453,7 +465,7 @@ def _scegli_cartella(base: str) -> str | None:
     console.print()
     console.print(tabella)
 
-    scelta = _chiedi(f'\n{SYM_DISC} [bold]Quale raccolta? (numero, invio per uscire) > [/bold]')
+    scelta = _chiedi(t('collection.prompt', disc=SYM_DISC))
     if not scelta:
         return None
     try:
@@ -461,7 +473,7 @@ def _scegli_cartella(base: str) -> str | None:
         if not 1 <= idx <= len(cartelle):
             raise ValueError
     except ValueError:
-        console.print('[error]Scelta non valida.[/error]')
+        console.print(t('common.invalid_choice'))
         return None
     return cartelle[idx - 1]
 
@@ -508,10 +520,10 @@ def _mostra_scaletta(tracce: list[str], durate: list[float | None],
         show_footer=True, footer_style='bold', padding=(0, 1),
     )
     tabella.add_column('#', style='dim_label', justify='right', width=2, footer='')
-    tabella.add_column('Traccia', style='white', overflow='ellipsis', no_wrap=True,
-                       ratio=1, footer=f'[dim]{len(tracce)} tracce[/dim]')
-    tabella.add_column('Durata', justify='right', style='info', width=9,
-                       footer=f'[bold white]{minuti:.1f} min[/bold white]')
+    tabella.add_column(t('tracklist.column'), style='white', overflow='ellipsis',
+                       no_wrap=True, ratio=1, footer=t('tracklist.count', n=len(tracce)))
+    tabella.add_column(t('tracklist.duration'), justify='right', style='info', width=9,
+                       footer=f"[bold white]{minuti:.1f} {t('common.min')}[/bold white]")
 
     for i, (path, dur) in enumerate(zip(tracce, durate), 1):
         tabella.add_row(str(i), escape(os.path.basename(path)), _format_duration(dur))
@@ -522,8 +534,7 @@ def _mostra_scaletta(tracce: list[str], durate: list[float | None],
     if capienza:
         console.print(_barra_capienza(totale, capienza, LARGHEZZA - 24))
 
-    console.print(f'[dim]Ordine: {escape(criterio)}  ·  stacchi da 2 s '
-                  f'inclusi nel totale[/dim]')
+    console.print(t('tracklist.order_note', criterion=escape(criterio)))
     return totale
 
 
@@ -538,17 +549,13 @@ def _seleziona_tracce(tracce: list[str],
     resta quello della scaletta, non quello in cui si digitano i numeri: su
     un album la sequenza dei brani e' voluta.
     """
-    console.print(
-        '\n[dim_label]Quali tracce:[/dim_label] numero singolo ([accent]3[/accent]), '
-        'intervallo ([accent]1-5[/accent]), multipli ([accent]1,3,7[/accent]), '
-        '[accent]invio[/accent] per tutte, [accent]q[/accent] per annullare'
-    )
+    console.print(t('select.hint'))
 
     while True:
-        scelta = _chiedi('\n[bold]Scegli > [/bold]').lower()
-        if scelta in ('q', 'quit', 'esci'):
+        scelta = _chiedi(t('select.prompt')).lower()
+        if i18n.is_quit(scelta):
             return [], []
-        if scelta in ('', 'all', 'a', 'tutte', 'tutti'):
+        if not scelta or i18n.is_all(scelta):
             return tracce, durate
 
         indici: set[int] = set()
@@ -573,7 +580,7 @@ def _seleziona_tracce(tracce: list[str],
             ordinati = sorted(indici)
             return [tracce[i] for i in ordinati], [durate[i] for i in ordinati]
 
-        console.print('[error]Selezione non valida. Riprova.[/error]')
+        console.print(t('common.invalid_selection'))
 
 
 def _pannello_unita(recorder, supporto: dict, sistema: dict | None = None) -> None:
@@ -597,20 +604,21 @@ def _pannello_unita(recorder, supporto: dict, sistema: dict | None = None) -> No
     collegamento = ((sistema or {}).get('unita', {}).get(lettera) or {}).get('connessione')
     nota_usb = '  [warning](USB)[/warning]' if collegamento == 'USB' else ''
 
-    tabella.add_row('Masterizzatore',
+    tabella.add_row(t('drive.burner'),
                     f'[bold]{escape(_nome_unita(recorder))}[/bold]'
                     f'  [dim]{escape(lettera)}[/dim]{nota_usb}')
-    tabella.add_row('Disco', f"[bold]{supporto['tipo']}[/bold] "
-                             f"[dim]vuoto · {_sectors_to_minutes(supporto['settori']):.0f} "
-                             f"min di capienza[/dim]")
+    tabella.add_row(t('drive.disc'),
+                    f"[bold]{supporto['tipo']}[/bold] "
+                    + t('drive.capacity',
+                        min=f"{_sectors_to_minutes(supporto['settori']):.0f}"))
     if supporto['velocita']:
-        tabella.add_row('Velocita\'', '[dim]' +
+        tabella.add_row(t('drive.speed'), '[dim]' +
                         ', '.join(_x(v) for v in supporto['velocita']) + '[/dim]')
 
     console.print()
     console.print(Panel(
         tabella,
-        title='[bold bright_blue]Unita\' pronta[/bold bright_blue]',
+        title=t('drive.panel_title'),
         border_style='bright_blue',
         box=ROUNDED,
         width=LARGHEZZA,
@@ -633,28 +641,27 @@ def _chiedi_velocita(supportate: list[int]) -> int | None:
     tabella = Table(box=HEAVY_HEAD, border_style='bright_blue', width=LARGHEZZA,
                     header_style='bold bright_blue', padding=(0, 1))
     tabella.add_column('#', style='dim_label', justify='right', width=2)
-    tabella.add_column('Velocita\'', style='bold white', width=9)
-    tabella.add_column('Resa', overflow='fold', ratio=1)
+    tabella.add_column(t('speed.column'), style='bold white', width=9)
+    tabella.add_column(t('speed.result'), overflow='fold', ratio=1)
 
     for i, v in enumerate(supportate, 1):
         if v == consigliata:
             etichetta = f'{_x(v)} [success]★[/success]'
-            nota = ('[success]consigliata[/success][dim] — incisione piu\' netta, '
-                    'la piu\' sicura per autoradio e stereo datati[/dim]')
+            nota = t('speed.recommended')
         elif v == max(supportate):
             etichetta = _x(v)
-            nota = '[dim]la piu\' rapida, ma qualche lettore vecchio puo\' faticare[/dim]'
+            nota = t('speed.fastest')
         else:
             etichetta = _x(v)
-            nota = '[dim]via di mezzo[/dim]'
+            nota = t('speed.middle')
         tabella.add_row(str(i), etichetta, nota)
 
     console.print()
     console.print(tabella)
 
     while True:
-        scelta = _chiedi(f'\n[bold]A che velocita\' scrivo? '
-                         f'(1-{len(supportate)} · invio = {_x(consigliata)}): [/bold]')
+        scelta = _chiedi(t('speed.prompt', n=len(supportate),
+                           default=_x(consigliata)))
         if not scelta:
             return consigliata
         try:
@@ -663,7 +670,7 @@ def _chiedi_velocita(supportate: list[int]) -> int | None:
                 return supportate[n - 1]
         except ValueError:
             pass
-        console.print('[error]Scelta non valida. Riprova.[/error]')
+        console.print(t('common.invalid_choice_retry'))
 
 
 def _card_conferma(recorder, supporto: dict, velocita: int | None,
@@ -678,12 +685,15 @@ def _card_conferma(recorder, supporto: dict, velocita: int | None,
     tabella.add_column('Valore', style='white', ratio=1, overflow='ellipsis')
 
     residuo = supporto['settori'] - settori
-    tabella.add_row('Unita\'', escape(_nome_unita(recorder)))
-    tabella.add_row('Disco', f"[bold]{supporto['tipo']}[/bold] [dim]vuoto[/dim]")
-    tabella.add_row('Velocita\'', f"[bold]{_x(velocita) if velocita else 'automatica'}[/bold]")
-    tabella.add_row('Tracce', f'[bold]{n_tracce}[/bold]')
-    tabella.add_row('Durata', f'[bold]{_sectors_to_minutes(settori):.1f} min[/bold]'
-                              f'  [dim]({_sectors_to_minutes(residuo):.1f} min liberi dopo)[/dim]')
+    tabella.add_row(t('confirm.drive'), escape(_nome_unita(recorder)))
+    tabella.add_row(t('confirm.disc'),
+                    f"[bold]{supporto['tipo']}[/bold] [dim]{t('common.empty')}[/dim]")
+    tabella.add_row(t('confirm.speed'),
+                    f"[bold]{_x(velocita) if velocita else t('common.automatic')}[/bold]")
+    tabella.add_row(t('confirm.tracks'), f'[bold]{n_tracce}[/bold]')
+    tabella.add_row(t('confirm.duration'),
+                    f"[bold]{_sectors_to_minutes(settori):.1f} {t('common.min')}[/bold]  "
+                    + t('confirm.free_after', min=f'{_sectors_to_minutes(residuo):.1f}'))
 
     contenuto = Table.grid(padding=(0, 0), expand=True)
     contenuto.add_column()
@@ -694,16 +704,15 @@ def _card_conferma(recorder, supporto: dict, velocita: int | None,
     console.print()
     console.print(Panel(
         contenuto,
-        title='[bold bright_magenta]💿  Pronto a masterizzare[/bold bright_magenta]',
-        subtitle='[bold red]la scrittura su CD-R e\' irreversibile[/bold red]',
+        title=t('confirm.title'),
+        subtitle=t('confirm.subtitle'),
         border_style='bright_magenta',
         box=DOUBLE,
         width=LARGHEZZA,
         padding=(1, 2),
     ))
 
-    return _chiedi('\n[bold]Procedo con la masterizzazione? (s/n): [/bold]').lower() in (
-        's', 'si', 'sì', 'y', 'yes')
+    return i18n.is_yes(_chiedi(t('confirm.prompt')))
 
 
 def _decodifica(src: str, dst: str) -> int:
@@ -808,25 +817,24 @@ def _pannello_sistema(info: dict) -> None:
     tabella.add_column('Campo', style='dim_label', no_wrap=True, width=14)
     tabella.add_column('Valore', style='white', ratio=1, overflow='ellipsis')
 
-    macchina = {'portatile': 'PC portatile', 'fisso': 'PC fisso'}.get(
-        info['macchina'], 'tipo non riconosciuto')
+    macchina = {'portatile': t('system.laptop'), 'fisso': t('system.desktop')}.get(
+        info['macchina'], t('system.unknown_type'))
     modello = f"  [dim]{escape(info['modello'])}[/dim]" if info['modello'] else ''
-    tabella.add_row('Computer', f'[bold]{macchina}[/bold]{modello}')
+    tabella.add_row(t('system.computer'), f'[bold]{macchina}[/bold]{modello}')
 
     if not info['unita']:
-        tabella.add_row('Lettore CD', '[error]nessuno rilevato[/error]')
+        tabella.add_row(t('system.cd_drive'), t('system.none_detected'))
     for lettera, unita in sorted(info['unita'].items()):
         esterna = unita['connessione'] == 'USB'
         tabella.add_row(
-            f'Unita\' {escape(lettera)}',
+            t('system.drive_label', letter=escape(lettera)),
             f"[bold]{escape(unita['nome'])}[/bold]\n"
-            + (f'[warning]collegata in USB (esterna)[/warning]' if esterna
-               else '[success]interna[/success]'))
+            + (t('system.usb_external') if esterna else t('system.internal')))
 
     console.print()
     console.print(Panel(
         tabella,
-        title='[bold bright_blue]Il tuo sistema[/bold bright_blue]',
+        title=t('system.panel_title'),
         border_style='bright_blue',
         box=ROUNDED,
         width=LARGHEZZA,
@@ -852,25 +860,11 @@ def _consiglio_sistema(info: dict) -> None:
     averne uno interno.
     """
     if not info['unita']:
-        console.print(
-            "[error]Questo computer non ha nessun lettore CD.[/error]\n"
-            '[dim]Per masterizzare serve un masterizzatore esterno USB. Su un '
-            'portatile\nrecente e\' la norma: i lettori interni non si montano '
-            'piu\' da anni.[/dim]')
+        console.print(t('system.advice_none'))
         return
 
     usb = [l for l, u in info['unita'].items() if u['connessione'] == 'USB']
-    if usb:
-        console.print(
-            "[warning]L'unita' e' esterna e si alimenta dalla porta USB.[/warning]\n"
-            '[dim]In scrittura il laser assorbe molto piu\' che in lettura, e una '
-            'porta al limite\nfa riavviare l\'unita\' a meta\' masterizzazione. '
-            'Se una scrittura fallisce:\n'
-            '  1. collega entrambi gli spinotti, se il cavo ne ha due\n'
-            '  2. usa una porta diretta sul PC, mai un hub non alimentato[/dim]')
-    else:
-        console.print('[success]Unita\' interna: alimentazione stabile, '
-                      'nessuna precauzione particolare.[/success]')
+    console.print(t('system.advice_usb') if usb else t('system.advice_internal'))
 
 
 def _valuta_supporto(supporto: dict) -> tuple[bool, str, str]:
@@ -885,37 +879,23 @@ def _valuta_supporto(supporto: dict) -> tuple[bool, str, str]:
     tipo = supporto['tipo']
 
     if codice == 0:
-        return False, 'tipo non riconosciuto', (
-            'L\'unita\' non e\' riuscita a identificare il disco. Puo\' essere '
-            'graffiato,\ninserito male, oppure di un tipo che questo '
-            'masterizzatore non gestisce.\nProva a estrarlo e reinserirlo.')
+        return False, t('disc.unknown_type'), t('disc.unknown_type_why')
 
     if codice not in TIPI_CD:
-        return False, f'{tipo}', (
-            'Il CD audio esiste solo sui CD: lo standard Red Book non e\' '
-            'definito\nper DVD e Blu-ray, e nessun lettore da auto saprebbe '
-            'leggerlo.\nServe un CD-R, anche se questo disco ha molto piu\' '
-            'spazio.')
+        return False, f'{tipo}', t('disc.not_a_cd_why')
 
     if codice == CD_ROM:
-        return False, 'CD-ROM stampato', (
-            'E\' un CD prodotto in fabbrica, di sola lettura. Serve un CD-R vuoto.')
+        return False, t('disc.pressed_cdrom'), t('disc.pressed_cdrom_why')
 
     if not supporto['vuoto']:
         if codice == CD_RW:
-            return False, 'CD-RW gia\' scritto', (
-                'Essendo riscrivibile puoi svuotarlo: Esplora risorse, tasto destro\n'
-                'sull\'unita\', "Cancella questo disco". Poi rilancia BurnDex.')
-        return False, 'CD-R gia\' scritto', (
-            'Su un CD-R la scrittura e\' definitiva: non si cancella. Serve un '
-            'disco nuovo.')
+            return False, t('disc.cdrw_written'), t('disc.cdrw_written_why')
+        return False, t('disc.cdr_written'), t('disc.cdr_written_why')
 
     if codice == CD_RW:
-        return True, 'CD-RW vuoto', (
-            'Riscrivibile, ma riflette meno luce di un CD-R: molte autoradio e\n'
-            'gli stereo datati non lo leggono. Per l\'auto conviene un CD-R.')
+        return True, t('disc.cdrw_blank'), t('disc.cdrw_blank_why')
 
-    return True, 'CD-R vuoto', ''
+    return True, t('disc.cdr_blank'), ''
 
 
 def _nome_unita(rec) -> str:
@@ -958,12 +938,12 @@ def _scegli_unita(indice: int | None = None):
     """
     unita = _elenca_unita()
     if not unita:
-        console.print('[error]Nessun masterizzatore rilevato. Collegalo e riprova.[/error]')
+        console.print(t('drive.none_detected'))
         return None
 
     if indice is not None:
         if not 0 <= indice < len(unita):
-            console.print(f'[error]Unita\' {indice} inesistente (ne risultano {len(unita)}).[/error]')
+            console.print(t('drive.index_missing', index=indice, total=len(unita)))
             return None
         return unita[indice]
 
@@ -972,14 +952,14 @@ def _scegli_unita(indice: int | None = None):
         # mostrata subito dopo dalla scheda _pannello_unita().
         return unita[0]
 
-    console.print('\n[dim_label]Masterizzatori disponibili:[/dim_label]')
+    console.print(t('drive.available'))
     for i, rec in enumerate(unita):
         console.print(f'  [accent]{i}[/accent]  {escape(_nome_unita(rec))}'
                       f'  [dim]{escape(_lettera_unita(rec))}[/dim]')
     try:
-        return unita[int(_chiedi('[bold]Quale? > [/bold]'))]
+        return unita[int(_chiedi(t('drive.which')))]
     except (ValueError, IndexError):
-        console.print('[error]Scelta non valida.[/error]')
+        console.print(t('common.invalid_choice'))
         return None
 
 
@@ -1000,7 +980,10 @@ def _leggi_supporto(recorder) -> dict | None:
         sonda.Recorder = recorder
         return {
             'codice': int(sonda.CurrentPhysicalMediaType),
-            'tipo': MEDIA_TYPES.get(sonda.CurrentPhysicalMediaType, '?'),
+            # Le sigle passano attraverso t() invariate — una chiave assente
+            # dal catalogo viene restituita tale e quale — mentre le due voci
+            # generiche vengono tradotte.
+            'tipo': t(MEDIA_TYPES.get(sonda.CurrentPhysicalMediaType, '?')),
             'vuoto': bool(sonda.MediaPhysicallyBlank),
             'settori': int(sonda.FreeSectorsOnMedia),
             # Valori grezzi in settori/secondo, come li dichiara l'unita'.
@@ -1042,22 +1025,20 @@ def _crea_writer(recorder, velocita: int | None):
     audio.Recorder = recorder
 
     if not audio.IsCurrentMediaSupported(recorder):
-        console.print('\n[error]Questo disco non e\' scrivibile come CD audio.[/error]')
+        console.print(t('disc.not_writable_audio'))
         return None
 
     if velocita is None:
-        console.print(f'{SYM_ARROW} [dim_label]Velocita\' di scrittura:[/dim_label] '
-                      '[info]automatica[/info]')
+        console.print(t('speed.writing_at', arrow=SYM_ARROW,
+                        speed=t('common.automatic')))
         return audio
 
     try:
         audio.SetWriteSpeed(velocita, False)
-        console.print(f'{SYM_ARROW} [dim_label]Velocita\' di scrittura:[/dim_label] '
-                      f'[info]{_x(velocita)}[/info]')
+        console.print(t('speed.writing_at', arrow=SYM_ARROW, speed=_x(velocita)))
     except Exception as exc:
         log.warning('SetWriteSpeed(%d settori/s) rifiutata: %s', velocita, exc)
-        console.print('[warning]L\'unita\' rifiuta l\'impostazione: uso la velocita\' '
-                      'automatica.[/warning]')
+        console.print(t('speed.refused'))
 
     return audio
 
@@ -1089,17 +1070,10 @@ def _spiega_errore(exc: Exception) -> None:
     """
     codice = _hresult(exc)
     if codice == HR_COMMAND_TIMEOUT:
-        console.print('\n[error]L\'unita\' non ha risposto al comando di scrittura.[/error]')
-        console.print(
-            '[dim]Tipico dei masterizzatori USB alimentati dalla sola porta dati: quando il\n'
-            'laser passa in potenza di scrittura l\'assorbimento sale di colpo e l\'unita\'\n'
-            'si riavvia. Da provare, in quest\'ordine:\n'
-            '  1. se il cavo ha due spinotti USB, collegarli entrambi (uno e\' solo corrente)\n'
-            '  2. porta USB diretta sul PC, mai un hub non alimentato\n'
-            '  3. un hub USB con alimentatore esterno[/dim]'
-        )
+        console.print(t('burn.timeout'))
+        console.print(t('burn.timeout_why'))
     else:
-        console.print(f'\n[error]Errore durante la scrittura: {exc}[/error]')
+        console.print(t('burn.write_error', error=exc))
 
 
 def _masterizza(audio, pcm_files: list[str], nomi: list[str]) -> tuple[bool, int]:
@@ -1114,7 +1088,7 @@ def _masterizza(audio, pcm_files: list[str], nomi: list[str]) -> tuple[bool, int
     esito = True
     try:
         with _progress() as progress:
-            task = progress.add_task('Avvio scrittura...', total=len(pcm_files))
+            task = progress.add_task(t('burn.starting'), total=len(pcm_files))
             for pcm, nome in zip(pcm_files, nomi):
                 progress.update(task, description=nome)
                 # Lo stream va costruito in memoria: IMAPI2 vuole un IStream,
@@ -1127,7 +1101,7 @@ def _masterizza(audio, pcm_files: list[str], nomi: list[str]) -> tuple[bool, int
                 audio.AddAudioTrack(stream)
                 scritte += 1
                 progress.advance(task)
-            progress.update(task, description='[bright_green]Tutte le tracce scritte[/bright_green]')
+            progress.update(task, description=t('burn.all_written'))
     except Exception as exc:
         log.exception('Masterizzazione fallita dopo %d tracce', scritte)
         _spiega_errore(exc)
@@ -1138,12 +1112,11 @@ def _masterizza(audio, pcm_files: list[str], nomi: list[str]) -> tuple[bool, int
         # bloccata in accesso esclusivo. Se pero' e' stata proprio l'unita'
         # a sparire, anche questa fallisce: non deve coprire l'errore vero.
         try:
-            console.print('\n[dim]Chiusura della sessione...[/dim]')
+            console.print(t('burn.closing'))
             audio.ReleaseMedia()
         except Exception as exc:
             log.warning('ReleaseMedia fallita: %s', exc)
-            console.print('[warning]L\'unita\' non ha risposto nemmeno alla chiusura: '
-                          'scollegala e ricollegala prima di riprovare.[/warning]')
+            console.print(t('burn.close_failed'))
 
     return esito, scritte
 
@@ -1165,22 +1138,23 @@ def _mostra_riepilogo(scritte: int, totali: int, minuti: float, esito: bool) -> 
     tabella.add_column('Label', style='dim_label', no_wrap=True, width=16)
     tabella.add_column('Value', ratio=1)
 
-    tabella.add_row('Tracce scritte', f'[bold]{scritte}[/bold] [dim]su {totali}[/dim]')
+    tabella.add_row(t('result.tracks_written'),
+                    f'[bold]{scritte}[/bold] ' + t('result.out_of', total=totali))
     if esito:
-        tabella.add_row('Durata totale', f'[bold]{minuti:.1f} min[/bold]')
-        tabella.add_row('Esito', f'{SYM_OK} [success]disco finalizzato[/success]')
-        tabella.add_row('', '[dim]pronto da provare nel lettore[/dim]')
+        tabella.add_row(t('result.total_duration'),
+                        f"[bold]{minuti:.1f} {t('common.min')}[/bold]")
+        tabella.add_row(t('result.outcome'), f"{SYM_OK} {t('result.finalised')}")
+        tabella.add_row('', t('result.ready_to_play'))
     else:
-        tabella.add_row('Esito', f'{SYM_FAIL} [error]interrotto[/error]')
-        tabella.add_row('Disco', '[info]nessun dato audio scritto: e\' ancora buono[/info]'
-                        if scritte == 0
-                        else '[warning]scritto a meta\': non e\' recuperabile[/warning]')
+        tabella.add_row(t('result.outcome'), f"{SYM_FAIL} {t('result.aborted')}")
+        tabella.add_row(t('result.disc'),
+                        t('result.disc_still_good') if scritte == 0
+                        else t('result.disc_ruined'))
 
     console.print()
     console.print(Panel(
         tabella,
-        title=('[bold bright_green]✓  Masterizzazione completata[/bold bright_green]'
-               if esito else '[bold red]✗  Masterizzazione fallita[/bold red]'),
+        title=t('result.ok_title') if esito else t('result.fail_title'),
         border_style='bright_green' if esito else 'red',
         box=DOUBLE,
         width=LARGHEZZA,
@@ -1208,27 +1182,27 @@ def _modalita_info() -> None:
 
     unita = _elenca_unita()
     if not unita:
-        console.print('\n[error]Nessun masterizzatore utilizzabile da IMAPI.[/error]')
-        console.print('[dim]Se e\' esterno, controlla che sia collegato e acceso.[/dim]\n')
+        console.print(t('info.no_imapi_drive'))
+        console.print(t('info.check_external'))
         return
 
     tabella = Table(box=HEAVY_HEAD, border_style='bright_blue', width=LARGHEZZA,
                     header_style='bold bright_blue', padding=(0, 1))
     tabella.add_column('#', style='dim_label', justify='right', width=2)
-    tabella.add_column('Unita\'', style='bold white', overflow='ellipsis',
+    tabella.add_column(t('info.drive_column'), style='bold white', overflow='ellipsis',
                        no_wrap=True, ratio=1)
-    tabella.add_column('Disco inserito', width=18)
-    tabella.add_column('Vel.', style='dim', width=8)
+    tabella.add_column(t('info.disc_column'), width=18)
+    tabella.add_column(t('info.speed_column'), style='dim', width=8)
 
     for i, rec in enumerate(unita):
         info = _leggi_supporto(rec)
         if info is None:
-            stato, velocita = '[dim]nessun disco[/dim]', '[dim]-[/dim]'
+            stato, velocita = t('info.no_disc'), '[dim]-[/dim]'
         else:
-            capienza = f'{_sectors_to_minutes(info["settori"]):.0f} min'
-            stato = (f'[success]{info["tipo"]} vuoto[/success] [dim]{capienza}[/dim]'
+            capienza = f'{_sectors_to_minutes(info["settori"]):.0f} {t("common.min")}'
+            stato = (t('info.blank', type=info['tipo'], capacity=capienza)
                      if info['vuoto']
-                     else f'[warning]{info["tipo"]} gia\' scritto[/warning]')
+                     else t('info.written', type=info['tipo']))
             velocita = ', '.join(_x(v) for v in info['velocita']) or '-'
         tabella.add_row(str(i),
                         f'{escape(_nome_unita(rec))} [dim]{escape(_lettera_unita(rec))}[/dim]',
@@ -1248,14 +1222,14 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     e' a pannelli come in AudioDex - scaletta, selezione, velocita', scheda
     finale - e ogni passaggio si puo' annullare.
     """
-    nome_raccolta = os.path.basename(cartella) or 'Raccolta'
+    nome_raccolta = os.path.basename(cartella) or t('collection.default_name')
     tracce, criterio = _ordina_tracce(cartella)
     if not tracce:
-        console.print(f'[error]Nessun file audio in {cartella}[/error]')
+        console.print(t('collection.no_audio', path=cartella))
         return 1
 
     if not auto_si:
-        _passo(2, 4, 'Scaletta')
+        _passo(2, 4, t('step.tracklist'))
     # Percorso accorciato in testa invece che mandato a capo: la coda e' la
     # parte che identifica la raccolta, l'inizio si intuisce.
     percorso = (cartella if len(cartella) <= LARGHEZZA
@@ -1265,7 +1239,7 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     durate = [_durata(p) for p in tracce]
     if any(d is None for d in durate):
         illeggibili = [os.path.basename(p) for p, d in zip(tracce, durate) if d is None]
-        console.print(f"[error]File illeggibili: {', '.join(illeggibili)}[/error]")
+        console.print(t('tracklist.unreadable', files=', '.join(illeggibili)))
         return 1
 
     stimati = _mostra_scaletta(tracce, durate, criterio, nome_raccolta)
@@ -1276,39 +1250,40 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
         # raccolta sfora gli 80 minuti, la via d'uscita e' proprio scegliere
         # meno tracce, non vedersi respingere l'intera operazione.
         if minuti > SAFE_MINUTES:
-            console.print(f'[warning]Non ci stanno tutte: {minuti - SAFE_MINUTES:.1f} min '
-                          f'oltre il limite di {SAFE_MINUTES}. Scegli quali masterizzare.[/warning]')
+            console.print(t('select.too_long_pick',
+                            over=f'{minuti - SAFE_MINUTES:.1f}', limit=SAFE_MINUTES))
 
         scelte, durate_scelte = _seleziona_tracce(tracce, durate)
         if not scelte:
-            console.print('[dim]Annullato.[/dim]\n')
+            console.print(t('common.cancelled'))
             return 1
 
         if len(scelte) != len(tracce):
             tracce, durate = scelte, durate_scelte
-            stimati = _mostra_scaletta(tracce, durate, criterio, f'{nome_raccolta} · selezione')
+            stimati = _mostra_scaletta(
+                tracce, durate, criterio,
+                t('collection.selection_suffix', name=nome_raccolta))
             minuti = _sectors_to_minutes(stimati)
 
     if minuti > SAFE_MINUTES:
-        console.print(f'\n[error]Troppo lungo: il limite prudenziale e\' {SAFE_MINUTES} min '
-                      f'({minuti - SAFE_MINUTES:.1f} min di troppo).[/error]')
-        console.print('[dim]Togli qualche brano, oppure usa ordine.txt per fissare '
-                      'cosa masterizzare.[/dim]\n')
+        console.print(t('disc.too_long', limit=SAFE_MINUTES,
+                        over=f'{minuti - SAFE_MINUTES:.1f}'))
+        console.print(t('disc.trim_hint'))
         return 1
 
     if not _HAS_PYWIN32:
         if dry_run:
-            console.print(f'\n{SYM_OK} [success]Scaletta valida: ci sta su un CD-R.[/success]')
-            console.print('[dim]pywin32 non installato: controllo dell\'unita\' saltato.[/dim]\n')
+            console.print(t('dry.tracklist_ok', ok=SYM_OK))
+            console.print(t('tools.no_pywin32_skip'))
             return 0
-        console.print('\n[error]pywin32 non installato: impossibile masterizzare.[/error]')
-        console.print('[dim]Installa con: pip install pywin32[/dim]\n')
+        console.print(t('tools.no_pywin32_burn'))
+        console.print(t('tools.install_pywin32'))
         return 1
 
     pythoncom.CoInitialize()
 
     if not auto_si:
-        _passo(3, 4, 'Disco e velocita\'')
+        _passo(3, 4, t('step.disc_speed'))
 
     recorder = _scegli_unita(indice_unita)
     if recorder is None:
@@ -1318,15 +1293,15 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     # che manca il CD dopo due minuti di ffmpeg sarebbe solo tempo buttato.
     supporto = _leggi_supporto(recorder)
     if supporto is None:
-        console.print('\n[error]Nessun disco leggibile nell\'unita\'.[/error]')
-        console.print('[dim]Inserisci un CD-R vuoto e riprova.[/dim]\n')
+        console.print(t('drive.no_readable_disc'))
+        console.print(t('drive.insert_blank'))
         return 1
 
     liberi = supporto['settori']
 
     utilizzabile, descrizione, spiegazione = _valuta_supporto(supporto)
     if not utilizzabile:
-        console.print(f'\n[error]Disco non utilizzabile: {descrizione}.[/error]')
+        console.print(t('disc.unusable', reason=descrizione))
         console.print(f'[dim]{spiegazione}[/dim]\n')
         return 1
 
@@ -1339,13 +1314,11 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     # Avviso sull'alimentazione solo dove serve davvero, cioe' su un'unita'
     # esterna: su una interna sarebbe rumore inutile a ogni masterizzazione.
     if (sistema['unita'].get(_lettera_unita(recorder)) or {}).get('connessione') == 'USB':
-        console.print('[dim]Unita\' esterna: se la scrittura si interrompe a meta\', '
-                      'e\' quasi sempre\nla porta USB che non regge l\'assorbimento del '
-                      'laser.[/dim]')
+        console.print(t('drive.external_warning'))
 
     if stimati > liberi:
-        console.print(f'\n[error]Non ci sta: servono {minuti:.1f} min ma il disco ne '
-                      f'regge {_sectors_to_minutes(liberi):.1f}.[/error]\n')
+        console.print(t('disc.does_not_fit', need=f'{minuti:.1f}',
+                        have=f'{_sectors_to_minutes(liberi):.1f}'))
         return 1
 
     # Velocita': esplicita da riga di comando, altrimenti la si chiede; con
@@ -1356,21 +1329,22 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
         velocita = _chiedi_velocita(supporto['velocita'])
 
     if dry_run:
-        console.print(f'\n{SYM_ARROW} [dim_label]Velocita\' che verrebbe usata:[/dim_label] '
-                      f"[info]{_x(velocita) if velocita else 'automatica'}[/info] "
-                      f"[dim](supportate: {', '.join(_x(v) for v in supporto['velocita']) or 'n/d'})[/dim]")
-        console.print(f'\n{SYM_OK} [success]Prova a vuoto superata: scaletta valida, disco '
-                      f'idoneo, spazio sufficiente.[/success]')
-        console.print('[dim]Nessun disco e\' stato toccato. Togli --dry-run per masterizzare '
-                      'davvero.[/dim]\n')
+        console.print(t(
+            'speed.would_use',
+            arrow=SYM_ARROW,
+            speed=_x(velocita) if velocita else t('common.automatic'),
+            supported=', '.join(_x(v) for v in supporto['velocita']) or t('speed.none'),
+        ))
+        console.print(t('dry.passed', ok=SYM_OK))
+        console.print(t('dry.nothing_touched'))
         return 0
 
     if not _check_temp_space():
-        console.print('[error]Operazione annullata.[/error]')
+        console.print(t('common.cancelled_op'))
         return 1
 
     if not auto_si:
-        _passo(4, 4, 'Masterizzazione')
+        _passo(4, 4, t('step.burning'))
 
     audio = _crea_writer(recorder, velocita)
     if audio is None:
@@ -1379,7 +1353,7 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     with tempfile.TemporaryDirectory(prefix='burndex_') as tmp:
         pcm_files, totale = [], 0
         with _progress() as progress:
-            task = progress.add_task('Decodifica in corso...', total=len(tracce))
+            task = progress.add_task(t('burn.decoding'), total=len(tracce))
             for i, src in enumerate(tracce, 1):
                 progress.update(task, description=os.path.basename(src))
                 dst = os.path.join(tmp, f'{i:03d}.pcm')
@@ -1387,23 +1361,23 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
                     totale += _decodifica(src, dst) + PREGAP_SECTORS
                 except subprocess.CalledProcessError as exc:
                     log.error('ffmpeg fallito su %s: %s', src, exc.stderr)
-                    console.print(f'\n[error]Decodifica fallita: {os.path.basename(src)}[/error]')
+                    console.print(t('burn.decode_failed', file=os.path.basename(src)))
                     return 1
                 pcm_files.append(dst)
                 progress.advance(task)
-            progress.update(task, description='[bright_green]Decodifica completata[/bright_green]')
+            progress.update(task, description=t('burn.decoded'))
 
         # Ricontrollo con i valori esatti: la stima da ffprobe puo' scostarsi
         # di qualche settore, e qui non c'e' piu' margine di errore.
         if totale > liberi:
-            console.print(f'\n[error]Non ci sta sul disco: servono '
-                          f'{_sectors_to_minutes(totale):.1f} min ma ce ne sono '
-                          f'{_sectors_to_minutes(liberi):.1f}.[/error]')
+            console.print(t('disc.does_not_fit_exact',
+                            need=f'{_sectors_to_minutes(totale):.1f}',
+                            have=f'{_sectors_to_minutes(liberi):.1f}'))
             return 1
 
         if not auto_si:
             if not _card_conferma(recorder, supporto, velocita, len(pcm_files), totale):
-                console.print('[dim]Annullato. Il disco e\' intatto.[/dim]\n')
+                console.print(t('confirm.disc_intact'))
                 return 1
 
         nomi = [os.path.basename(p) for p in tracce]
@@ -1429,37 +1403,49 @@ def main() -> None:
       - nessun argomento -> interattiva (sceglie la raccolta da download_audio);
       - --dir <cartella> -> masterizza quella cartella;
       - --info           -> elenca masterizzatori e disco inserito, senza scrivere.
+
+    La lingua si risolve *prima* di costruire il parser: i testi di --help
+    vengono composti mentre il parser si crea, e deciderla dopo significherebbe
+    stampare sempre un aiuto nella lingua sbagliata.
     """
+    _, lingua_da_chiedere = i18n.resolve()
+
     parser = argparse.ArgumentParser(
-        description='BurnDex - Masterizzatore di CD audio per le raccolte di AudioDex',
+        description=t('cli.desc'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='Esempi:\n'
-               '  python BurnDex.py --info\n'
-               '  python BurnDex.py --dir "download_audio/Molchat Doma - Etazhi" --dry-run\n'
-               '  python BurnDex.py --dir "download_audio/Molchat Doma - Etazhi" --speed 4\n',
+        epilog=t('cli.epilog'),
     )
     parser.add_argument('--dir', '-d', type=str, default=None,
-                        help='Cartella da masterizzare. Se omessa, la scegli da un elenco')
+                        help=t('cli.dir'))
     parser.add_argument('--base', '-b', type=str,
                         default=os.path.join(_HERE, 'download_audio'),
-                        help='Cartella delle raccolte (default: AudioDex/download_audio)')
+                        help=t('cli.base'))
     parser.add_argument('--speed', '-s', type=int, default=None,
-                        help=f'Velocita\' di scrittura in "x". Se omessa viene chiesta '
-                             f'(o {DEFAULT_SPEED_X}x con --yes). Piu\' bassa = piu\' '
-                             f'compatibile con le autoradio')
+                        help=t('cli.speed', default=DEFAULT_SPEED_X))
     parser.add_argument('--drive', type=int, default=None,
-                        help='Indice del masterizzatore da usare (vedi --info)')
+                        help=t('cli.drive'))
     parser.add_argument('--dry-run', '-n', action='store_true',
-                        help='Mostra la scaletta e verifica che ci stia, senza toccare il disco')
+                        help=t('cli.dry_run'))
     parser.add_argument('--info', '-i', action='store_true',
-                        help='Elenca i masterizzatori e il disco inserito, poi esce')
+                        help=t('cli.info'))
     parser.add_argument('--yes', '-y', action='store_true',
-                        help='Nessuna domanda: tutte le tracce, velocita\' predefinita, '
-                             'nessuna conferma')
+                        help=t('cli.yes'))
     parser.add_argument('--no-eject', action='store_true',
-                        help='Non espellere il disco a fine masterizzazione')
+                        help=t('cli.no_eject'))
+    # Dichiarato anche se e' gia' stato letto a mano da i18n.resolve(): serve
+    # perche' compaia in --help e perche' un valore fuori elenco venga
+    # respinto da argparse invece di essere ignorato in silenzio.
+    parser.add_argument('--lang', '-l', type=str, default=None,
+                        choices=[*i18n.LANGUAGE_CODES, 'ask'],
+                        help=t('cli.lang'))
 
     args = parser.parse_args()
+
+    # La domanda sulla lingua precede il banner, che una riga di testo ce
+    # l'ha: chiederla dopo farebbe vedere la prima schermata in una lingua e
+    # tutto il resto nell'altra. Con --yes non si fanno domande di nessun
+    # genere, nemmeno questa: e' la modalita' pensata per girare in uno script.
+    i18n.confirm(lingua_da_chiedere and not args.yes)
 
     _print_banner()
 
@@ -1468,8 +1454,8 @@ def main() -> None:
 
     if args.info:
         if not _HAS_PYWIN32:
-            console.print('\n[error]pywin32 non installato.[/error]')
-            console.print('[dim]Installa con: pip install pywin32[/dim]\n')
+            console.print(t('tools.no_pywin32'))
+            console.print(t('tools.install_pywin32'))
             sys.exit(1)
         pythoncom.CoInitialize()
         _modalita_info()
@@ -1477,10 +1463,10 @@ def main() -> None:
 
     cartella = os.path.abspath(args.dir) if args.dir else _scegli_cartella(os.path.abspath(args.base))
     if not cartella:
-        console.print('\n[dim]Arrivederci![/dim]\n')
+        console.print(t('common.goodbye'))
         return
     if not os.path.isdir(cartella):
-        console.print(f'[error]Cartella inesistente: {cartella}[/error]')
+        console.print(t('common.folder_missing', path=cartella))
         sys.exit(1)
 
     try:
@@ -1495,7 +1481,7 @@ def main() -> None:
     except KeyboardInterrupt:
         # Durante la scrittura il Ctrl+C non ferma il laser: il disco e' perso
         # comunque, ma almeno l'unita' viene rilasciata da ReleaseMedia().
-        console.print('\n[warning]Interrotto dall\'utente.[/warning]\n')
+        console.print(t('common.interrupted'))
         codice = 1
 
     sys.exit(codice)

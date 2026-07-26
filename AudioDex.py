@@ -66,6 +66,14 @@ from rich.text import Text
 
 from Shared.logger_setup import setup_logger, console, SYM_OK, SYM_FAIL, SYM_ARROW, SYM_DOT
 from Shared.http_client import retry_delay
+from Shared import i18n
+from Shared.strings_audiodex import TESTI
+
+# Le frasi mostrate all'utente stanno tutte nel catalogo, in italiano e in
+# inglese; qui si usa la scorciatoia t('chiave'). Commenti, docstring e log su
+# file restano in italiano: si rivolgono a chi legge il codice, non a chi lo usa.
+i18n.register(TESTI)
+t = i18n.t
 
 try:
     from mutagen.mp4 import MP4, MP4Cover
@@ -259,9 +267,8 @@ def _check_disk_space(path: str) -> bool:
         free_mb = shutil.disk_usage(path).free / 1048576
         if free_mb < MIN_DISK_SPACE_MB:
             log.warning('Spazio disco basso: %.0f MB liberi', free_mb)
-            console.print(f'\n[warning]ATTENZIONE: solo {free_mb:.0f} MB liberi.[/warning]')
-            answer = console.input('[bold]Continuare? (s/n): [/bold]').strip().lower()
-            if answer != 's':
+            console.print(t('disk.low', mb=f'{free_mb:.0f}'))
+            if not i18n.is_yes(console.input(t('disk.continue'))):
                 return False
         else:
             log.info('Spazio disco: %.0f MB liberi', free_mb)
@@ -324,11 +331,11 @@ def _format_views(views: int | float | None) -> str:
         return '—'
     views = int(views)
     if views >= 1_000_000_000:
-        return f'{views / 1_000_000_000:.1f} Mrd'
+        return f"{views / 1_000_000_000:.1f} {t('unit.billions')}"
     if views >= 1_000_000:
-        return f'{views / 1_000_000:.1f} Mln'
+        return f"{views / 1_000_000:.1f} {t('unit.millions')}"
     if views >= 1_000:
-        return f'{views / 1_000:.0f} K'
+        return f"{views / 1_000:.0f} {t('unit.thousands')}"
     return str(views)
 
 
@@ -432,7 +439,7 @@ def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[di
                 if info.get('id'):
                     results.append({
                         'id': info['id'],
-                        'title': info.get('title', 'Sconosciuto'),
+                        'title': info.get('title', t('common.unknown')),
                         'uploader': info.get('uploader') or info.get('channel') or '??',
                         'duration': info.get('duration'),
                         'views': info.get('view_count'),
@@ -445,7 +452,7 @@ def search_youtube(query: str, max_results: int = MAX_SEARCH_RESULTS) -> list[di
                 vid_id = entry.get('id', '')
                 results.append({
                     'id': vid_id,
-                    'title': entry.get('title', 'Sconosciuto'),
+                    'title': entry.get('title', t('common.unknown')),
                     'uploader': entry.get('uploader') or entry.get('channel') or '??',
                     'duration': entry.get('duration'),
                     'views': entry.get('view_count'),
@@ -521,7 +528,7 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict], dict]:
                 if info.get('id'):
                     entries.append({
                         'id': info['id'],
-                        'title': info.get('title', 'Sconosciuto'),
+                        'title': info.get('title', t('common.unknown')),
                         'uploader': info.get('uploader') or info.get('channel') or '??',
                         'duration': info.get('duration'),
                         'views': info.get('view_count'),
@@ -539,7 +546,7 @@ def get_playlist_entries(url: str) -> tuple[str, list[dict], dict]:
                 vid_id = entry.get('id', '')
                 entries.append({
                     'id': vid_id,
-                    'title': entry.get('title', 'Sconosciuto'),
+                    'title': entry.get('title', t('common.unknown')),
                     'uploader': entry.get('uploader') or entry.get('channel') or '??',
                     'duration': entry.get('duration'),
                     'views': entry.get('view_count'),
@@ -587,15 +594,14 @@ def get_video_details(url: str) -> dict | None:
         return None
 
 
-# Codici lingua più frequenti su YouTube, in forma leggibile. Gli altri
-# vengono mostrati com'è (il codice ISO resta comunque comprensibile).
-_LINGUE = {
-    'it': 'Italiano', 'en': 'Inglese', 'es': 'Spagnolo', 'fr': 'Francese',
-    'de': 'Tedesco', 'pt': 'Portoghese', 'ru': 'Russo', 'ja': 'Giapponese',
-    'ko': 'Coreano', 'zh': 'Cinese', 'ar': 'Arabo', 'nl': 'Olandese',
-    'pl': 'Polacco', 'tr': 'Turco', 'hi': 'Hindi', 'sv': 'Svedese',
-    'ro': 'Rumeno', 'el': 'Greco', 'uk': 'Ucraino', 'cs': 'Ceco',
-}
+# Codici lingua più frequenti su YouTube. Gli altri vengono mostrati com'è
+# (il codice ISO resta comunque comprensibile). I nomi estesi stanno nel
+# catalogo, alle voci 'lang.<codice>': anche loro seguono la lingua scelta,
+# così nella scheda di un video in inglese si legge "Italian", non "Italiano".
+_LINGUE = frozenset({
+    'it', 'en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh',
+    'ar', 'nl', 'pl', 'tr', 'hi', 'sv', 'ro', 'el', 'uk', 'cs',
+})
 
 
 def _format_language(code: str | None) -> str | None:
@@ -611,15 +617,19 @@ def _format_language(code: str | None) -> str | None:
     """
     if not code:
         return None
-    return _LINGUE.get(code.split('-')[0].lower(), code)
+    base = code.split('-')[0].lower()
+    return t(f'lang.{base}') if base in _LINGUE else code
 
 
 def _format_upload_date(raw: str | None) -> str:
-    """Converte la data di pubblicazione da 'AAAAMMGG' a 'GG/MM/AAAA'.
+    """Converte la data di pubblicazione da 'AAAAMMGG' a forma leggibile.
 
     yt-dlp restituisce le date come stringa compatta senza separatori
-    (`20171005`), illeggibile a colpo d'occhio. Qui si passa alla forma
-    italiana giorno/mese/anno.
+    (`20171005`), illeggibile a colpo d'occhio. L'ordine dei campi segue la
+    lingua scelta (voce 'date.format' del catalogo): giorno/mese/anno in
+    italiano, forma ISO in inglese — l'unica non ambigua tra la convenzione
+    americana, che mette prima il mese, e quella britannica, che mette prima
+    il giorno.
 
     La conversione è volutamente fatta a mano invece che con ``datetime``: il
     formato è fisso e non serve alcun fuso orario, mentre un parsing vero
@@ -628,7 +638,7 @@ def _format_upload_date(raw: str | None) -> str:
     """
     if not raw or len(raw) != 8 or not raw.isdigit():
         return '—'
-    return f'{raw[6:8]}/{raw[4:6]}/{raw[0:4]}'
+    return t('date.format', d=raw[6:8], m=raw[4:6], y=raw[0:4])
 
 
 def _display_video_card(info: dict) -> None:
@@ -644,14 +654,14 @@ def _display_video_card(info: dict) -> None:
     table.add_column('Valore', style='white')
 
     righe = [
-        ('📺', 'Canale', info.get('uploader') or info.get('channel')),
-        ('👁', 'Visualizzazioni', _format_views(info.get('view_count'))),
-        ('👍', 'Mi piace', _format_views(info.get('like_count'))),
-        ('👥', 'Iscritti', _format_views(info.get('channel_follower_count'))),
-        ('🏷', 'Categoria', (info.get('categories') or [None])[0]),
-        ('🗣', 'Lingua', _format_language(info.get('language'))),
-        ('📅', 'Pubblicato', _format_upload_date(info.get('upload_date'))),
-        ('⏱', 'Durata', _format_duration(info.get('duration'))),
+        ('📺', t('card.channel'), info.get('uploader') or info.get('channel')),
+        ('👁', t('card.views'), _format_views(info.get('view_count'))),
+        ('👍', t('card.likes'), _format_views(info.get('like_count'))),
+        ('👥', t('card.subscribers'), _format_views(info.get('channel_follower_count'))),
+        ('🏷', t('card.category'), (info.get('categories') or [None])[0]),
+        ('🗣', t('card.language'), _format_language(info.get('language'))),
+        ('📅', t('card.published'), _format_upload_date(info.get('upload_date'))),
+        ('⏱', t('card.duration'), _format_duration(info.get('duration'))),
     ]
     # I segnaposto dei formattatori ('—', '??:??') indicano un dato che
     # YouTube non ha esposto: meglio togliere la riga che mostrare un vuoto.
@@ -661,12 +671,12 @@ def _display_video_card(info: dict) -> None:
 
     capitoli = info.get('chapters') or []
     if capitoli:
-        table.add_row('📑  Capitoli', f'{len(capitoli)} sezioni')
+        table.add_row(f"📑  {t('card.chapters')}", t('card.sections', n=len(capitoli)))
 
     console.print()
     console.print(Panel(
         table,
-        title=f"[title]🎬 {info.get('title', 'Sconosciuto')[:60]}[/title]",
+        title=f"[title]🎬 {info.get('title', t('common.unknown'))[:60]}[/title]",
         border_style='bright_blue',
         box=ROUNDED,
         expand=False,
@@ -685,14 +695,12 @@ def _confirm_video(info: dict) -> bool:
     vede lo stesso ma senza domanda, altrimenti uno script resterebbe appeso
     a un prompt.
 
-    Accetta come conferma sia le forme italiane sia quelle inglesi: chi usa
-    un terminale digita `y` per riflesso.
+    Accetta come conferma sia le forme italiane sia quelle inglesi — se ne
+    occupa ``i18n.is_yes`` — a prescindere dalla lingua dell'interfaccia: chi
+    usa un terminale digita `y` per riflesso, e chi è italiano digita `s`.
     """
     _display_video_card(info)
-    answer = console.input(
-        '\n[bold]Procedo con il download di questo video? (s/n): [/bold]'
-    ).strip().lower()
-    return answer in ('s', 'si', 'sì', 'y', 'yes')
+    return i18n.is_yes(console.input(t('card.confirm')))
 
 
 def _entry_from_info(info: dict, url: str) -> dict:
@@ -712,7 +720,7 @@ def _entry_from_info(info: dict, url: str) -> dict:
     """
     return {
         'id': info.get('id', ''),
-        'title': info.get('title', 'Sconosciuto'),
+        'title': info.get('title', t('common.unknown')),
         'uploader': info.get('uploader') or info.get('channel') or '??',
         'duration': info.get('duration'),
         'views': info.get('view_count'),
@@ -720,13 +728,17 @@ def _entry_from_info(info: dict, url: str) -> dict:
     }
 
 
-def _display_search_results(results: list[dict], table_title: str = 'Risultati ricerca') -> None:
+def _display_search_results(results: list[dict], table_title: str | None = None) -> None:
     """Mostra un elenco di tracce in una tabella numerata (per la selezione).
 
     Usata sia per i risultati di ricerca sia per le tracce di una playlist.
+
+    Il titolo predefinito si risolve qui dentro e non nella firma: un valore
+    di default viene calcolato all'import del modulo, quando la lingua non è
+    ancora stata scelta, e resterebbe congelato in italiano per sempre.
     """
     table = Table(
-        title=table_title,
+        title=table_title or t('table.search_results'),
         box=ROUNDED,
         border_style='bright_blue',
         header_style='bold bright_cyan',
@@ -738,11 +750,11 @@ def _display_search_results(results: list[dict], table_title: str = 'Risultati r
     show_views = any(r.get('views') for r in results)
 
     table.add_column('#', style='bold yellow', justify='right', width=4)
-    table.add_column('Titolo', style='white', max_width=45, no_wrap=True)
-    table.add_column('Artista', style='bright_magenta', max_width=25, no_wrap=True)
-    table.add_column('Durata', style='cyan', justify='right', width=8)
+    table.add_column(t('table.title'), style='white', max_width=45, no_wrap=True)
+    table.add_column(t('table.artist'), style='bright_magenta', max_width=25, no_wrap=True)
+    table.add_column(t('table.duration'), style='cyan', justify='right', width=8)
     if show_views:
-        table.add_column('Views', style='green', justify='right', width=9)
+        table.add_column(t('table.views'), style='green', justify='right', width=9)
 
     for i, r in enumerate(results, 1):
         artist, track = _split_artist_title(r['title'], r.get('uploader'))
@@ -760,10 +772,12 @@ def _display_search_results(results: list[dict], table_title: str = 'Risultati r
     console.print(table)
 
 
+# Stati di visibilità che YouTube dichiara per una playlist. Il testo mostrato
+# sta nel catalogo: qui resta solo la corrispondenza con il valore grezzo.
 _VISIBILITA = {
-    'public': 'Pubblica',
-    'unlisted': 'Non in elenco',
-    'private': 'Privata',
+    'public': 'visibility.public',
+    'unlisted': 'visibility.unlisted',
+    'private': 'visibility.private',
 }
 
 
@@ -781,13 +795,14 @@ def _display_playlist_info(title: str, entries: list[dict], meta: dict | None = 
     table.add_column('Campo', style='dim_label', no_wrap=True)
     table.add_column('Valore', style='white')
 
+    visibilita = _VISIBILITA.get(meta.get('availability') or '')
     righe = [
-        ('📺', 'Canale', meta.get('channel')),
-        ('🎵', 'Tracce', str(len(entries))),
-        ('⏱', 'Durata totale', _format_duration(total_duration)),
-        ('👁', 'Visualizzazioni', _format_views(meta.get('views'))),
-        ('📅', 'Aggiornata', _format_upload_date(meta.get('modified'))),
-        ('🔓', 'Visibilità', _VISIBILITA.get(meta.get('availability') or '')),
+        ('📺', t('playlist.channel'), meta.get('channel')),
+        ('🎵', t('playlist.tracks'), str(len(entries))),
+        ('⏱', t('playlist.total_duration'), _format_duration(total_duration)),
+        ('👁', t('playlist.views'), _format_views(meta.get('views'))),
+        ('📅', t('playlist.updated'), _format_upload_date(meta.get('modified'))),
+        ('🔓', t('playlist.visibility'), t(visibilita) if visibilita else None),
     ]
     for icona, etichetta, valore in righe:
         if valore and str(valore) not in ('—', '??:??'):
@@ -798,8 +813,8 @@ def _display_playlist_info(title: str, entries: list[dict], meta: dict | None = 
     dichiarati = meta.get('count')
     if dichiarati and dichiarati > len(entries):
         table.add_row(
-            '⚠  Non disponibili',
-            f'[warning]{dichiarati - len(entries)} (privati o rimossi)[/warning]',
+            f"⚠  {t('playlist.unavailable')}",
+            t('playlist.unavailable_n', n=dichiarati - len(entries)),
         )
 
     console.print()
@@ -836,17 +851,20 @@ def _display_download_summary(results: list[dict]) -> None:
     summary_table.add_column('Label', style='dim_label')
     summary_table.add_column('Value')
 
-    summary_table.add_row('Tracce totali', f'[bold]{len(results)}[/bold]')
-    summary_table.add_row(f'{SYM_OK} Scaricate', f'[success]{ok}[/success]')
+    summary_table.add_row(t('summary.total'), f'[bold]{len(results)}[/bold]')
+    summary_table.add_row(f"{SYM_OK} {t('summary.downloaded')}", f'[success]{ok}[/success]')
     lyrics_found = sum(1 for r in results if r.get('lyrics'))
     if lyrics_found > 0:
-        summary_table.add_row(f'{SYM_NOTE} Testi karaoke', f'[info]{lyrics_found}[/info]')
+        summary_table.add_row(f"{SYM_NOTE} {t('summary.lyrics')}", f'[info]{lyrics_found}[/info]')
     if skip > 0:
-        summary_table.add_row(f"{SYM_DOT} Gia' presenti", f'[info]{skip}[/info]')
+        summary_table.add_row(f"{SYM_DOT} {t('summary.already')}", f'[info]{skip}[/info]')
     if fail > 0:
-        summary_table.add_row(f'{SYM_FAIL} Fallite', f'[error]{fail}[/error]')
+        summary_table.add_row(f"{SYM_FAIL} {t('summary.failed')}", f'[error]{fail}[/error]')
         failed_titles = [r['title'] for r in results if r['status'] == 'fail']
-        summary_table.add_row('  Tracce', f"[error]{', '.join(t[:30] for t in failed_titles)}[/error]")
+        summary_table.add_row(
+            t('summary.failed_tracks'),
+            f"[error]{', '.join(x[:30] for x in failed_titles)}[/error]",
+        )
 
     border = 'red' if fail else 'bright_green'
     title_icon = '❌' if fail else '✅'
@@ -854,7 +872,7 @@ def _display_download_summary(results: list[dict]) -> None:
     console.print()
     console.print(Panel(
         summary_table,
-        title=f'{title_icon} Riepilogo',
+        title=f"{title_icon} {t('summary.title')}",
         border_style=border,
         box=DOUBLE,
         expand=False,
@@ -1016,12 +1034,10 @@ class _PhaseTracker:
     traccia: un retry che rifà il download non la conteggia due volte.
     """
 
-    PHASES = (
-        ('download', 'Download   '),
-        ('convert', 'Conversione'),
-        ('lyrics', 'Testi      '),
-        ('tag', 'Tag        '),
-    )
+    # Solo i nomi interni: le etichette mostrate stanno nel catalogo, alle
+    # voci 'phase.<nome>', e vengono lette a ogni download perché la lingua
+    # si conosce solo dopo l'avvio, non all'import di questo modulo.
+    PHASES = ('download', 'convert', 'lyrics', 'tag')
 
     def __init__(self, progress: Progress, total: int, skip: frozenset[str] = frozenset()):
         """Crea una barra per ogni fase pertinente al download in corso.
@@ -1039,16 +1055,19 @@ class _PhaseTracker:
 
         Le etichette sono riempite di spazi a lunghezza uguale perché le
         barre partano tutte dalla stessa colonna: disallineate darebbero
-        l'impressione di un errore di stampa.
+        l'impressione di un errore di stampa. Il riempimento è calcolato sulla
+        parola più lunga e non scritto a mano, perché cambia con la lingua.
         """
         self._progress = progress
         self._lock = threading.Lock()
         # Fasi già superate da ciascuna traccia, per non contarle due volte
         # quando un retry ripercorre passaggi già fatti.
         self._seen: dict[int, set[str]] = {}
+        etichette = {name: t(f'phase.{name}') for name in self.PHASES}
+        larghezza = max(len(e) for e in etichette.values())
         self._tasks = {
-            name: progress.add_task(label, total=total)
-            for name, label in self.PHASES if name not in skip
+            name: progress.add_task(etichette[name].ljust(larghezza), total=total)
+            for name in self.PHASES if name not in skip
         }
 
     def done(self, key: int, phase: str) -> None:
@@ -1073,7 +1092,7 @@ class _PhaseTracker:
         fase, e una fallita si ferma a metà. Senza questo, le barre non
         arriverebbero mai in fondo pur essendo il lavoro concluso.
         """
-        for name, _ in self.PHASES:
+        for name in self.PHASES:
             self.done(key, name)
 
 
@@ -1175,7 +1194,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
     Restituisce {'title', 'status' ('ok'/'skip'/'fail'), 'file', 'error',
     'lyrics' (True se è stato trovato e incorporato il testo)}.
     """
-    title = entry.get('title', 'Sconosciuto')
+    title = entry.get('title', t('common.unknown'))
     url = entry.get('url', '')
     uploader = entry.get('uploader', '')
 
@@ -1427,9 +1446,9 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
     console.print()
     console.rule(f'[phase]⬇ Download {kind}[/phase]', style='bright_green')
     console.print(
-        f'  [dim_label]Thread:[/dim_label] [info]{max_workers}[/info]  '
-        f'[dim_label]Tracce:[/dim_label] [bold]{total}[/bold]  '
-        f'[dim_label]Formato:[/dim_label] [info]{audio_format}[/info]\n'
+        f"  [dim_label]{t('download.threads')}[/dim_label] [info]{max_workers}[/info]  "
+        f"[dim_label]{t('download.tracks')}[/dim_label] [bold]{total}[/bold]  "
+        f"[dim_label]{t('download.format')}[/dim_label] [info]{audio_format}[/info]\n"
     )
 
     overall_progress = Progress(
@@ -1471,7 +1490,7 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
         expand=False,
     )
 
-    overall_task = overall_progress.add_task('Tracce', total=total)
+    overall_task = overall_progress.add_task(t('download.bar_tracks'), total=total)
     # Nel Matroska il testo non è scrivibile, quindi non viene nemmeno
     # cercato: senza lavoro da fare, quella barra non ha senso.
     phases = _PhaseTracker(
@@ -1561,13 +1580,12 @@ def _export_failed(output_dir: str, results: list[dict], entries: list[dict]) ->
     filepath = os.path.join(output_dir, 'failed_tracks.txt')
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
-            f.write('# Tracce fallite\n')
-            f.write('# Per ritentare, copia gli URL e usa: python AudioDex.py --url <URL>\n#\n')
+            f.write(t('failed.file_header'))
             for r in failed:
                 matching = [e for e in entries if e['title'] == r['title']]
                 url = matching[0]['url'] if matching else '??'
                 f.write(f"{r['title']} | {url}\n")
-        console.print(f'\n  Tracce fallite salvate in: [info]{filepath}[/info]')
+        console.print(t('failed.saved', path=filepath))
     except OSError as e:
         log.error('Impossibile salvare tracce fallite: %s', e)
 
@@ -1580,17 +1598,13 @@ def _select_from_results(results: list[dict]) -> list[dict]:
     finché l'input non è valido. Restituisce le entry scelte, senza
     duplicati e nell'ordine di selezione.
     """
-    console.print(
-        '\n[dim_label]Seleziona:[/dim_label] numero singolo ([accent]3[/accent]), '
-        'intervallo ([accent]1-5[/accent]), multipli ([accent]1,3,7[/accent]), '
-        '[accent]all[/accent] per tutti, [accent]q[/accent] per uscire'
-    )
+    console.print(t('select.hint'))
 
     while True:
-        choice = console.input('\n[bold]Scegli > [/bold]').strip().lower()
-        if choice in ('q', 'quit', 'esci'):
+        choice = console.input(t('select.prompt')).strip().lower()
+        if i18n.is_quit(choice):
             return []
-        if choice in ('all', 'a', 'tutti'):
+        if i18n.is_all(choice):
             return results
 
         selected = []
@@ -1622,7 +1636,7 @@ def _select_from_results(results: list[dict]) -> list[dict]:
         except ValueError:
             pass
 
-        console.print('[error]Selezione non valida. Riprova.[/error]')
+        console.print(t('common.invalid_selection'))
 
 
 def _ask_media_type() -> tuple[str, str] | None:
@@ -1636,26 +1650,24 @@ def _ask_media_type() -> tuple[str, str] | None:
     table = Table(show_header=False, box=ROUNDED, border_style='bright_blue',
                   padding=(0, 2), expand=False)
     table.add_column('N', style='bold yellow', justify='right', width=3)
-    table.add_column('Scelta')
-    table.add_row('1', f'{SYM_NOTE} [bold]Solo audio[/bold] [dim](m4a)[/dim]\n'
-                       '  [dim]pochi MB, taggato, con il testo karaoke[/dim]')
-    table.add_row('2', '🎬 [bold]Video intero[/bold] [dim](mp4)[/dim]\n'
-                       '  [dim]immagine + audio, file molto più grande[/dim]')
+    table.add_column(t('media.column_choice'))
+    table.add_row('1', f"{SYM_NOTE} [bold]{t('media.audio_only')}[/bold] [dim](m4a)[/dim]\n"
+                       f"{t('media.audio_note')}")
+    table.add_row('2', f"🎬 [bold]{t('media.full_video')}[/bold] [dim](mp4)[/dim]\n"
+                       f"{t('media.video_note')}")
 
     console.print()
     console.print(table)
 
     while True:
-        choice = console.input(
-            '\n[bold]Cosa scarico? (1 = audio · 2 = video · q = annulla): [/bold]'
-        ).strip().lower()
-        if choice in ('q', 'quit', 'esci'):
+        choice = console.input(t('media.prompt')).strip().lower()
+        if i18n.is_quit(choice):
             return None
         if choice in ('1', 'a', 'audio', ''):
             return 'audio', 'm4a'
         if choice in ('2', 'v', 'video'):
             return 'video', 'mp4'
-        console.print('[error]Scelta non valida. Riprova.[/error]')
+        console.print(t('common.invalid_choice'))
 
 
 # Prefissi degli id di lista che YouTube assegna alle "Mix", cioè le radio
@@ -1729,38 +1741,48 @@ def main() -> None:
     Le playlist vengono scaricate in una sottocartella col nome dell'album.
     Opzioni trasversali: --format (m4a/mp3/opus), --workers (parallelismo),
     --no-lyrics (salta i testi karaoke), --cookies-from-browser (accesso
-    a playlist e video privati con i cookie del browser).
+    a playlist e video privati con i cookie del browser), --lang (lingua
+    dell'interfaccia).
+
+    La lingua si risolve *prima* di costruire il parser: i testi di --help
+    vengono composti mentre il parser si crea, e deciderla dopo significherebbe
+    stampare sempre un aiuto nella lingua sbagliata.
     """
+    _, lingua_da_chiedere = i18n.resolve()
+
     parser = argparse.ArgumentParser(
-        description='AudioDex - Downloader audio da YouTube',
+        description=t('cli.desc'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--search', '-s', type=str, help='Cerca per nome canzone/artista')
-    group.add_argument('--url', '-u', type=str, help='URL diretto (video, playlist, album)')
+    group.add_argument('--search', '-s', type=str, help=t('cli.search'))
+    group.add_argument('--url', '-u', type=str, help=t('cli.url'))
 
     parser.add_argument('--output', '-o', type=str,
                         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download_audio'),
-                        help='Cartella output (default: AudioDex/download_audio)')
+                        help=t('cli.output'))
     parser.add_argument('--media', '-m', type=str, default=None,
                         choices=['audio', 'video'],
-                        help='Scarica solo audio o il video intero. Se omesso, in '
-                             'modalità interattiva viene chiesto; con --search/--url '
-                             'il default è audio')
+                        help=t('cli.media'))
     parser.add_argument('--format', '-f', type=str, default=None,
                         choices=['m4a', 'mp3', 'opus', 'mp4', 'mkv'],
-                        help='Formato del file (audio: m4a/mp3/opus · video: mp4/mkv). '
-                             'Default: m4a per l\'audio, mp4 per il video')
+                        help=t('cli.format'))
     parser.add_argument('--workers', '-w', type=int, default=MAX_DOWNLOAD_WORKERS,
-                        help=f'Worker paralleli (default: {MAX_DOWNLOAD_WORKERS})')
+                        help=t('cli.workers', n=MAX_DOWNLOAD_WORKERS))
     parser.add_argument('--max-results', type=int, default=MAX_SEARCH_RESULTS,
-                        help=f'Risultati ricerca max (default: {MAX_SEARCH_RESULTS})')
+                        help=t('cli.max_results', n=MAX_SEARCH_RESULTS))
     parser.add_argument('--no-lyrics', action='store_true',
-                        help='Non cercare i testi sincronizzati su LRCLIB')
+                        help=t('cli.no_lyrics'))
     parser.add_argument('--cookies-from-browser', type=str, default=None,
                         choices=['firefox', 'chrome', 'edge', 'brave', 'opera', 'vivaldi'],
-                        help='Usa i cookie del browser indicato per accedere a playlist/video privati')
+                        help=t('cli.cookies'))
+    # Dichiarato anche se e' gia' stato letto a mano da i18n.resolve(): serve
+    # perche' compaia in --help e perche' un valore fuori elenco venga
+    # respinto da argparse invece di essere ignorato in silenzio.
+    parser.add_argument('--lang', '-l', type=str, default=None,
+                        choices=[*i18n.LANGUAGE_CODES, 'ask'],
+                        help=t('cli.lang'))
 
     args = parser.parse_args()
     fetch_lyrics = not args.no_lyrics
@@ -1771,11 +1793,11 @@ def main() -> None:
     fmt = args.format
     if fmt in VIDEO_EXTS:
         if media == 'audio':
-            parser.error(f"--format {fmt} è un formato video, incompatibile con --media audio")
+            parser.error(t('cli.err_video_format', fmt=fmt))
         media = 'video'
     elif fmt in AUDIO_EXTS:
         if media == 'video':
-            parser.error(f"--format {fmt} è un formato audio, incompatibile con --media video")
+            parser.error(t('cli.err_audio_format', fmt=fmt))
         media = 'audio'
     if media and not fmt:
         fmt = 'mp4' if media == 'video' else 'm4a'
@@ -1787,26 +1809,27 @@ def main() -> None:
 
     scraper_db.init_db()
 
+    # La domanda sulla lingua precede ogni testo, banner compreso: così non si
+    # vede mezza schermata in una lingua e mezza nell'altra, e l'ordine resta
+    # lo stesso di BurnDex. Con --search o --url non c'è nessuno a rispondere:
+    # si tiene la preferenza salvata, o l'italiano.
+    i18n.confirm(lingua_da_chiedere and not args.search and not args.url)
+
     _print_banner()
 
     if not _HAS_MUTAGEN:
-        console.print('[warning]mutagen non installato - tagging disabilitato[/warning]')
-        console.print('[dim]Installa con: pip install mutagen[/dim]\n')
+        console.print(t('start.no_mutagen'))
+        console.print(t('start.install_mutagen'))
 
     output_dir = os.path.abspath(args.output)
 
     if not _check_disk_space(output_dir):
-        console.print('[error]Operazione annullata.[/error]')
+        console.print(t('common.cancelled_op'))
         return
 
     if not args.search and not args.url:
         # Modalita' interattiva
-        console.print(
-            f"\n[dim_label]Modalita' interattiva[/dim_label]\n  "
-            f"{SYM_DOT} Digita un [accent]nome canzone/artista[/accent] per cercare\n  "
-            f"{SYM_DOT} Incolla un [accent]URL[/accent] (video/playlist) per download diretto\n  "
-            f"{SYM_DOT} Digita [accent]q[/accent] per uscire\n"
-        )
+        console.print(t('interactive.header', dot=SYM_DOT))
 
         def resolve_media() -> tuple[str, str] | None:
             """Tipo di media da scaricare: da riga di comando o chiesto ora."""
@@ -1816,11 +1839,11 @@ def main() -> None:
 
         while not _shutdown_event.is_set():
             try:
-                query = console.input(f'\n{SYM_NOTE} [bold]Cerca o incolla URL > [/bold]').strip()
+                query = console.input(t('interactive.prompt', note=SYM_NOTE)).strip()
             except (EOFError, KeyboardInterrupt):
                 break
 
-            if not query or query.lower() in ('q', 'quit', 'esci'):
+            if not query or i18n.is_quit(query):
                 break
 
             if query.startswith(('http://', 'https://', 'www.')):
@@ -1832,19 +1855,18 @@ def main() -> None:
                         # che YouTube non espone): se l'URL porta comunque con sé
                         # un video, si scarica quello invece di arrendersi.
                         if _url_ha_video(query):
-                            console.print('[warning]Playlist non accessibile: scarico il '
-                                          'singolo video.[/warning]')
+                            console.print(t('error.playlist_unreachable'))
                             come_playlist = False
                         else:
-                            console.print('[error]Nessuna traccia trovata nella playlist.[/error]')
+                            console.print(t('error.no_tracks_playlist'))
                             continue
 
                 if come_playlist:
                     _display_playlist_info(title, entries, meta)
-                    _display_search_results(entries, table_title='Tracce della playlist')
-                    console.print(f'\n[dim_label]Scaricare tutte le {len(entries)} tracce? (s/n)[/dim_label]')
-                    answer = console.input('[bold]> [/bold]').strip().lower()
-                    if answer != 's':
+                    _display_search_results(entries, table_title=t('table.playlist_tracks'))
+                    console.print(t('interactive.download_all', n=len(entries)))
+                    answer = console.input(t('interactive.answer_prompt')).strip()
+                    if not i18n.is_yes(answer):
                         selected = _select_from_results(entries)
                         if not selected:
                             continue
@@ -1857,13 +1879,13 @@ def main() -> None:
                     sub_dir = os.path.join(output_dir, album_name)
                     results = download_batch(entries, sub_dir, mfmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=mtype)
                 else:
-                    console.print('\n[dim]Recupero le informazioni del video...[/dim]')
+                    console.print(t('interactive.fetching_video'))
                     info = get_video_details(query)
                     if not info:
-                        console.print('[error]Impossibile estrarre info dal URL.[/error]')
+                        console.print(t('error.no_info_url'))
                         continue
                     if not _confirm_video(info):
-                        console.print('[dim]Annullato.[/dim]')
+                        console.print(t('common.cancelled'))
                         continue
                     entries = [_entry_from_info(info, query)]
                     choice = resolve_media()
@@ -1877,7 +1899,7 @@ def main() -> None:
             else:
                 results = search_youtube(query, args.max_results)
                 if not results:
-                    console.print('[error]Nessun risultato trovato.[/error]')
+                    console.print(t('error.no_results'))
                     continue
                 _display_search_results(results)
                 selected = _select_from_results(results)
@@ -1891,7 +1913,7 @@ def main() -> None:
                 _display_download_summary(dl_results)
                 _export_failed(output_dir, dl_results, selected)
 
-        console.print('\n[dim]Arrivederci![/dim]\n')
+        console.print(t('common.goodbye'))
         return
 
     # Fuori dalla modalità interattiva non si fanno domande: senza --media
@@ -1902,7 +1924,7 @@ def main() -> None:
     if args.search:
         results = search_youtube(args.search, args.max_results)
         if not results:
-            console.print('[error]Nessun risultato trovato.[/error]')
+            console.print(t('error.no_results'))
             return
         _display_search_results(results)
         selected = _select_from_results(results)
@@ -1922,23 +1944,22 @@ def main() -> None:
                 # contiene un video resta scaricabile anche se la playlist
                 # a cui appartiene non è consultabile.
                 if _url_ha_video(args.url):
-                    console.print('[warning]Playlist non accessibile: scarico il '
-                                  'singolo video.[/warning]')
+                    console.print(t('error.playlist_unreachable'))
                     come_playlist = False
                 else:
-                    console.print('[error]Nessuna traccia trovata.[/error]')
+                    console.print(t('error.no_tracks'))
                     return
 
         if come_playlist:
             _display_playlist_info(title, entries, meta)
-            _display_search_results(entries, table_title='Tracce della playlist')
+            _display_search_results(entries, table_title=t('table.playlist_tracks'))
             album_name = _sanitize_filename(title)
             sub_dir = os.path.join(output_dir, album_name)
             results = download_batch(entries, sub_dir, fmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=media)
         else:
             info = get_video_details(args.url)
             if not info:
-                console.print('[error]Impossibile estrarre info.[/error]')
+                console.print(t('error.no_info'))
                 return
             # Scheda mostrata anche qui, ma senza chiedere conferma: con
             # --url si è già dichiarato cosa si vuole scaricare.
