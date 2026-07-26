@@ -44,16 +44,24 @@
 
 </div>
 
+**Installazione** — questo blocco si può incollare tutto insieme:
+
 ```bash
 git clone https://github.com/Imkun-on/AudioDex.git
 cd AudioDex
 pip install -r requirements.txt
+```
 
+**Uso** — qui invece le righe sono alternative: lanciane **una** alla volta.
+
+```bash
 python AudioDex.py                                    # modalità interattiva
 python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
+```
 
-python BurnDex.py                                     # masterizza una raccolta su CD audio
+```bash
 python BurnDex.py --info                              # cosa c'è nel lettore
+python BurnDex.py                                     # masterizza una raccolta su CD audio
 ```
 
 ---
@@ -70,6 +78,7 @@ python BurnDex.py --info                              # cosa c'è nel lettore
 - 4.1 [Python](#python)
 - 4.2 [FFmpeg (obbligatorio)](#ffmpeg-obbligatorio)
 - 4.3 [Dipendenze Python](#dipendenze-python)
+- 4.4 [🌍 Lingua dell'interfaccia](#-lingua-dellinterfaccia)
 
 **Capitolo 5 — [🚀 Uso ed esempi](#-uso-ed-esempi)**
 - 5.1 [Il flusso interattivo, passo per passo](#il-flusso-interattivo-passo-per-passo)
@@ -222,10 +231,15 @@ FFmpeg estrae e converte l'audio nel formato scelto: senza, il download non può
 winget install Gyan.FFmpeg
 ```
 
+Su macOS:
+
 ```bash
-# macOS
 brew install ffmpeg
-# Linux (Debian/Ubuntu)
+```
+
+Su Linux (Debian/Ubuntu):
+
+```bash
 sudo apt install ffmpeg
 ```
 
@@ -247,6 +261,40 @@ pip install pywin32          # solo per BurnDex (masterizzazione CD, Windows)
 > ⚠️ **Nota su yt-dlp:** YouTube cambia spesso le proprie API interne. Se ricerca o download smettono di funzionare, quasi sempre basta aggiornare: `pip install -U yt-dlp`
 
 > 💿 **`pywin32` serve solo a BurnDex** e solo su Windows. AudioDex funziona senza. Se manca, `BurnDex.py --dry-run` esegue comunque tutti i controlli sulla scaletta e si limita a saltare l'interrogazione dell'unità.
+
+### 🌍 Lingua dell'interfaccia
+
+**Italiano o inglese.** Al primo avvio, sia AudioDex sia BurnDex chiedono in quale lingua vuoi lavorare. La domanda è posta **in inglese**, perché è l'unica che chi non parla italiano può leggere di sicuro:
+
+```
+┌───────┬────────────┐
+│    1  │  English   │
+│    2  │  Italiano  │
+└───────┴────────────┘
+
+Language / Lingua (1-2, Enter = English):
+```
+
+Scegliendo `1` **tutto** passa in inglese: prompt, tabelle, pannelli, barre di avanzamento, riepiloghi, messaggi di errore e i testi di `--help`. Non restano frasi miste.
+
+La risposta viene **memorizzata** in `settings.json`, accanto agli script, e non viene più chiesta ai lanci successivi. Per cambiarla:
+
+```bash
+python AudioDex.py --lang ask     # ripropone la domanda e risalva la risposta
+```
+
+Per un singolo lancio, senza toccare la preferenza salvata:
+
+```bash
+python AudioDex.py --lang en --url "https://..."
+python BurnDex.py -l en --info
+```
+
+**Cosa non viene tradotto.** I file di log in `logs/` e i commenti nel codice restano in italiano: servono a chi mantiene il programma, non a chi lo usa.
+
+> ⚙️ **Nei lanci non interattivi la domanda non viene posta.** Con `--url`, `--search` o `--yes` non c'è nessuno davanti a rispondere, e restare appesi a un prompt bloccherebbe uno script: vale la preferenza salvata, o l'italiano se non ce n'è ancora una. Per fissare la lingua in uno script si usa `--lang`.
+
+> 🗣 **Le risposte funzionano in entrambe le lingue.** `s` e `y` valgono entrambe come conferma, `q` ed `esci` come uscita, a prescindere dalla lingua scelta: chi ha l'interfaccia in inglese ma digita `s` per abitudine non si vede annullare l'operazione.
 
 ---
 
@@ -428,7 +476,7 @@ Serve a capire a colpo d'occhio se è il video giusto prima di consumare banda. 
 
 ### Esempio 4 — Uso da riga di comando
 
-Per saltare la modalità interattiva:
+Per saltare la modalità interattiva. Anche qui le righe sono esempi alternativi, uno per volta:
 
 ```bash
 # Ricerca una tantum (mostra i risultati e chiede la selezione)
@@ -463,6 +511,7 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implicit
 | `--max-results <n>` | — | `15` | Numero massimo di risultati di ricerca |
 | `--no-lyrics` | — | disattivato | Non cercare i testi sincronizzati su LRCLIB |
 | `--cookies-from-browser <browser>` | — | — | Usa i cookie del browser (`firefox`, `chrome`, `edge`, …) per accedere a playlist e video **privati** |
+| `--lang {it,en,ask}` | `-l` | *(memorizzata)* | Lingua dell'interfaccia per questo lancio. Con `ask` la domanda si ripropone e la risposta viene risalvata — vedi [Lingua dell'interfaccia](#-lingua-dellinterfaccia) |
 
 > Senza `--search` né `--url` si avvia la **modalità interattiva**.
 
@@ -758,10 +807,18 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | Sistema, masterizzatori e disco inserito, poi esce |
 | `--yes`, `-y` | Nessuna domanda: tutte le tracce, velocità predefinita, nessuna conferma |
 | `--no-eject` | Non espellere il disco a fine masterizzazione |
+| `--lang`, `-l` | Lingua dell'interfaccia per questo lancio (`it`/`en`), o `ask` per riscegliere e salvare |
+
+Esempi — sono **alternative**, da eseguire una alla volta. Prima i due innocui:
 
 ```bash
 python BurnDex.py --info                                        # ricognizione
 python BurnDex.py -d "download_audio/Molchat Doma - Etazhi" -n  # prova a vuoto
+```
+
+Poi quelli che **scrivono davvero sul disco** (non incollarli insieme ai precedenti):
+
+```bash
 python BurnDex.py -d "download_audio/Molchat Doma - Etazhi"     # masterizza
 python BurnDex.py -d "..." --speed 24 --yes --no-eject          # automatico
 ```
@@ -978,6 +1035,19 @@ Dettagli tecnici:
 ---
 
 ## 📝 Changelog
+
+### 2026-07-26
+
+**Nuovo**
+
+- 🌍 **Interfaccia in italiano o in inglese.** Al primo avvio entrambi gli strumenti chiedono la lingua, **in inglese** perché è l'unica che chi non parla italiano può leggere di sicuro. Scegliendo English passa tutto: prompt, tabelle, pannelli, barre, riepiloghi, diagnosi degli errori e i testi di `--help`. La scelta viene memorizzata in `settings.json` e non viene più chiesta; `--lang it|en` la sovrascrive per un solo lancio senza toccare la preferenza, `--lang ask` ripropone la domanda. Vedi [Lingua dell'interfaccia](#-lingua-dellinterfaccia)
+- 🗣 **Risposte accettate in entrambe le lingue** a prescindere da quella scelta: `s`/`si`/`y`/`yes` come conferma, `q`/`esci`/`exit` per uscire, `all`/`tutti`/`tutte` per selezionare tutto. Chi ha l'interfaccia in inglese ma digita `s` per abitudine non si vede più annullare l'operazione
+
+**Modifiche**
+
+- 🧱 **Testi separati dal codice**: le frasi mostrate all'utente stanno in `Shared/strings_audiodex.py` e `Shared/strings_burndex.py`, la macchina che le sceglie in `Shared/i18n.py`. Commenti, docstring e log su file restano in italiano: si rivolgono a chi mantiene il programma, non a chi lo usa
+- 📅 **Data di pubblicazione in forma ISO in inglese** (`2013-04-19`) invece di giorno/mese/anno: è l'unica non ambigua tra la convenzione americana, che mette prima il mese, e quella britannica, che mette prima il giorno. In italiano resta `19/04/2013`
+- 🔢 **Abbreviazioni dei grandi numeri tradotte**: `1.2 Mrd` / `4.3 Mln` in italiano diventano `1.2 B` / `4.3 M` in inglese
 
 ### 2026-07-25
 

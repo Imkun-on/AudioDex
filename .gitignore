@@ -8,6 +8,10 @@ failed_tracks.txt
 *.db-wal
 *.db.backup-*
 
+# Preferenze locali (lingua dell'interfaccia): sono di chi usa il programma,
+# non del progetto
+settings.json
+
 # Log
 logs/
 *.log
