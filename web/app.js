@@ -372,6 +372,7 @@ function avvia() {
     if (window.initPix) window.initPix();
     if (window.initClip) window.initClip();
     traduciPagina();
+    if (window.potenziaTendine) window.potenziaTendine();
     cambiaSezione('audio', true);
 
     $$('.voce[data-va]').forEach((v) =>

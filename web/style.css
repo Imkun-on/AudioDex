@@ -829,3 +829,115 @@ select.campo {
   .sfondo::after, .guscio, .logo::before, .logo::after { animation: none; }
   .sezione.attiva, .sezione.uscita { animation: none; }
 }
+
+/* ── Menu a tendina della pagina ─────────────────────────────────────────── */
+/* Il <select> vero resta nel documento, invisibile: continua a essere la
+ * fonte della verita' per tutto il resto del programma. Quello che si vede e
+ * si clicca e' costruito qui. */
+
+.tendina { position: relative; width: 100%; }
+.tendina > select {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  width: 100%; height: 100%;
+}
+.tendina-testa {
+  display: flex; align-items: center; gap: var(--s2);
+  text-align: left; cursor: pointer; font: inherit; font-size: 13px;
+  padding-right: 30px; position: relative;
+}
+.tendina-valore {
+  flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.tendina-punta {
+  position: absolute; right: 12px; top: 50%;
+  width: 7px; height: 7px; margin-top: -5px;
+  border-right: 1.6px solid var(--t2); border-bottom: 1.6px solid var(--t2);
+  transform: rotate(45deg);
+  transition: transform .22s var(--molla), border-color .18s;
+}
+.tendina.aperta .tendina-punta {
+  transform: rotate(-135deg) translate(-2px, -2px); border-color: var(--verde);
+}
+.tendina.aperta .tendina-testa {
+  border-color: #39ff88a6;
+  box-shadow: 0 0 0 3px #39ff8824, 0 0 16px #39ff881f;
+}
+
+.tendina-pannello {
+  position: fixed; z-index: 80;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 5px; overflow-y: auto;
+  background: linear-gradient(168deg, #101f13f7, #0b160df7);
+  border: 1px solid var(--taglio); border-radius: var(--r-m);
+  box-shadow: var(--ombra-alta), inset 0 1px 0 #7cff8c1f;
+  opacity: 0; pointer-events: none;
+  transform: translateY(-6px) scale(.985);
+  transition: opacity .16s ease, transform .2s var(--molla);
+}
+.tendina-pannello.verso-alto { transform: translateY(6px) scale(.985); }
+.tendina-pannello.visibile {
+  opacity: 1; pointer-events: auto; transform: none;
+}
+.tendina-voce {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 11px; border: 0; border-radius: var(--r-s);
+  background: transparent; color: var(--t1);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background .12s, color .12s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tendina-voce.evidenziata { background: #39ff8814; color: var(--t0); }
+.tendina-voce.scelta {
+  color: var(--verde); font-weight: 700;
+  box-shadow: inset 2px 0 0 var(--verde);
+}
+
+/* ── Costo di disegno ────────────────────────────────────────────────────── */
+/* Le regole qui sotto non cambiano l'aspetto: cambiano quanto costa
+ * ridisegnarlo. Su una grafica integrata con memoria condivisa e' la
+ * differenza fra un'interfaccia che scorre e una che striscia.
+ *
+ * Il video di sfondo aveva sei filtri in catena, ricalcolati su ogni
+ * fotogramma di un filmato 1440p. Due filtri bastano a spegnerlo, e il verde
+ * glielo mette sopra un velo piatto: un rettangolo colorato non costa nulla,
+ * una catena di filtri costa a ogni fotogramma.
+ */
+.video-sfondo { filter: grayscale(.9) brightness(.5); }
+.video-sfondo.acceso { opacity: .34; }
+.sfondo > .tinta-verde {
+  position: absolute; inset: 0; pointer-events: none;
+  background: #0d3a1fb3;
+}
+
+/* Sfocatura dello sfondo dimezzata: a 10 px la superficie si legge ancora
+ * come vetro, e costa meno della meta'. */
+.vetro, .barra { backdrop-filter: blur(10px); }
+.tendina-pannello, .avviso { backdrop-filter: blur(12px); }
+
+/* La grana non passa piu' per un livello di composizione: la fusione costa,
+ * e a questa opacita' non si distingue dal risultato. */
+.grana { mix-blend-mode: normal; opacity: .05; }
+
+/* Si dichiara in anticipo cosa cambiera': cosi' il disegno prepara il
+ * livello una volta invece di ricostruirlo a ogni fotogramma. */
+.alone, .griglia, .cursa, .sezione.attiva, .sezione.uscita { will-change: transform, opacity; }
+.scheda, .voce, .bottone, .scelta { will-change: auto; }
+
+/* ── Fluidita' ───────────────────────────────────────────────────────────── */
+/* Una durata sola e una curva sola per tutto cio' che non ha un motivo per
+ * essere diverso: la sensazione di fluidita' viene piu' dalla coerenza che
+ * dalla lentezza. */
+.bottone, .campo, .scheda, .voce, .interruttore, .scelta,
+.tendina-testa, .tendina-voce, .casella, .cursore {
+  transition-timing-function: var(--molla);
+}
+.elenco, .diario, .anteprima { scroll-behavior: smooth; }
+
+/* Lo sfarfallio scende a un terzo: era la cosa che piu' faceva sembrare
+ * l'insieme instabile invece che vissuto. */
+@keyframes sfarfallio {
+  0%, 97.4% { opacity: 1; }
+  97.6%     { opacity: .985; }
+  97.9%     { opacity: 1; }
+}
