@@ -352,7 +352,7 @@ def download_background_video() -> bool:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
         import requests
-        print(f'[sfondo] Scarico una volta sola il video di sfondo (~74 MB)…')
+        print('[sfondo] Scarico una volta sola il video di sfondo (~74 MB)…')
         with requests.get(BG_VIDEO_URL, stream=True, timeout=60) as resp:
             resp.raise_for_status()
             with open(tmp, 'wb') as fh:
