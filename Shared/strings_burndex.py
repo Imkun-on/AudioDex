@@ -636,10 +636,4 @@ TESTI: dict[str, dict[str, str]] = {
         'it': 'Non espellere il disco a fine masterizzazione',
         'en': 'Do not eject the disc when burning finishes',
     },
-    'cli.lang': {
-        'it': 'Lingua dell\'interfaccia per questo lancio (it/en) o "ask" per '
-              'riscegliere e salvare. Senza, vale la scelta memorizzata',
-        'en': 'Interface language for this run (it/en), or "ask" to choose '
-              'again and save. Without it, the stored choice applies',
-    },
 }

@@ -8,9 +8,30 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 
 from rich.console import Console
 from rich.theme import Theme
+
+# ── Uscita a video in UTF-8 ───────────────────────────────────────────────────
+# I tre programmi stampano frecce, riquadri e simboli di esito che nella
+# vecchia tabella caratteri di Windows (cp1252) semplicemente non esistono. Su
+# Windows Terminal non si nota, ma dentro il cmd.exe classico ogni carattere
+# fuori tabella fa cadere il programma con UnicodeEncodeError — a meta' di un
+# download o, peggio, di una masterizzazione.
+#
+# Riconfigurare i due flussi in UTF-8 elimina la caduta alla radice. Il
+# ripiego ``errors='replace'`` copre il caso in cui perfino questo non
+# riesca: si vedra' un punto interrogativo al posto di un'emoji, che e'
+# infinitamente meglio di una traccia di errore.
+for _flusso in (sys.stdout, sys.stderr):
+    try:
+        _flusso.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError, OSError):
+        # Flusso rediretto su qualcosa che non e' un file di testo
+        # riconfigurabile (una pipe gia' aperta in binario, per esempio):
+        # non c'e' niente da sistemare e non c'e' niente da rompere.
+        pass
 
 # ── Tema Rich condiviso ───────────────────────────────────────
 # Associa un nome semantico a ogni colore: nel codice si scrive

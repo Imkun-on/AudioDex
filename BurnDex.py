@@ -1404,11 +1404,13 @@ def main() -> None:
       - --dir <cartella> -> masterizza quella cartella;
       - --info           -> elenca masterizzatori e disco inserito, senza scrivere.
 
-    La lingua si risolve *prima* di costruire il parser: i testi di --help
-    vengono composti mentre il parser si crea, e deciderla dopo significherebbe
-    stampare sempre un aiuto nella lingua sbagliata.
+    La lingua va fissata *prima* di costruire il parser, perche' i testi di
+    --help vengono composti mentre il parser si crea.
     """
-    _, lingua_da_chiedere = i18n.resolve()
+    # Da riga di comando si parla solo italiano: nessuna domanda all'avvio,
+    # nessuna opzione da ricordare. Il catalogo bilingue resta intatto perche'
+    # la GUI continua a offrire la scelta della lingua.
+    i18n.set_language('it')
 
     parser = argparse.ArgumentParser(
         description=t('cli.desc'),
@@ -1432,20 +1434,7 @@ def main() -> None:
                         help=t('cli.yes'))
     parser.add_argument('--no-eject', action='store_true',
                         help=t('cli.no_eject'))
-    # Dichiarato anche se e' gia' stato letto a mano da i18n.resolve(): serve
-    # perche' compaia in --help e perche' un valore fuori elenco venga
-    # respinto da argparse invece di essere ignorato in silenzio.
-    parser.add_argument('--lang', '-l', type=str, default=None,
-                        choices=[*i18n.LANGUAGE_CODES, 'ask'],
-                        help=t('cli.lang'))
-
     args = parser.parse_args()
-
-    # La domanda sulla lingua precede il banner, che una riga di testo ce
-    # l'ha: chiederla dopo farebbe vedere la prima schermata in una lingua e
-    # tutto il resto nell'altra. Con --yes non si fanno domande di nessun
-    # genere, nemmeno questa: e' la modalita' pensata per girare in uno script.
-    i18n.confirm(lingua_da_chiedere and not args.yes)
 
     _print_banner()
 

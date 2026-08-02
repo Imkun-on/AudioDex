@@ -62,12 +62,6 @@ TESTI: dict[str, dict[str, str]] = {
         'it': 'Usa i cookie del browser indicato per accedere a playlist/video privati',
         'en': 'Use cookies from the given browser to reach private playlists/videos',
     },
-    'cli.lang': {
-        'it': 'Lingua dell\'interfaccia per questo lancio (it/en) o "ask" per '
-              'riscegliere e salvare. Senza, vale la scelta memorizzata',
-        'en': 'Interface language for this run (it/en), or "ask" to choose '
-              'again and save. Without it, the stored choice applies',
-    },
     'cli.err_video_format': {
         'it': '--format {fmt} e\' un formato video, incompatibile con --media audio',
         'en': '--format {fmt} is a video format, incompatible with --media audio',

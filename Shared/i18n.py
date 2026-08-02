@@ -11,32 +11,28 @@ Cosa NON viene tradotto
     Servono a chi legge o mantiene il codice, non a chi lo usa, e tradurli
     raddoppierebbe il lavoro di manutenzione senza aiutare nessuno.
 
-Come si sceglie la lingua
-    Tre livelli, dal piu' forte al piu' debole:
-      1. ``--lang it|en`` sulla riga di comando: vale per quel solo lancio e
-         non tocca la preferenza salvata (serve agli script);
-      2. la preferenza salvata in ``settings.json``, scritta la prima volta
-         che si risponde alla domanda;
-      3. la domanda vera e propria, posta in inglese perche' e' l'unica
-         lingua che chi non parla italiano puo' leggere di sicuro.
-    Con ``--lang ask`` la domanda si ripropone e la risposta viene risalvata.
+Chi puo' cambiare lingua
+    Solo la GUI. I tre programmi da riga di comando — AudioDex, BurnDex,
+    PixDex — parlano italiano e basta: nessuna domanda all'avvio, nessuna
+    opzione ``--lang`` da ricordare. Chi lavora nel terminale vuole vedere
+    subito il banner e cominciare, non rispondere a una domanda sulla lingua
+    ogni volta che apre un progetto nuovo.
 
-Perche' la domanda solo in modalita' interattiva
-    Un lancio con ``--url`` o dentro uno script non ha nessuno davanti a
-    rispondere: restare appesi a un prompt sarebbe un blocco. Senza risposta
-    possibile si usa l'italiano, cioe' il comportamento che i due programmi
-    hanno sempre avuto.
+Perche' il catalogo resta bilingue
+    Perche' la GUI la scelta ce l'ha, ed e' li' che ha senso: e' un menu a
+    tendina, si cambia con un clic e si vede il risultato immediatamente. La
+    stessa scelta come argomento da digitare era solo un ostacolo in piu'.
+    Le traduzioni inglesi restano quindi tutte al loro posto e in uso.
+
+Dove finisce la preferenza
+    In ``settings.json``, accanto agli script, scritta dalla GUI quando si
+    cambia voce nel menu. E' un'impostazione di chi usa il programma, non del
+    progetto, e infatti il file non viene versionato.
 """
 from __future__ import annotations
 
 import json
 import os
-import sys
-
-from rich.box import ROUNDED
-from rich.table import Table
-
-from Shared.logger_setup import console
 
 # Lingue disponibili, nell'ordine in cui compaiono nella domanda. L'inglese
 # e' primo perche' la domanda e' in inglese: chi non capisce l'italiano deve
@@ -178,144 +174,3 @@ def save(codice: str) -> None:
             json.dump(dati, fh, indent=2)
     except OSError:
         pass
-
-
-# ── Domanda all'avvio ────────────────────────────────────────────────────────
-
-def ask() -> str:
-    """Chiede la lingua e restituisce il codice scelto.
-
-    La domanda e' in inglese di proposito: e' l'unica che chi non parla
-    italiano puo' leggere, e chi parla italiano la capisce comunque. Il nome
-    di ogni lingua e' scritto nella lingua stessa ("Italiano", non "Italian"),
-    cosi' si riconosce senza sapere in che lingua e' l'elenco.
-
-    L'invio a vuoto vale English, la prima voce: e' la scelta piu' probabile
-    per chi si trova davanti una domanda in inglese senza averla cercata.
-    """
-    tabella = Table(show_header=False, box=ROUNDED, border_style='bright_blue',
-                    padding=(0, 2), expand=False)
-    tabella.add_column('N', style='bold yellow', justify='right', width=3)
-    tabella.add_column('Lingua', style='white')
-    for i, (_, nome) in enumerate(LANGUAGES, 1):
-        tabella.add_row(str(i), f'[bold]{nome}[/bold]')
-
-    console.print()
-    console.print(tabella)
-
-    while True:
-        try:
-            scelta = console.input(
-                '\n[bold]Language / Lingua (1-'
-                f'{len(LANGUAGES)}, Enter = English): [/bold]'
-            ).strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            return DEFAULT_LANG
-
-        if not scelta:
-            return LANGUAGE_CODES[0]
-        if scelta in LANGUAGE_CODES:
-            return scelta
-        try:
-            n = int(scelta)
-            if 1 <= n <= len(LANGUAGES):
-                return LANGUAGE_CODES[n - 1]
-        except ValueError:
-            pass
-        console.print('[error]Invalid choice / Scelta non valida.[/error]')
-
-
-def peek_lang_arg(argv: list[str] | None = None) -> str | None:
-    """Cerca ``--lang`` negli argomenti prima che argparse entri in gioco.
-
-    Serve perche' i testi di ``--help`` vengono composti mentre il parser si
-    costruisce: aspettare ``parse_args()`` per sapere la lingua vorrebbe dire
-    stampare un aiuto sempre nella lingua sbagliata. Qui si guarda la riga di
-    comando grezza, si imposta la lingua, e solo dopo si costruisce il parser
-    — che dichiara comunque ``--lang``, cosi' compare nell'aiuto e i valori
-    fuori elenco vengono respinti con il messaggio di argparse.
-
-    Riconosce sia ``--lang en`` sia ``--lang=en``, e ``-l`` nelle stesse due
-    forme. Ritorna None se l'opzione non c'e'.
-    """
-    argomenti = list(sys.argv[1:] if argv is None else argv)
-    for i, a in enumerate(argomenti):
-        if a in ('--lang', '-l'):
-            if i + 1 < len(argomenti):
-                return argomenti[i + 1].strip().lower()
-            return None
-        for prefisso in ('--lang=', '-l='):
-            if a.startswith(prefisso):
-                return a[len(prefisso):].strip().lower()
-    return None
-
-
-def resolve() -> tuple[str, bool]:
-    """Decide la lingua del lancio in corso, prima di costruire il parser.
-
-    Ritorna (codice, domanda_in_sospeso). Il secondo valore esiste perche' la
-    domanda non si puo' porre qui: ``--help`` deve poter essere stampato e
-    uscire senza che nessuno debba rispondere a nulla, e il banner va mostrato
-    prima di qualsiasi prompt. Il chiamante chiama quindi ``confirm()`` piu'
-    avanti, quando ha gia' letto gli argomenti e sa se c'e' davvero qualcuno
-    davanti allo schermo.
-
-    Finche' la domanda resta in sospeso vale la lingua di ripiego, cosi' un
-    eventuale messaggio d'errore di argparse esce comunque in una lingua
-    sensata invece che a vuoto.
-    """
-    richiesta = peek_lang_arg()
-
-    if richiesta in LANGUAGE_CODES:
-        # Flag esplicito: vale per questo lancio soltanto e non sovrascrive la
-        # preferenza salvata. Un'opzione passata da uno script non deve
-        # cambiare in silenzio cosa vedra' la persona al lancio successivo.
-        set_language(richiesta)
-        return richiesta, False
-
-    salvata = load_saved()
-
-    if richiesta == 'ask':
-        # Richiesta esplicita di riscegliere: si chiede anche quando una
-        # preferenza c'e' gia', e la risposta la sostituisce.
-        set_language(salvata or DEFAULT_LANG)
-        return get_language(), True
-
-    if salvata:
-        set_language(salvata)
-        return salvata, False
-
-    set_language(DEFAULT_LANG)
-    return DEFAULT_LANG, True
-
-
-def confirm(in_sospeso: bool) -> str:
-    """Pone la domanda rimasta in sospeso, se ha senso porla, e salva.
-
-    Va chiamata dopo il banner e prima di qualunque altro output: da li' in
-    poi tutto il programma parla nella lingua scelta.
-
-    Il chiamante passa False quando gli argomenti escludono la presenza di una
-    persona (``--url``, ``--search``, ``--yes``): in quei casi restare appesi a
-    un prompt bloccherebbe uno script. Il controllo sul terminale e' fatto qui
-    perche' vale allo stesso modo per tutti i programmi.
-    """
-    if not in_sospeso or not _stdin_utilizzabile():
-        return get_language()
-    codice = ask()
-    set_language(codice)
-    save(codice)
-    return codice
-
-
-def _stdin_utilizzabile() -> bool:
-    """True se c'e' davvero un terminale da cui leggere una risposta.
-
-    Con l'input rediretto da file o da pipe — come nelle prove automatiche —
-    un prompt riceverebbe subito EOF, e la domanda si risolverebbe da sola in
-    modo invisibile. Meglio non porla affatto e restare sul ripiego.
-    """
-    try:
-        return bool(sys.stdin) and sys.stdin.isatty()
-    except (AttributeError, ValueError):
-        return False

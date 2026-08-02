@@ -1741,14 +1741,16 @@ def main() -> None:
     Le playlist vengono scaricate in una sottocartella col nome dell'album.
     Opzioni trasversali: --format (m4a/mp3/opus), --workers (parallelismo),
     --no-lyrics (salta i testi karaoke), --cookies-from-browser (accesso
-    a playlist e video privati con i cookie del browser), --lang (lingua
-    dell'interfaccia).
+    a playlist e video privati con i cookie del browser).
 
-    La lingua si risolve *prima* di costruire il parser: i testi di --help
-    vengono composti mentre il parser si crea, e deciderla dopo significherebbe
-    stampare sempre un aiuto nella lingua sbagliata.
+    La lingua va fissata *prima* di costruire il parser, perché i testi di
+    --help vengono composti mentre il parser si crea.
     """
-    _, lingua_da_chiedere = i18n.resolve()
+    # Da riga di comando si parla solo italiano: nessuna domanda all'avvio,
+    # nessuna opzione da ricordare. Il catalogo bilingue resta intatto perché
+    # la GUI, dove cambiare lingua è un clic e non un argomento da digitare,
+    # continua a offrire la scelta.
+    i18n.set_language('it')
 
     parser = argparse.ArgumentParser(
         description=t('cli.desc'),
@@ -1777,12 +1779,6 @@ def main() -> None:
     parser.add_argument('--cookies-from-browser', type=str, default=None,
                         choices=['firefox', 'chrome', 'edge', 'brave', 'opera', 'vivaldi'],
                         help=t('cli.cookies'))
-    # Dichiarato anche se e' gia' stato letto a mano da i18n.resolve(): serve
-    # perche' compaia in --help e perche' un valore fuori elenco venga
-    # respinto da argparse invece di essere ignorato in silenzio.
-    parser.add_argument('--lang', '-l', type=str, default=None,
-                        choices=[*i18n.LANGUAGE_CODES, 'ask'],
-                        help=t('cli.lang'))
 
     args = parser.parse_args()
     fetch_lyrics = not args.no_lyrics
@@ -1808,12 +1804,6 @@ def main() -> None:
     signal.signal(signal.SIGINT, _signal_handler)
 
     scraper_db.init_db()
-
-    # La domanda sulla lingua precede ogni testo, banner compreso: così non si
-    # vede mezza schermata in una lingua e mezza nell'altra, e l'ordine resta
-    # lo stesso di BurnDex. Con --search o --url non c'è nessuno a rispondere:
-    # si tiene la preferenza salvata, o l'italiano.
-    i18n.confirm(lingua_da_chiedere and not args.search and not args.url)
 
     _print_banner()
 

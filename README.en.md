@@ -24,6 +24,14 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/PixDex-video_remaster-F97316?logo=vlcmediaplayer&logoColor=white" alt="PixDex">
+  <img src="https://img.shields.io/badge/FFmpeg-filter_chain-007808?logo=ffmpeg&logoColor=white" alt="FFmpeg filters">
+  <img src="https://img.shields.io/badge/10--bit-debanding-0EA5E9?logo=adobelightroom&logoColor=white" alt="10 bit">
+  <img src="https://img.shields.io/badge/Lanczos-upscaling-6366F1?logo=imagedotsc&logoColor=white" alt="Lanczos">
+  <img src="https://img.shields.io/badge/libx264_·_h264__amf-encoding-C0392B?logo=amd&logoColor=white" alt="Encoder">
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/AudioDexGUI-desktop_UI-06B6D4?logo=materialdesign&logoColor=white" alt="AudioDexGUI">
   <img src="https://img.shields.io/badge/Flet-0.86-02569B?logo=flutter&logoColor=white" alt="Flet">
   <img src="https://img.shields.io/badge/Flutter-rendering_engine-42A5F5?logo=flutter&logoColor=white" alt="Flutter">
@@ -75,6 +83,7 @@ python BurnDex.py                                     # burn a collection to an 
 
 ```bash
 python AudioDexGUI.py                                 # both tools, graphical interface
+python PixDex.py                                      # remaster a downloaded video
 ```
 
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
@@ -145,19 +154,31 @@ python AudioDexGUI.py                                 # both tools, graphical in
 - 12.9 [Audio CD limits](#audio-cd-limits)
 - 12.10 [Error diagnosis](#error-diagnosis)
 
-**Chapter 13 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 13 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
+- 13.1 [What it does, and above all what it does not](#what-it-does-and-above-all-what-it-does-not)
+- 13.2 [Why it works anyway](#why-it-works-anyway)
+- 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
+- 13.4 [The five presets](#the-five-presets)
+- 13.5 [The diagnosis](#the-diagnosis)
+- 13.6 [How far it upscales](#how-far-it-upscales)
+- 13.7 [The before/after comparison](#the-beforeafter-comparison)
+- 13.8 [Encoding: software or GPU](#encoding-software-or-gpu)
+- 13.9 [Command-line options](#command-line-options-pixdex)
+- 13.10 [In the GUI](#in-the-gui)
 
-**Chapter 14 — [📊 Global database](#-global-database)**
+**Chapter 14 — [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 15 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 15 — [📊 Global database](#-global-database)**
 
-**Chapter 16 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 16 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 17 — [📝 Changelog](#-changelog)**
+**Chapter 17 — [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 18 — [📜 Legal notes](#-legal-notes)**
+**Chapter 18 — [📝 Changelog](#-changelog)**
 
-**Chapter 19 — [📄 Licence](#-licence)**
+**Chapter 19 — [📜 Legal notes](#-legal-notes)**
+
+**Chapter 20 — [📄 Licence](#-licence)**
 
 ---
 
@@ -288,37 +309,15 @@ pip install pywin32          # BurnDex only (CD burning, Windows)
 
 ### 🌍 Interface language
 
-**Italian or English.** On first launch, both AudioDex and BurnDex ask which language you want to work in. The question is asked **in English**, because it is the one language anyone who does not speak Italian can certainly read:
+**In the terminal, everything is in Italian.** The three command-line programs — `AudioDex.py`, `BurnDex.py`, `PixDex.py` — speak Italian only: no question on first launch, no `--lang` option to remember. Open the terminal, run, go.
 
-```
-┌───────┬────────────┐
-│    1  │  English   │
-│    2  │  Italiano  │
-└───────┴────────────┘
+**In the GUI the choice is there, one click away.** `AudioDexGUI.py` has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json` for later runs.
 
-Language / Lingua (1-2, Enter = English):
-```
+That is where the choice belongs. A dropdown is visible, you try it and see the effect right away; the same choice as a command-line argument was just one more thing to remember every time.
 
-Choose `1` and **everything** switches to English: prompts, tables, panels, progress bars, summaries, error messages and the `--help` texts. Nothing is left half-translated.
+**What is not translated.** Log files in `logs/` and the comments in the code stay in Italian: they serve whoever maintains the program, not whoever uses it.
 
-The answer is **remembered** in `settings.json`, next to the scripts, and is not asked again on later runs. To change it:
-
-```bash
-python AudioDex.py --lang ask     # asks again and re-saves the answer
-```
-
-For a single run, without touching the stored preference:
-
-```bash
-python AudioDex.py --lang en --url "https://..."
-python BurnDex.py -l en --info
-```
-
-**What is not translated.** The log files in `logs/` and the code comments stay in Italian: they are for whoever maintains the program, not for whoever uses it.
-
-> ⚙️ **The question is not asked in non-interactive runs.** With `--url`, `--search` or `--yes` there is nobody there to answer, and hanging on a prompt would block a script: the stored preference applies, or Italian if there is not one yet. To pin the language inside a script, use `--lang`.
-
-> 🗣 **Answers work in both languages.** Both `s` and `y` count as confirmation, `q` and `esci` as quit, whichever language you picked: someone running the English interface who types `s` out of habit does not get the operation cancelled.
+> 🗣 **Answers work in both languages.** `s` and `y` both count as confirmation, `q` and `esci` as quit: typing `y` out of habit never cancels the operation.
 
 ---
 
@@ -535,7 +534,6 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implied
 | `--max-results <n>` | — | `15` | Maximum number of search results |
 | `--no-lyrics` | — | off | Do not look up synced lyrics on LRCLIB |
 | `--cookies-from-browser <browser>` | — | — | Use browser cookies (`firefox`, `chrome`, `edge`, …) to reach **private** playlists and videos |
-| `--lang {it,en,ask}` | `-l` | *(remembered)* | Interface language for this run. With `ask` the question is asked again and the answer re-saved — see [Interface language](#-interface-language) |
 
 > Without `--search` or `--url`, **interactive mode** starts.
 
@@ -831,7 +829,6 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | System, burners and inserted disc, then exits |
 | `--yes`, `-y` | No questions: all tracks, default speed, no confirmation |
 | `--no-eject` | Do not eject the disc when burning finishes |
-| `--lang`, `-l` | Interface language for this run (`it`/`en`), or `ask` to choose again and save |
 
 Examples — these are **alternatives**, run one at a time. The harmless two first:
 
@@ -966,25 +963,145 @@ Other safety nets:
 
 ---
 
+## 🎞 PixDex — remastering a video
+
+### What it does, and above all what it does not
+
+`PixDex.py` takes a poor-quality video and cleans it up: it removes the artifacts left by compression, smooths stepped gradients and brings it to a higher resolution with upscaling done properly.
+
+This has to be said up front, because it is what creates the most wrong expectations: **PixDex invents no detail that is not in the file.** Upscaling, however careful, cannot rebuild what compression threw away. That is what AI models do — they reconstruct *plausible* detail, but invented, and on a full screen it often gives itself away.
+
+PixDex works **by subtraction**: it removes noise, it does not add fake sharpness.
+
+### Why it works anyway
+
+On YouTube material there are three defects the eye actually notices, and all three are removable:
+
+| Defect | Where you see it | How it is removed |
+|---|---|---|
+| 🧱 **Blocking** | dark scenes, fast motion | `deblock`, temporal noise reduction |
+| 🪜 **Stepped banding** | skies, fades, gradients | `deband`, done at 10 bits |
+| 👻 **Edge halos** | around text and sharp borders | noise reduction, then adaptive sharpening |
+
+Remove those and **the very same amount of detail reads far better**. That is 70% of the perceived improvement, at a fraction of the cost of AI.
+
+### The filter order is not negotiable
+
+This is the part almost every guide gets wrong, and on its own it separates a good result from a mess:
+
+1. **Deinterlacing**, if needed — working on fields falsifies everything downstream
+2. **Deblocking and noise reduction**, *before* any sharpening — otherwise you engrave the noise and make it permanent
+3. **Debanding, done at 10 bits** — at 8 bits the cure creates new bands: smoothing a step needs in-between values that do not exist at 8 bits
+4. **Upscaling**, on a frame that is finally clean
+5. **Adaptive sharpening**, last — applying it before upscaling throws half the work away in the rescale
+
+### The five presets
+
+| Preset | For what | What it does differently |
+|---|---|---|
+| 🧼 **Clean** | already decent source | removes blocking and banding, **no upscaling**. The fastest |
+| ⚖️ **Standard** | the normal YouTube video | measured cleanup plus upscaling |
+| 🔨 **Strong** | badly degraded source | trades micro-detail away to get rid of the noise |
+| 🎨 **Animation** | cartoons and anime | very light on noise (it eats the linework, which in animation *is* the drawing), heavy on banding |
+| 📼 **Vintage** | broadcast or tape material | weaves the fields first, then cleans thoroughly |
+
+With no instructions, the **diagnosis** picks the preset.
+
+### The diagnosis
+
+Before touching anything, PixDex reads the file with `ffprobe` and looks at three quantities:
+
+- the **resolution**, which says whether upscaling makes sense;
+- the **bits per pixel** — bitrate divided by pixels and frames per second — which say how hard compression hit. Below **0.05 bpp** blocking is visible; below **0.025** it is visible even in motion;
+- the **field order**, which says whether the material is broadcast.
+
+None of the three requires decoding the video, so the advice arrives **instantly** even on an hour-long file.
+
+```bash
+python PixDex.py -i video.mp4 --info      # analyse and advise, writes nothing
+```
+
+### How far it upscales
+
+Never beyond **twice** the original. Past that threshold interpolation has no real pixels left to work from and returns a soft image that sharpening can only make worse: **an honest 720p beats a fake 4K**. So 360p reaches 720p, 540p reaches 1080p. `--height` forces a different value, at your own risk.
+
+### The before/after comparison
+
+When it finishes, PixDex saves a PNG with **the same frame before and after, side by side**. It is the only honest way to judge: bitrate numbers say nothing about appearance, and comparing two successive playbacks from memory always flatters the second one.
+
+Both frames are brought to **the same height**: otherwise upscaling would make the second one automatically bigger, and therefore more convincing regardless of merit. The frame is taken **one third** of the way in, because the opening is almost always a title card or a black screen.
+
+### Encoding: software or GPU
+
+| | `libx264` (default) | `--gpu` (`h264_amf`) |
+|---|---|---|
+| Speed | slow | **much faster** |
+| Quality at equal size | **better** | slightly less clean |
+| When | the normal case | long files, when time matters more than the result |
+
+**Audio is never re-encoded**: it is copied as is from the source file, so it loses nothing.
+
+### Command-line options (PixDex)
+
+| Option | Short | Default | What it does |
+|---|---|---|---|
+| `--input` | `-i` | *(list)* | Video to remaster. Without it, lists the downloaded ones to choose from |
+| `--output` | `-o` | *next to the original* | Destination file. The original is **never** overwritten |
+| `--base` | `-b` | `download_audio` | Folder to look for videos in |
+| `--preset` | `-p` | *(from the diagnosis)* | `pulito`, `standard`, `forte`, `animazione`, `vecchio` |
+| `--height` | | *(from the preset)* | Target height in pixels (e.g. `1080`) |
+| `--crf` | | `18` | libx264 quality: lower = better and heavier |
+| `--gpu` | | *off* | Encode on the AMD GPU |
+| `--no-compare` | | *off* | Do not save the comparison image |
+| `--info` | | *off* | Analyse and show the diagnosis, without remastering |
+| `--yes` | `-y` | *off* | No questions: use the suggested preset and start |
+
+### Examples
+
+```bash
+python PixDex.py                                  # guided procedure
+python PixDex.py -i video.mp4 --info              # analysis only, writes nothing
+python PixDex.py -i video.mp4 -p animazione       # explicit preset
+python PixDex.py -i video.mp4 --height 1080 --gpu # 1080p, encoded on the GPU
+python PixDex.py -i video.mp4 -y                  # no questions
+```
+
+### In the GUI
+
+`AudioDexGUI.py` has a **Remaster video** section: pick the file, press **Analyse** and the diagnosis appears in a panel — what is wrong, and which preset addresses it — *before* committing minutes or hours of processing. When it finishes, the before/after comparison shows up right there in the window, next to the diagnosis.
+
+> ⏱ **How long it takes.** It depends on the processor: remastering is the heaviest operation in the whole project. While it runs, the bar shows processed frames and live speed (`1.2x` means it is running faster than the video's duration, `0.5x` twice as long). `--gpu` is much faster.
+
+---
+
 ## 🧩 Project architecture
 
 ```
 AudioDex/
 ├── AudioDex.py               # Main CLI: search, selection, download, Rich UI
 ├── BurnDex.py                # 💿 Audio CD burner (Windows, IMAPI2)
+├── PixDex.py                 # 🎞 Video remasterer (FFmpeg, cross-platform)
+├── AudioDexGUI.py            # 🖥 Flet graphical interface for all three
 ├── Shared/
 │   ├── __init__.py
 │   ├── logger_setup.py       # File logger + shared Rich theme/symbols
+│   ├── i18n.py               # Language engine (the choice lives in the GUI)
+│   ├── strings_audiodex.py   # AudioDex texts, Italian and English
+│   ├── strings_burndex.py    # BurnDex texts, Italian and English
+│   ├── strings_pixdex.py     # PixDex texts, Italian and English
 │   └── http_client.py        # Shared HTTP helpers (User-Agent, headers, retry backoff)
 ├── Database_Globale/
 │   ├── scraper_db.py         # Global SQLite download database
 │   └── scraper_metadata.db   # The database (created automatically, git-ignored)
+├── assets/                   # GUI background (downloaded on first launch, git-ignored)
 ├── download_audio/           # Output folder (created automatically, git-ignored)
 │   └── <Artist> - <Album>/   # One folder per playlist, with numbered tracks
 │       └── ordine.txt        # (optional) manual running order for BurnDex
 ├── logs/
 │   ├── audiodex.log          # Detailed log of every session (git-ignored)
-│   └── burndex.log           # Burning log (git-ignored)
+│   ├── burndex.log           # Burning log (git-ignored)
+│   └── pixdex.log            # Remastering log (git-ignored)
+├── settings.json             # Language chosen in the GUI (git-ignored: it is the user's)
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # Italian version
 └── README.en.md              # This file
@@ -992,7 +1109,7 @@ AudioDex/
 
 The `Shared/` and `Database_Globale/` modules are designed to be **shared across several scrapers** (audio, manga, anime): same visual theme, same logging, same database with type-specific columns.
 
-`BurnDex.py` is **independent**: it shares only `Shared/logger_setup.py` with AudioDex (Rich theme and logger), imports nothing from `AudioDex.py`, and works on audio folders assembled by hand. It does not write to the global database — burning is not a download, and recording it there would distort the download log.
+`BurnDex.py` and `PixDex.py` are **independent**: they share only `Shared/` with AudioDex (Rich theme, logger, texts), import nothing from `AudioDex.py`, and work on files assembled by hand. Neither writes to the global database — burning and remastering are not downloads, and recording them there would distort the download log.
 
 ---
 
@@ -1060,11 +1177,23 @@ Technical details:
 
 ## 📝 Changelog
 
+### 2026-08-02
+
+**New**
+
+- 🎞 **PixDex — video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex--remastering-a-video)
+- 🖥 **Remaster video section in the GUI**, with the diagnosis shown *before* committing hours of processing and the before/after comparison right there in the window
+
+**Changes**
+
+- 🇮🇹 **The three CLIs speak Italian only.** No more language question on first launch and no more `--lang`: whoever opens a terminal wants to see the banner and go. The Italian/English choice stays in the GUI, where it is one click and the effect is immediate
+- 🔤 **UTF-8 console output across all tools.** Arrows, box drawing and emoji used to crash the programs with `UnicodeEncodeError` inside the classic `cmd.exe`, which uses the old cp1252 code page — halfway through a download or, worse, a burn. The streams are now reconfigured at startup
+
 ### 2026-07-26
 
 **New**
 
-- 🌍 **Interface in Italian or English.** On first launch both tools ask for the language, **in English**, because it is the one language anyone who does not speak Italian can certainly read. Pick English and everything follows: prompts, tables, panels, bars, summaries, error diagnostics and the `--help` texts. The choice is remembered in `settings.json` and not asked again; `--lang it|en` overrides it for a single run without touching the preference, `--lang ask` asks again. See [Interface language](#-interface-language)
+- 🌍 **Interface in Italian or English.** The GUI has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json`. The three command-line programs speak Italian only: no question on first launch and no option to remember. See [Interface language](#-interface-language)
 - 🗣 **Answers accepted in both languages** whichever one is selected: `s`/`si`/`y`/`yes` to confirm, `q`/`esci`/`exit` to quit, `all`/`tutti`/`tutte` to select everything. Someone running the English interface who types `s` out of habit no longer gets the operation cancelled
 
 **Changes**
