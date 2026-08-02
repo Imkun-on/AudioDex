@@ -84,6 +84,7 @@ python BurnDex.py                                     # burn a collection to an 
 ```bash
 python AudioDexGUI.py                                 # both tools, graphical interface
 python PixDex.py                                      # remaster a downloaded video
+python ClipDex.py                                     # cut, join, GIFs, contact sheets
 ```
 
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
@@ -170,19 +171,27 @@ python PixDex.py                                      # remaster a downloaded vi
 - 13.10 [Command-line options](#command-line-options-pixdex)
 - 13.11 [In the GUI](#in-the-gui)
 
-**Chapter 15 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 15 — [✂ ClipDex — cutting, joining, converting](#-clipdex--cutting-joining-converting)**
+- 15.1 [Copy or re-encode](#copy-or-re-encode-the-choice-that-governs-everything)
+- 15.2 [`taglia`](#taglia--extracting-a-segment)
+- 15.3 [`unisci`](#unisci--putting-several-files-in-a-row)
+- 15.4 [`gif` and `webp`](#gif-and-webp--making-an-animation)
+- 15.5 [`provino`](#provino--seeing-what-is-inside)
+- 15.6 [`compat`](#compat--making-old-devices-read-it)
 
-**Chapter 16 — [📊 Global database](#-global-database)**
+**Chapter 16 — [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 17 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 17 — [📊 Global database](#-global-database)**
 
-**Chapter 18 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 18 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 19 — [📝 Changelog](#-changelog)**
+**Chapter 19 — [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 20 — [📜 Legal notes](#-legal-notes)**
+**Chapter 20 — [📝 Changelog](#-changelog)**
 
-**Chapter 21 — [📄 Licence](#-licence)**
+**Chapter 21 — [📜 Legal notes](#-legal-notes)**
+
+**Chapter 22 — [📄 Licence](#-licence)**
 
 ---
 
@@ -1219,6 +1228,90 @@ python PixDex.py -i video.mp4 -y                  # no questions
 
 ---
 
+## ✂ ClipDex — cutting, joining, converting
+
+`ClipDex.py` is the editing bench: the operations you actually need after a download, without opening an editing suite. Six operations, one subcommand each.
+
+```bash
+python ClipDex.py                                        # guided procedure
+python ClipDex.py taglia -i v.mp4 --da 1:20 --a 3:45
+python ClipDex.py unisci -d "download_audio/Album"
+python ClipDex.py gif -i v.mp4 --da 0:30 --durata 4
+python ClipDex.py provino -i v.mp4 --griglia 5x3
+python ClipDex.py compat -i v.mp4
+```
+
+### Copy or re-encode: the choice that governs everything
+
+| | Copy | Re-encode |
+|---|---|---|
+| What it does | moves already-compressed packets from one container to another | decodes and recompresses them |
+| Time | **seconds** | minutes |
+| Quality | **identical, not a bit lost** | one generation down |
+| Constraints | cuts snap to keyframes; files to join must match | none |
+
+ClipDex picks copy by itself whenever it can, and **always says which of the two it is using**.
+
+### `taglia` — extracting a segment
+
+Times are written the way they come to mind: `90`, `1:30`, `01:02:03.5`.
+
+In copy mode the cut is instant, but the start snaps back to the previous keyframe: frames compressed together cannot be split in half. On a video with sparse keyframes the drift shows, so ClipDex **measures it and tells you**:
+
+```
+4.0 s asked, 7.0 obtained: 3.0 s more. In copy mode the start snaps back to the
+previous keyframe, and in this file they are far apart. With --preciso the cut
+lands where you said, at the cost of a re-encode
+```
+
+With `--preciso` the cut lands on the exact frame — verified: 4.0 s asked, 4.0 s obtained.
+
+### `unisci` — putting several files in a row
+
+Before joining, ClipDex compares codec, resolution, pixel format, frame rate and audio characteristics of every file:
+
+- **matching** → glues them in copy mode, instantly;
+- **different** → brings them all to the size of the first and re-encodes, because there is no other way: packets from two different encodings cannot be placed side by side.
+
+A file with different proportions is **framed, not stretched**, and a silent file in the middle gets silence of the same length placed under it — without that, every following audio edit would drift out of sync.
+
+By default it adds **one chapter per joined file**, so the result stays navigable like a DVD. `--no-capitoli` turns it off.
+
+### `gif` and `webp` — making an animation
+
+A GIF has **256 colours and no more**. FFmpeg's generic palette on a video with gradients produces a mush of dots; computing it on the real frames costs one extra pass. Measured on three seconds of real video, against the same frames not reduced to a palette:
+
+| | Fidelity | Size |
+|---|---|---|
+| One pass, generic palette | 24.85 dB | 1414 KB |
+| **Two passes, tailored palette** | **26.57 dB** | 2479 KB |
+| Two passes, `sierra2_4a` dither | 26.56 dB | 3133 KB |
+| **Animated WebP** | — | **283 KB** |
+
+Hence the defaults: two passes (**+1.72 dB**, it shows), ordered Bayer dither — `sierra2_4a` costs a quarter more size and gives nothing back — and the push towards **WebP**, which is not bound to 256 colours and weighs **almost nine times less**. Every browser of the last decade reads it; if the destination is a twenty-year-old forum, then you need the GIF.
+
+The three levers that matter: `--fps` (past 15 the size doubles for no visible gain), `--larghezza` (the factor that weighs most) and the duration. With no instructions it starts **one third** of the way in, because the opening is almost always a title card or a black screen.
+
+### `provino` — seeing what is inside
+
+A grid of frames taken at regular intervals across the whole length. To understand what a file contains it beats an animated preview: sixteen moments tell you at a glance whether it is the right video, where the scenes change and whether there are black stretches.
+
+The interval is computed so the grid covers **the whole** duration — sampling at a fixed interval would leave out the second half of long videos. The cell has a fixed size, so the grid stays regular even if the footage changes format halfway.
+
+### `compat` — making old devices read it
+
+Three constraints, all necessary and all often violated by downloaded files:
+
+| Constraint | Why |
+|---|---|
+| **Baseline** profile | no B-frames, which simpler decoders cannot handle |
+| **yuv420p** colour | many YouTube files are yuv444 or 10-bit, which a 2012 TV will not decode |
+| **Index at the head** of the file | without it, a USB-stick player must read to the end before it can start |
+
+Verified on the produced file: `Constrained Baseline`, `yuv420p`, `level 30`, index within the first 4 KB.
+
+---
+
 ## 🧩 Project architecture
 
 ```
@@ -1226,6 +1319,7 @@ AudioDex/
 ├── AudioDex.py               # Main CLI: search, selection, download, Rich UI
 ├── BurnDex.py                # 💿 Audio CD burner (Windows, IMAPI2)
 ├── PixDex.py                 # 🎞 Video remasterer (FFmpeg, cross-platform)
+├── ClipDex.py                # ✂ Editing: cut, join, GIFs, sheets, compatibility
 ├── AudioDexGUI.py            # 🖥 Flet graphical interface for all three
 ├── Shared/
 │   ├── __init__.py
@@ -1234,6 +1328,7 @@ AudioDex/
 │   ├── strings_audiodex.py   # AudioDex texts, Italian and English
 │   ├── strings_burndex.py    # BurnDex texts, Italian and English
 │   ├── strings_pixdex.py     # PixDex texts, Italian and English
+│   ├── strings_clipdex.py    # ClipDex texts, Italian and English
 │   └── http_client.py        # Shared HTTP helpers (User-Agent, headers, retry backoff)
 ├── Database_Globale/
 │   ├── scraper_db.py         # Global SQLite download database
@@ -1245,7 +1340,8 @@ AudioDex/
 ├── logs/
 │   ├── audiodex.log          # Detailed log of every session (git-ignored)
 │   ├── burndex.log           # Burning log (git-ignored)
-│   └── pixdex.log            # Remastering log (git-ignored)
+│   ├── pixdex.log            # Remastering log (git-ignored)
+│   └── clipdex.log           # Editing log (git-ignored)
 ├── settings.json             # Language chosen in the GUI (git-ignored: it is the user's)
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # Italian version
@@ -1326,6 +1422,7 @@ Technical details:
 
 **New**
 
+- ✂ **ClipDex — the editing bench.** Six command-line operations: `taglia` a segment (instant in copy mode, and if the keyframe drift shows it tells you with a number), `unisci` several files picking copy or re-encode by itself and adding one chapter each, `gif` and `webp` with the palette computed on the footage (+1.72 dB measured against the generic one; WebP weighs nine times less), `provino` grids and `compat` for old car stereos and TVs. See [ClipDex](#-clipdex--cutting-joining-converting)
 - 📀 **Whole albums split into their tracks.** A great many uploads are "Full Album": a single three-quarter-hour video with chapters. AudioDex recognises them and cuts them **without re-encoding**, into a numbered, tagged folder already fit for BurnDex. The point is not cutting but knowing *whether* to cut: five criteria tell a record from an index, and if even one fails nothing is asked. From the command line, `--split` and `--no-split`. See [Whole albums split into tracks](#-whole-albums-split-into-tracks)
 - 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
 - ⚖️ **`--level` in BurnDex**: evens out the volume across tracks to the EBU R128 standard, respecting true peak. On three songs at −7, −14 and −21 dB the spread goes from 14.0 dB to **0.59 dB**
