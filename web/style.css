@@ -557,3 +557,113 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
   color: var(--t0); font-size: 15px; font-weight: 700;
 }
 .riquadro-trascina .icona { width: 40px; height: 40px; color: var(--viola); }
+
+/* ── Video di sfondo ─────────────────────────────────────────────────────── */
+/* Lo stesso file della GUI Flet. Qui pero' non e' obbligatorio: se manca
+ * restano i gradienti, che non sono un ripiego ma uno sfondo a loro volta
+ * compiuto. Il video compare in dissolvenza quando il primo fotogramma e'
+ * pronto, cosi' non si vede un rettangolo nero coprire tutto per un istante. */
+.video-sfondo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0;
+  transition: opacity 1.1s ease;
+  filter: saturate(1.15) contrast(1.05);
+}
+.video-sfondo.acceso { opacity: .55; }
+
+/* ── Sezioni ─────────────────────────────────────────────────────────────── */
+
+.sezione { display: none; flex-direction: column; gap: var(--s4); flex: 1; min-height: 0; }
+.sezione.attiva { display: flex; animation: sezione-entra .3s var(--molla) both; }
+@keyframes sezione-entra { from { opacity: 0; transform: translateY(8px); } }
+.slot-diario { display: flex; flex-direction: column; min-height: 0; }
+.slot-diario > .colonna { flex: 1; }
+
+/* ── Capienza del CD ─────────────────────────────────────────────────────── */
+
+.capienza {
+  height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: var(--s2);
+  background: var(--incavo); box-shadow: inset 0 1px 2px #00000059;
+}
+.capienza-piena {
+  height: 100%; width: 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--verde), var(--ciano));
+  box-shadow: 0 0 12px #3ddc9773;
+  transition: width .4s var(--molla), background .3s;
+}
+.capienza-piena.troppo {
+  background: linear-gradient(90deg, var(--giallo), var(--rosso));
+  box-shadow: 0 0 12px #ff5d7373;
+}
+.nota-riga { font-size: 10.5px; color: var(--t2); margin-bottom: var(--s2); }
+
+/* ── Scaletta trascinabile ───────────────────────────────────────────────── */
+
+.traccia { cursor: grab; }
+.traccia:active { cursor: grabbing; }
+.traccia.in-volo { opacity: .35; }
+.traccia.bersaglio { border-color: var(--viola); box-shadow: 0 -2px 0 var(--viola) inset; }
+.maniglia { width: 15px; height: 15px; flex: 0 0 15px; color: var(--t2); }
+.numero-tondo {
+  flex: 0 0 28px; height: 28px; border-radius: 8px;
+  background: #a855f71f; border: 1px solid #a855f74d;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 800; color: var(--magenta);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+}
+.voce-durata {
+  font-size: 11.5px; color: var(--ciano); font-weight: 700;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+}
+
+/* ── Diagnosi ────────────────────────────────────────────────────────────── */
+
+.riga-diagnosi {
+  font-size: 12px; color: var(--t1); line-height: 1.55;
+  padding: 5px 0 5px 13px; position: relative;
+}
+.riga-diagnosi::before {
+  content: ''; position: absolute; left: 0; top: 12px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--ciano);
+}
+.riga-diagnosi.capo {
+  color: var(--t0); font-weight: 600; padding-left: 0;
+  border-bottom: 1px solid var(--bordo); margin-bottom: var(--s2);
+  font-family: 'Cascadia Mono', Consolas, monospace; font-size: 11px;
+}
+.riga-diagnosi.capo::before { display: none; }
+
+/* ── Scelta della risoluzione ────────────────────────────────────────────── */
+/* Ogni scelta porta con se' il proprio giudizio, misurato su quel file: e' il
+ * punto in cui il programma e' piu' onesto, e nasconderlo in un menu a
+ * tendina sarebbe stato uno spreco. */
+
+.scelte { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.scelta {
+  flex: 1 1 128px; min-width: 118px;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 9px 11px; border-radius: var(--r-s);
+  background: var(--incavo); border: 1px solid var(--bordo);
+  color: var(--t1); font: inherit; cursor: pointer; text-align: left;
+  transition: border-color .18s, background .18s, transform .14s var(--molla);
+}
+.scelta:hover { background: #ffffff0d; transform: translateY(-1px); }
+.scelta-attiva { border-color: var(--viola); background: #a855f71a; box-shadow: 0 0 0 3px #a855f71f; }
+.scelta-nome { font-size: 12px; font-weight: 700; color: var(--t0); }
+.scelta-fattore { font-size: 13px; font-weight: 800; font-family: 'Cascadia Mono', monospace; }
+.scelta-nota { font-size: 9.5px; color: var(--t2); line-height: 1.3; }
+.livello-ok    .scelta-fattore { color: var(--verde); }
+.livello-molle .scelta-fattore { color: var(--giallo); }
+.livello-finto .scelta-fattore { color: var(--rosso); }
+
+/* ── Anteprime ───────────────────────────────────────────────────────────── */
+
+.anteprima {
+  flex: 1; min-height: 0; display: flex; align-items: center;
+  justify-content: center; overflow: auto; border-radius: var(--r-s);
+}
+.immagine-piena {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: var(--r-s); box-shadow: var(--ombra-media);
+  animation: entra .35s var(--molla) both;
+}
