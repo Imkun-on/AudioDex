@@ -48,12 +48,19 @@
 
 </div>
 
-**Install** — this block is safe to paste as a whole:
+**Download** [**`AudioDex.exe`**](https://github.com/Imkun-on/AudioDex/releases/latest) and double-click it: no Python to install, no `.py` file in sight. You only need FFmpeg, installed once — and the program reminds you by itself if it is missing:
+
+```bash
+winget install Gyan.FFmpeg
+```
+
+**Or from source**, if you want to get your hands in it:
 
 ```bash
 git clone https://github.com/Imkun-on/AudioDex.git
 cd AudioDex
 pip install -r requirements.txt
+python AudioDexApp.py
 ```
 
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
