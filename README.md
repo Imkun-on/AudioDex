@@ -61,7 +61,6 @@ winget install Gyan.FFmpeg
 git clone https://github.com/Imkun-on/AudioDex.git
 cd AudioDex
 pip install -r requirements.txt
-python AudioDexApp.py
 ```
 
 > 🎞️ **Il video di sfondo della GUI non è nel repository** (pesa 74 MB e rallenterebbe ogni
