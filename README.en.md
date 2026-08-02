@@ -31,7 +31,7 @@
 </p>
 
 <p align="center">
-  Search <b>YouTube</b> and download the <b>audio stream only</b> — or the <b>full video</b>,<br>
+  Search <b>YouTube</b> and download the <b>audio stream only</b>, or the <b>full video</b>,<br>
   it asks you first: a few MB per track, <b>original quality</b>, no re-encoding.<br>
   Every track arrives already <b>tagged</b> (title, artist, album, cover art) and with<br>
   <b>time-synced karaoke lyrics</b> inside the file, ready to copy to your phone.<br>
@@ -51,7 +51,7 @@
 
 </div>
 
-**Download** [**`AudioDex.exe`**](https://github.com/Imkun-on/MediaDex/releases/latest) and double-click it: no Python to install, no `.py` file in sight. You only need FFmpeg, installed once — and the program reminds you by itself if it is missing:
+**Download** [**`AudioDex.exe`**](https://github.com/Imkun-on/MediaDex/releases/latest) and double-click it: no Python to install, no `.py` file in sight. You only need FFmpeg, installed once, and the program reminds you by itself if it is missing:
 
 ```bash
 winget install Gyan.FFmpeg
@@ -62,11 +62,11 @@ winget install Gyan.FFmpeg
 
 <br>
 
-**No — and Windows isn't saying it is.** That sentence means exactly what it says: this
+**No, and Windows isn't saying it is.** That sentence means exactly what it says: this
 file is new and few people have downloaded it. The check is called **SmartScreen**, and
 it doesn't look inside the file: it looks at how *known* the file is. A freshly published
 program is known to nobody, so the same warning appears on a perfectly harmless
-executable — like this one — and would *not* appear on malware that has been circulating
+executable, like this one, and would *not* appear on malware that has been circulating
 for months.
 
 The warning goes away in one of two ways, neither of which has anything to do with what
@@ -81,7 +81,7 @@ certificate just to silence a warning makes little sense.
 1. In your browser's download bar, next to the file: `···` → **Keep** → **Keep anyway**.
 2. On the first double-click, if the blue window appears: **More info** → **Run anyway**.
 
-**If you'd rather verify than trust** — which is the right instinct with any executable
+**If you'd rather verify than trust**, which is the right instinct with any executable
 off the internet:
 
 ```powershell
@@ -105,7 +105,7 @@ pip install -r requirements.txt
 ```
 
 <p align="center">
-  <img src="screenshot.png" alt="MediaDex — the Burning section" width="900">
+  <img src="screenshot.png" alt="MediaDex: the Burning section" width="900">
 </p>
 
 <p align="center"><i>The Burning section: a folder of tracks becomes a real audio CD.</i></p>
@@ -113,9 +113,9 @@ pip install -r requirements.txt
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
 > `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/MediaDex/releases/tag/assets-v1)
 > and is downloaded **once, on first launch**, in the background. The window opens right away:
-> until the download finishes — or if it fails — the background is the theme's green gradients, which hold up perfectly on their own.
+> until the download finishes, or if it fails, the background is the theme's green gradients, which hold up perfectly on their own.
 
-> 🌍 **A note on the screenshots.** Both tools speak **English or Italian** — they ask
+> 🌍 **A note on the screenshots.** Both tools speak **English or Italian**: they ask
 > which one you want on first launch, see [Interface language](#-interface-language).
 > The terminal transcripts throughout this document were captured before the English
 > interface existed, so they show the Italian output verbatim; the layout is identical
@@ -125,52 +125,52 @@ pip install -r requirements.txt
 
 ## 📖 Table of contents
 
-**Chapter 1 — [📋 Project description](#-project-description)**
+**Chapter 1. [📋 Project description](#-project-description)**
 
-**Chapter 2 — [🆚 Why AudioDex instead of the usual online converters](#-why-audiodex-instead-of-the-usual-online-converters)**
+**Chapter 2. [🆚 Why AudioDex instead of the usual online converters](#-why-audiodex-instead-of-the-usual-online-converters)**
 
-**Chapter 3 — [✨ Features](#-features)**
+**Chapter 3. [✨ Features](#-features)**
 
-**Chapter 4 — [📦 Requirements and installation](#-requirements-and-installation)**
+**Chapter 4. [📦 Requirements and installation](#-requirements-and-installation)**
 - 4.1 [Python](#python)
 - 4.2 [FFmpeg (required)](#ffmpeg-required)
 - 4.3 [Python dependencies](#python-dependencies)
 - 4.4 [🌍 Interface language](#-interface-language)
 
-**Chapter 5 — [🚀 Usage and examples](#-usage-and-examples)**
+**Chapter 5. [🚀 Usage and examples](#-usage-and-examples)**
 - 5.1 [The interactive flow, step by step](#the-interactive-flow-step-by-step)
-- 5.2 [Example 1 — Search by name](#example-1--search-by-name)
-- 5.3 [Example 2 — Downloading a playlist](#example-2--downloading-a-playlist)
-- 5.4 [Example 3 — The single-video card](#example-3--the-single-video-card)
-- 5.5 [Example 4 — Command-line usage](#example-4--command-line-usage)
+- 5.2 [Example 1: Search by name](#example-1-search-by-name)
+- 5.3 [Example 2: Downloading a playlist](#example-2-downloading-a-playlist)
+- 5.4 [Example 3: The single-video card](#example-3-the-single-video-card)
+- 5.5 [Example 4: Command-line usage](#example-4-command-line-usage)
 
-**Chapter 6 — [🔧 Command-line options](#-command-line-options)**
+**Chapter 6. [🔧 Command-line options](#-command-line-options)**
 - 6.1 [Private playlists](#private-playlists)
 
-**Chapter 7 — [🔀 How downloading works](#-how-downloading-works)**
+**Chapter 7. [🔀 How downloading works](#-how-downloading-works)**
 - 7.1 [Search](#1-search)
 - 7.2 [Playlist URL normalisation](#2-playlist-url-normalisation)
 - 7.3 [Download: audio or video](#3-download-audio-or-video)
 - 7.4 [Parallelism and progress](#4-parallelism-and-progress)
 - 7.5 [Duplicate detection and retries](#5-duplicate-detection-and-retries)
 
-**Chapter 8 — [🖼️ Cover art and volume, automatically](#cover-art-and-volume-automatically)**
+**Chapter 8. [🖼️ Cover art and volume, automatically](#cover-art-and-volume-automatically)**
 
-**Chapter 9 — [📀 Whole albums split into tracks](#-whole-albums-split-into-tracks)**
+**Chapter 9. [📀 Whole albums split into tracks](#-whole-albums-split-into-tracks)**
 
-**Chapter 10 — [🔢 Track ordering](#-track-ordering)**
+**Chapter 10. [🔢 Track ordering](#-track-ordering)**
 - 8.1 [The problem](#the-problem)
 - 8.2 [How it is solved](#how-it-is-solved)
 - 8.3 [Partial selections and playlists with gaps](#partial-selections-and-playlists-with-gaps)
 - 8.4 [Numbering already-downloaded files](#numbering-already-downloaded-files)
 
-**Chapter 11 — [🧾 Metadata tagging](#-metadata-tagging)**
+**Chapter 11. [🧾 Metadata tagging](#-metadata-tagging)**
 
-**Chapter 12 — [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
+**Chapter 12. [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
 
-**Chapter 13 — [💾 Output formats](#-output-formats)**
+**Chapter 13. [💾 Output formats](#-output-formats)**
 
-**Chapter 14 — [💿 BurnDex — burning an audio CD](#-burndex--burning-an-audio-cd)**
+**Chapter 14. [💿 BurnDex: burning an audio CD](#-burndex-burning-an-audio-cd)**
 - 12.1 [What it is for, and why an audio CD](#what-it-is-for-and-why-an-audio-cd)
 - 12.2 [Additional requirements](#additional-requirements)
 - 12.3 [The four-step flow](#the-four-step-flow)
@@ -183,7 +183,7 @@ pip install -r requirements.txt
 - 12.9 [Audio CD limits](#audio-cd-limits)
 - 12.10 [Error diagnosis](#error-diagnosis)
 
-**Chapter 15 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
+**Chapter 15. [🎞 PixDex: remastering a video](#-pixdex-remastering-a-video)**
 - 13.1 [What it does, and above all what it does not](#what-it-does-and-above-all-what-it-does-not)
 - 13.2 [Why it works anyway](#why-it-works-anyway)
 - 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
@@ -196,29 +196,29 @@ pip install -r requirements.txt
 - 13.10 [Command-line options](#command-line-options-pixdex)
 - 13.11 [In the GUI](#in-the-gui)
 
-**Chapter 16 — [✂ ClipDex — cutting, joining, converting](#-clipdex--cutting-joining-converting)**
+**Chapter 16. [✂ ClipDex: cutting, joining, converting](#-clipdex-cutting-joining-converting)**
 - 15.1 [Copy or re-encode](#copy-or-re-encode-the-choice-that-governs-everything)
-- 15.2 [`taglia`](#taglia--extracting-a-segment)
-- 15.3 [`unisci`](#unisci--putting-several-files-in-a-row)
-- 15.4 [`gif` and `webp`](#gif-and-webp--making-an-animation)
-- 15.5 [`provino`](#provino--seeing-what-is-inside)
-- 15.6 [`compat`](#compat--making-old-devices-read-it)
+- 15.2 [`taglia`](#taglia-extracting-a-segment)
+- 15.3 [`unisci`](#unisci-putting-several-files-in-a-row)
+- 15.4 [`gif` and `webp`](#gif-and-webp-making-an-animation)
+- 15.5 [`provino`](#provino-seeing-what-is-inside)
+- 15.6 [`compat`](#compat-making-old-devices-read-it)
 
-**Chapter 17 — [📦 A single file: AudioDex.exe](#-a-single-file-audiodexexe)**
+**Chapter 17. [📦 A single file: AudioDex.exe](#-a-single-file-audiodexexe)**
 
-**Chapter 18 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 18. [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 19 — [📊 Global database](#-global-database)**
+**Chapter 19. [📊 Global database](#-global-database)**
 
-**Chapter 20 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 20. [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 21 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 21. [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 22 — [📝 Changelog](#-changelog)**
+**Chapter 22. [📝 Changelog](#-changelog)**
 
-**Chapter 23 — [📜 Legal notes](#-legal-notes)**
+**Chapter 23. [📜 Legal notes](#-legal-notes)**
 
-**Chapter 24 — [📄 Licence](#-licence)**
+**Chapter 24. [📄 Licence](#-licence)**
 
 ---
 
@@ -226,7 +226,7 @@ pip install -r requirements.txt
 
 **AudioDex** is a terminal tool that turns a YouTube link into **real audio files**: tagged, with cover art, with the lyrics inside, and ordered the way you want them.
 
-The idea comes from a concrete annoyance: online converters promise "YouTube → MP3", but then you need three clicks on ad banners, the file comes out with no title and no cover art, and for a 12-track album you have to repeat everything 12 times — ending up with a folder of randomly ordered songs on your phone. AudioDex does the same job in one command, for **an entire playlist**, and hands back files that are already ready for your music library.
+The idea comes from a concrete annoyance: online converters promise "YouTube → MP3", but then you need three clicks on ad banners, the file comes out with no title and no cover art, and for a 12-track album you have to repeat everything 12 times, ending up with a folder of randomly ordered songs on your phone. AudioDex does the same job in one command, for **an entire playlist**, and hands back files that are already ready for your music library.
 
 You can choose **what** to download:
 
@@ -236,7 +236,7 @@ You can choose **what** to download:
 
 And what you get for each song:
 
-- 🎚️ **the audio track only** (`m4a`, `mp3` or `opus`): a few MB instead of hundreds, at identical sound quality — or the **full video** (`mp4`, `mkv`) if you ask for it;
+- 🎚️ **the audio track only** (`m4a`, `mp3` or `opus`): a few MB instead of hundreds, at identical sound quality, or the **full video** (`mp4`, `mkv`) if you ask for it;
 - 🧾 **complete metadata**: title, artist, album, track number and embedded **cover art**;
 - 🎤 **time-synced lyrics** in karaoke style, inside the file itself (no scattered `.lrc` files);
 - 📱 **a clean filename**, without emoji or odd characters: it copies to a phone over USB without errors.
@@ -281,14 +281,14 @@ In short: **you are in control**, it runs on **your computer**, and the files yo
 ## ✨ Features
 
 - 🔍 **Search YouTube by song or artist name**, with results in a numbered table and flexible selection: single number, range (`1-5`), list (`1,3,7`) or `all`. Columns separate **title** and **artist** (derived from the `Artist - Song` format or from the channel), with duration and view count where available
-- 🎬 **A video card before downloading**: pasting a single video's URL brings up a panel with channel, **views, likes, subscribers**, category, language, publication date, duration and chapter count — then it asks for confirmation
+- 🎬 **A video card before downloading**: pasting a single video's URL brings up a panel with channel, **views, likes, subscribers**, category, language, publication date, duration and chapter count, then it asks for confirmation
 - 💿 **A playlist card**: channel, track count, total duration, aggregate views, last-updated date and visibility (public / unlisted), plus a warning about how many videos are **private or removed**
 - 📋 **The full track list of a playlist** before confirming, with the same columns as the search
 - 🔗 **Direct download from a URL** for single videos, playlists and albums (YouTube `playlist?list=`, links with `&list=`, and recognition of Spotify/SoundCloud playlist patterns)
-- 🎚️ **Audio or video, your choice**: by default only the `bestaudio` stream is downloaded and converted to the chosen format (`m4a`, `mp3`, `opus`) — a song takes a few MB instead of hundreds. Need the full video? In interactive mode the program **asks you** before starting, and from the command line there is `--media video` (`mp4` or `mkv`)
+- 🎚️ **Audio or video, your choice**: by default only the `bestaudio` stream is downloaded and converted to the chosen format (`m4a`, `mp3`, `opus`), a song takes a few MB instead of hundreds. Need the full video? In interactive mode the program **asks you** before starting, and from the command line there is `--media video` (`mp4` or `mkv`)
 - ⚡ **Parallel downloads** with a configurable thread pool (3 by default) and **live progress at three levels**: an overall bar across tracks, **one bar for each of the four phases** (Download, Conversion, Lyrics, Tags) and one bar per file in flight with speed and ETA
 - 🧾 **Automatic metadata tagging**: title, artist, album, track number and embedded **cover art** (via mutagen)
-- 🎤 **Karaoke-style synced lyrics**: for each track the timestamped lyrics are looked up on [LRCLIB](https://lrclib.net) and **embedded in the audio file's tags** — a single file that carries its own lyrics; compatible players show them line by line as the song plays
+- 🎤 **Karaoke-style synced lyrics**: for each track the timestamped lyrics are looked up on [LRCLIB](https://lrclib.net) and **embedded in the audio file's tags**, a single file that carries its own lyrics; compatible players show them line by line as the song plays
 - 🔢 **Playlist order preserved**: files are saved with the **track number at the front of the name** (`01 - Song.m4a`), so on disk and on your phone they stay in the original order even though downloads finish out of order (see [chapter 8](#-track-ordering))
 - 💿 **Organised playlists**: each playlist/album lands in a subfolder named after it
 - ♻️ **Duplicate detection**: tracks already on disk are skipped (`skip`), so you can re-run the same download without fetching anything again
@@ -298,7 +298,7 @@ In short: **you are in control**, it runs on **your computer**, and the files yo
 - 📄 **Export of failed tracks** to `failed_tracks.txt` with URLs ready for a retry
 - 🛑 **Clean shutdown with Ctrl+C**: downloads in flight finish, queued ones are cancelled; a second Ctrl+C forces the exit
 - 💽 **Disk-space check** before starting, asking for confirmation below 200 MB free
-- 💿 **Audio CD burning** with [BurnDex](#-burndex--burning-an-audio-cd): a downloaded collection becomes a **CD-DA** readable by any car stereo, through native Windows APIs. It recognises the type of disc inserted, tells internal drives from USB ones, and with `--dry-run` rehearses everything without consuming a CD-R
+- 💿 **Audio CD burning** with [BurnDex](#-burndex-burning-an-audio-cd): a downloaded collection becomes a **CD-DA** readable by any car stereo, through native Windows APIs. It recognises the type of disc inserted, tells internal drives from USB ones, and with `--dry-run` rehearses everything without consuming a CD-R
 
 ---
 
@@ -349,9 +349,9 @@ pip install pywin32          # BurnDex only (CD burning, Windows)
 
 ### 🌍 Interface language
 
-**In the terminal, everything is in Italian.** The three command-line programs — `AudioDex.py`, `BurnDex.py`, `PixDex.py` — speak Italian only: no question on first launch, no `--lang` option to remember. Open the terminal, run, go.
+**In the terminal, everything is in Italian.** The three command-line programs (`AudioDex.py`, `BurnDex.py`, `PixDex.py`) speak Italian only: no question on first launch, no `--lang` option to remember. Open the terminal, run, go.
 
-**In the GUI the choice is there, one click away.** `AudioDexApp.py` has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json` for later runs.
+**In the GUI the choice is there, one click away.** `AudioDexApp.py` has an **Italiano / English** dropdown in the sidebar: it switches instantly (menu entries, labels, buttons, diagnostics, messages) and remembers the choice in `settings.json` for later runs.
 
 That is where the choice belongs. A dropdown is visible, you try it and see the effect right away; the same choice as a command-line argument was just one more thing to remember every time.
 
@@ -376,7 +376,7 @@ python AudioDex.py
 5. **Summary**: a final panel with downloaded / already present / failed
 6. The loop starts again: a new search, or `q` to quit
 
-### Example 1 — Search by name
+### Example 1: Search by name
 
 ```
 ╔═════════════════════════════════════════════════╗
@@ -435,7 +435,7 @@ Scegli > 1
 Arrivederci!
 ```
 
-### Example 2 — Downloading a playlist
+### Example 2: Downloading a playlist
 
 Paste a playlist URL (or the URL of a video belonging to one, e.g. `watch?v=...&list=...`) and the program recognises it, shows the summary and asks whether to download everything or select tracks:
 
@@ -505,7 +505,7 @@ Answering `n` opens manual selection (`1-5`, `1,3,7`, and so on) using the table
 
 > ℹ️ In playlists the **Views** column does not appear: YouTube does not supply that figure in a track listing (only title and duration). The artist is derived from an `Artist - Song` title; where that format is missing, `??` is shown.
 
-### Example 3 — The single-video card
+### Example 3: The single-video card
 
 Pasting the URL of a **single video** (with no `list=`) shows its card before downloading:
 
@@ -537,9 +537,9 @@ It exists so you can tell at a glance whether this is the right video before spe
 
 > With `--url` the card is still **shown**, but without asking for confirmation: on the command line you have already declared what you want, and a prompt would block scripts.
 
-### Example 4 — Command-line usage
+### Example 4: Command-line usage
 
-To skip interactive mode. Again, these are alternative examples — run one at a time:
+To skip interactive mode. Again, these are alternative examples, run one at a time:
 
 ```bash
 # One-off search (shows results and asks for a selection)
@@ -565,17 +565,17 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implied
 
 | Option | Short | Default | Description |
 |---|---|---|---|
-| `--search "text"` | `-s` | — | Search by song/artist name (alternative to `--url`) |
-| `--url <link>` | `-u` | — | Direct URL of a video, playlist or album |
+| `--search "text"` | `-s` | - | Search by song/artist name (alternative to `--url`) |
+| `--url <link>` | `-u` | - | Direct URL of a video, playlist or album |
 | `--output <folder>` | `-o` | `download_audio/` | Destination folder for the files |
 | `--media {audio,video}` | `-m` | *(asked)* | Download audio only or the full video. If omitted: in interactive mode you are **asked**, with `--search`/`--url` the default is `audio` |
 | `--format {m4a,mp3,opus,mp4,mkv}` | `-f` | `m4a` / `mp4` | Output format. The first three are audio, the last two video: choosing one **implies** the matching `--media` |
 | `--workers <n>` | `-w` | `3` | Number of parallel downloads |
-| `--max-results <n>` | — | `15` | Maximum number of search results |
-| `--no-lyrics` | — | off | Do not look up synced lyrics on LRCLIB |
-| `--split` | — | off | Split into tracks the videos whose chapters look like an album — see [Whole albums split into tracks](#-whole-albums-split-into-tracks) |
-| `--no-split` | — | off | Never ask about splitting, not even in interactive mode |
-| `--cookies-from-browser <browser>` | — | — | Use browser cookies (`firefox`, `chrome`, `edge`, …) to reach **private** playlists and videos |
+| `--max-results <n>` | - | `15` | Maximum number of search results |
+| `--no-lyrics` | - | off | Do not look up synced lyrics on LRCLIB |
+| `--split` | - | off | Split into tracks the videos whose chapters look like an album: see [Whole albums split into tracks](#-whole-albums-split-into-tracks) |
+| `--no-split` | - | off | Never ask about splitting, not even in interactive mode |
+| `--cookies-from-browser <browser>` | - | - | Use browser cookies (`firefox`, `chrome`, `edge`, …) to reach **private** playlists and videos |
 
 > Without `--search` or `--url`, **interactive mode** starts.
 
@@ -583,8 +583,8 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implied
 
 If you paste the URL of one of your **private** playlists, YouTube answers *"The playlist does not exist"*: without authentication the playlist is invisible. Two solutions:
 
-1. ⭐ **Recommended:** set the playlist to **"Unlisted"** on YouTube — it does not become public (only people with the link can see it) and the URL works immediately, with no extra options.
-2. To keep it **private**: start with `--cookies-from-browser firefox` (or your browser) — yt-dlp reads the cookies and presents itself to YouTube as you.
+1. ⭐ **Recommended:** set the playlist to **"Unlisted"** on YouTube, it does not become public (only people with the link can see it) and the URL works immediately, with no extra options.
+2. To keep it **private**: start with `--cookies-from-browser firefox` (or your browser), yt-dlp reads the cookies and presents itself to YouTube as you.
 
 > 🪟 **Windows note:** with Chrome/Edge, reading cookies can fail because of the browser's recent encryption (try closing it first); with **Firefox** it works reliably.
 
@@ -623,7 +623,7 @@ AUDIO_SOURCE_FORMATS = {
 
 Each entry ends with progressive fallbacks, for videos that do not expose the preferred codec.
 
-**Full video** (`--media video`). YouTube serves video and audio as **separate streams** — high resolutions have no embedded audio — so the best of each is fetched and FFmpeg muxes them into the chosen container:
+**Full video** (`--media video`). YouTube serves video and audio as **separate streams**, high resolutions have no embedded audio, so the best of each is fetched and FFmpeg muxes them into the chosen container:
 
 ```python
 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
@@ -632,7 +632,7 @@ Each entry ends with progressive fallbacks, for videos that do not expose the pr
 
 The trailing `best` fallback covers videos served as a single stream.
 
-**Videos get tagged too**, with the same care as audio — only the tool changes, because the two containers use different metadata systems:
+**Videos get tagged too**, with the same care as audio, only the tool changes, because the two containers use different metadata systems:
 
 | | `mp4` | `mkv` |
 |---|---|---|
@@ -641,7 +641,7 @@ The trailing `best` fallback covers videos served as a single stream.
 | **Video chapters** | ✅ FFmpeg | ✅ FFmpeg |
 | **Karaoke lyrics** | ✅ in the `©lyr` atom | ❌ Matroska has no equivalent field |
 
-In detail: the `FFmpegMetadata` postprocessor writes title, author, date and chapters during the merge — the only route for Matroska, which mutagen cannot tag. **Album and track number** are not in yt-dlp's info (we derive them from the playlist), so they are passed to ffmpeg as explicit arguments: without them, a playlist video would lose exactly the two fields that hold a collection together. For `mp4`, `_tag_m4a` then steps in as it does for audio, adding cover art and lyrics.
+In detail: the `FFmpegMetadata` postprocessor writes title, author, date and chapters during the merge, the only route for Matroska, which mutagen cannot tag. **Album and track number** are not in yt-dlp's info (we derive them from the playlist), so they are passed to ffmpeg as explicit arguments: without them, a playlist video would lose exactly the two fields that hold a collection together. For `mp4`, `_tag_m4a` then steps in as it does for audio, adding cover art and lyrics.
 
 > ⚠️ **Mind the disk space**: a video weighs **20 to 100 times** more than audio alone. A 20-song playlist goes from ~70 MB to several GB.
 
@@ -651,7 +651,7 @@ Downloads run on a `ThreadPoolExecutor` (3 threads by default). A yt-dlp *progre
 
 ### 5. Duplicate detection and retries
 
-- Before downloading, the title — sanitised of Windows-forbidden characters, of the Unicode look-alikes yt-dlp substitutes for them, and of emoji — is compared against the files already in the folder: if a valid file exists (>10 KB), the track is marked `skip`. The comparison happens **within the same media type**: an already-downloaded `.m4a` does not suppress the same title requested as video, and vice versa.
+- Before downloading, the title, sanitised of Windows-forbidden characters, of the Unicode look-alikes yt-dlp substitutes for them, and of emoji, is compared against the files already in the folder: if a valid file exists (>10 KB), the track is marked `skip`. The comparison happens **within the same media type**: an already-downloaded `.m4a` does not suppress the same title requested as video, and vice versa.
 - The downloaded file's name is then cleaned the same way: no emoji, no full-width characters (e.g. `⧸ ： ｜`), so songs copy to a phone over USB without errors.
 - On error it retries up to **4 times** with exponential backoff plus random jitter, so retries neither hammer the server nor synchronise across threads.
 
@@ -661,19 +661,19 @@ Downloads run on a `ThreadPoolExecutor` (3 threads by default). A yt-dlp *progre
 
 Two things happen by themselves on every download, with no options to remember.
 
-**The cover comes out square.** YouTube thumbnails are 16:9, but players show cover art in a square: they either squash it or crop it wherever — often through a face, or cutting the title that sits at the edges. AudioDex places the **whole** image at the centre of a square filled with a blurred, enlarged copy of itself: nothing is lost, and there are none of the black bars that stand out in a grid of covers. It costs 0.4 seconds.
+**The cover comes out square.** YouTube thumbnails are 16:9, but players show cover art in a square: they either squash it or crop it wherever, often through a face, or cutting the title that sits at the edges. AudioDex places the **whole** image at the centre of a square filled with a blurred, enlarged copy of itself: nothing is lost, and there are none of the black bars that stand out in a grid of covers. It costs 0.4 seconds.
 
 **The volume is measured and noted in the tags.** A YouTube playlist has 9-10 LU jumps between songs. AudioDex measures every file to the EBU R128 standard and writes down how much the player should raise or lower it: `replaygain_track_gain` and `replaygain_track_peak`, in the form VLC and foobar2000 look for.
 
 **The audio is not touched.** They are two tags: no re-encoding, no loss, and it is undone by deleting them. The measurement costs 2.3 seconds on a four-minute song, against the 10-30 of the download itself: it disappears into the noise.
 
-> 🎧 **Not every player reads them.** In `.m4a` files these tags are not standardised the way they are in FLAC or MP3. VLC, mpv and foobar2000 use them; Apple's Music app has its own different field (`iTunNORM`); some car stereos ignore them. Writing them costs nothing and breaks nothing, but do not expect it to work everywhere — if you mostly listen on CD, it is `BurnDex` that really levels, applying the gain to the burned audio.
+> 🎧 **Not every player reads them.** In `.m4a` files these tags are not standardised the way they are in FLAC or MP3. VLC, mpv and foobar2000 use them; Apple's Music app has its own different field (`iTunNORM`); some car stereos ignore them. Writing them costs nothing and breaks nothing, but do not expect it to work everywhere: if you mostly listen on CD, it is `BurnDex` that really levels, applying the gain to the burned audio.
 
 ---
 
 ## 📀 Whole albums split into tracks
 
-A great many uploads are **"Full Album"**: a single three-quarter-hour video with chapters written by whoever uploaded it. AudioDex recognises them and, if you ask, cuts them into the individual tracks — **without re-encoding**, so in seconds and without losing a bit.
+A great many uploads are **"Full Album"**: a single three-quarter-hour video with chapters written by whoever uploaded it. AudioDex recognises them and, if you ask, cuts them into the individual tracks, **without re-encoding**, so in seconds and without losing a bit.
 
 ### The point is not cutting: it is knowing *whether* to cut
 
@@ -716,7 +716,7 @@ download_audio/
 
 Every track carries **title** (from the chapter), **album** (from the video title), **track number** and cover art. The folder is already in the shape BurnDex expects: you can burn it straight away, and the order on the CD will be right.
 
-The **whole file is kept** and sits *outside* the tracks folder — deliberately: BurnDex scans a whole folder, and finding the 45-minute album in there would mean seeing it in the running order as a track to burn.
+The **whole file is kept** and sits *outside* the tracks folder, deliberately: BurnDex scans a whole folder, and finding the 45-minute album in there would mean seeing it in the running order as a track to burn.
 
 ### How to drive it
 
@@ -737,7 +737,7 @@ The **whole file is kept** and sits *outside* the tracks folder — deliberately
 
 ### The problem
 
-Downloads start in parallel across several threads and finish **out of order**: track 7, being lighter, may complete before track 2. If files were saved with only the title, the folder would list them **alphabetically** — and an album played from a phone would start on a random song.
+Downloads start in parallel across several threads and finish **out of order**: track 7, being lighter, may complete before track 2. If files were saved with only the title, the folder would list them **alphabetically**, and an album played from a phone would start on a random song.
 
 The `trkn` tag (track number) alone is not enough: many phone players, and simply browsing the folder over USB, sort **by filename**.
 
@@ -776,7 +776,7 @@ Re-running the same command on an old folder therefore aligns the numbering **wi
 
 > ⚠️ **A file that already has a number is never renamed**, not even if the playlist has been reordered: in that case the track is re-downloaded with the new number and the old file stays where it is (you can delete it by hand).
 >
-> The reason is that a playlist can contain **two tracks with the same title** — it happens often, e.g. the same song in single and album versions. By matching "same title, any number", the two tracks would fight over **the same file**, renaming it back and forth: only one would survive and the second would never be downloaded. Better one file too many than one track lost.
+> The reason is that a playlist can contain **two tracks with the same title**, it happens often, e.g. the same song in single and album versions. By matching "same title, any number", the two tracks would fight over **the same file**, renaming it back and forth: only one would survive and the second would never be downloaded. Better one file too many than one track lost.
 
 ---
 
@@ -834,13 +834,13 @@ How it works:
 | `mp4` ⭐ *(video)* | MP4/H.264 | The default for `--media video`: no re-encoding and **full tags** (title, artist, album, track, cover art, lyrics) just like `m4a` |
 | `mkv` *(video)* | Matroska | A more permissive container, useful when the best streams do not fit in an mp4. Tags and cover art are there, written by FFmpeg; only the **karaoke lyrics** are missing, as Matroska has no equivalent field |
 
-> 💡 **Advice:** leave it on `m4a` unless you have a specific need — it is the format YouTube serves audio in, so there is no conversion and no loss. The same goes for `mp4` on the video side.
+> 💡 **Advice:** leave it on `m4a` unless you have a specific need, it is the format YouTube serves audio in, so there is no conversion and no loss. The same goes for `mp4` on the video side.
 
 > 🔎 **The stream downloaded depends on the format requested.** The `AUDIO_SOURCE_FORMATS` table maps each output format to the codec to ask YouTube for: `m4a` → AAC (itag 140), `opus` → Opus (itag 251), `mp3` → the best stream available. When source and destination match, FFmpeg only changes the container and **copies the audio byte for byte**. Previously AAC was always downloaded: asking for `--format opus` meant fetching AAC and then recompressing it to Opus, i.e. **two lossy compressions in a row**.
 
 ---
 
-## 💿 BurnDex — burning an audio CD
+## 💿 BurnDex: burning an audio CD
 
 `BurnDex.py` is a **companion tool** that lives in the same folder and reads AudioDex's downloaded collections directly, turning them into a real **audio CD**.
 
@@ -864,7 +864,7 @@ BurnDex produces **audio CDs**, i.e. the **Red Book (CD-DA)** standard: PCM 44.1
 | **Windows** | Burning uses **IMAPI2**, the native Windows COM API. AudioDex stays cross-platform; only BurnDex is tied to Windows |
 | **pywin32** | Already in `requirements.txt`. Needed only by BurnDex: without it, `--dry-run` still works and burning stops with a clear message |
 | **FFmpeg** | The same one AudioDex uses, here to decode audio into PCM |
-| **A burner** | Internal or external USB — BurnDex tells the two apart, see [System detection](#system-detection) |
+| **A burner** | Internal or external USB: BurnDex tells the two apart, see [System detection](#system-detection) |
 
 No third-party burning software: no Nero, ImgBurn or CDBurnerXP.
 
@@ -884,7 +884,7 @@ Running `python BurnDex.py` with no arguments starts a wizard with **four number
 💿 Quale raccolta? (numero, invio per uscire) > 1
 ```
 
-**1 — Collection.** Lists the folders under `download_audio/` with track count and **total duration**, in yellow if it exceeds the disc limit: you choose already knowing what fits.
+**1. Collection.** Lists the folders under `download_audio/` with track count and **total duration**, in yellow if it exceeds the disc limit: you choose already knowing what fits.
 
 ```
  Passo 2/4   SCALETTA   ────────────────────────────────────────────
@@ -903,9 +903,9 @@ Running `python BurnDex.py` with no arguments starts a wizard with **four number
 Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 ```
 
-**2 — Track list.** The exact sequence that will end up on the disc, with a total row and a **capacity bar** (green up to 85%, yellow beyond, red past 79 minutes). Underneath, the **criterion** used to decide the order is always stated. You can select a subset with the same syntax as AudioDex — `3`, `1-5`, `1,3,7`, Enter for all — and the list is **reprinted** with the new numbering.
+**2. Track list.** The exact sequence that will end up on the disc, with a total row and a **capacity bar** (green up to 85%, yellow beyond, red past 79 minutes). Underneath, the **criterion** used to decide the order is always stated. You can select a subset with the same syntax as AudioDex (`3`, `1-5`, `1,3,7`, Enter for all) and the list is **reprinted** with the new numbering.
 
-**3 — Disc and speed.** A card for the drive and the disc inserted, then the write-speed choice built from the **real values** the burner declares:
+**3. Disc and speed.** A card for the drive and the disc inserted, then the write-speed choice built from the **real values** the burner declares:
 
 ```
 ┌─────┬────────────┬───────────────────────────────────────────────┐
@@ -918,9 +918,9 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 └─────┴────────────┴───────────────────────────────────────────────┘
 ```
 
-> 💡 **Speed does not change audio quality.** At 8x and at 24x the very same bits end up on the disc. What changes is the **physical precision** of the burn: going slowly gives the pits sharper edges, and worn players make fewer errors. The result is not "worse sound", it is all-or-nothing — the disc either reads or stumbles.
+> 💡 **Speed does not change audio quality.** At 8x and at 24x the very same bits end up on the disc. What changes is the **physical precision** of the burn: going slowly gives the pits sharper edges, and worn players make fewer errors. The result is not "worse sound", it is all-or-nothing, the disc either reads or stumbles.
 
-**4 — Burning.** All tracks are decoded, then a final confirmation card, then the write.
+**4. Burning.** All tracks are decoded, then a final confirmation card, then the write.
 
 ```
 ╔═══════════════════ 💿  Pronto a masterizzare ════════════════════╗
@@ -950,7 +950,7 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--no-level` | Do not level the volume across tracks: leave every song at the volume it was uploaded with |
 | `--trim` | Trim the silence at the start and end of each track |
 
-Examples — these are **alternatives**, run one at a time. The harmless two first:
+Examples (these are **alternatives**, run one at a time). The harmless two first:
 
 ```bash
 python BurnDex.py --info                                        # reconnaissance
@@ -964,17 +964,17 @@ python BurnDex.py -d "download_audio/Molchat Doma - Etazhi"     # burn
 python BurnDex.py -d "..." --speed 24 --yes --no-eject          # unattended
 ```
 
-> 🧪 **Use `--dry-run` the first time.** It runs every check — track list, ordering, disc type, capacity, available speeds — without writing anything. A wasted CD-R is unrecoverable; a rehearsal costs two seconds.
+> 🧪 **Use `--dry-run` the first time.** It runs every check (track list, ordering, disc type, capacity, available speeds) without writing anything. A wasted CD-R is unrecoverable; a rehearsal costs two seconds.
 
 ### What happens to the audio before burning
 
-An audio CD is 44.1 kHz, 16 bit, stereo, full stop: whatever you download — a 48 kHz opus, a 44.1 m4a, an old mono upload — has to get there. **How it gets there is not a detail.**
+An audio CD is 44.1 kHz, 16 bit, stereo, full stop: whatever you download (a 48 kHz opus, a 44.1 m4a, an old mono upload) has to get there. **How it gets there is not a detail.**
 
 Dropping to 16 bit by **truncating** the values produces distortion that is *correlated with the signal*: on quiet passages, reverb tails and fades, the ear reads it as a dirty sound. **Dithering** replaces it with random noise, which the ear ignores instead. Measured on a −70 dBFS tone, the energy on the harmonics goes from **+46.9 dB to +31.1 dB** relative to the fundamental: almost 16 dB less grime. Dithering is now always on and cannot be turned off.
 
-> 🔬 **The resampler, however, was left as the default.** `soxr` is considered better and the Gyan build has it, but I could not measure a real advantage on the 48 → 44.1 conversion — and asking for it on a build compiled without `libsoxr` would fail the burn halfway through. Not worth the risk for a gain I cannot demonstrate.
+> 🔬 **The resampler, however, was left as the default.** `soxr` is considered better and the Gyan build has it, but I could not measure a real advantage on the 48 → 44.1 conversion, and asking for it on a build compiled without `libsoxr` would fail the burn halfway through. Not worth the risk for a gain I cannot demonstrate.
 
-**`--level` — evens out the volume across tracks.** A YouTube playlist has 9-10 LU jumps between songs: the hand reaching for the volume knob at every track change. The option measures each track to the EBU R128 standard and brings it to −16 LUFS, never exceeding −1 dBTP of true peak — pushing past that would clip the waveform, and on a CD-R there is no going back.
+**`--level`, evens out the volume across tracks.** A YouTube playlist has 9-10 LU jumps between songs: the hand reaching for the volume knob at every track change. The option measures each track to the EBU R128 standard and brings it to −16 LUFS, never exceeding −1 dBTP of true peak, pushing past that would clip the waveform, and on a CD-R there is no going back.
 
 Measured on three songs at −7, −14 and −21 dB:
 
@@ -983,9 +983,9 @@ Measured on three songs at −7, −14 and −21 dB:
 | Without `--level` | **14.0 dB** |
 | With `--level` | **0.59 dB** |
 
-The measurement uses `ebur128` rather than the first pass of `loudnorm`: they give the very same numbers — verified on one file, −35.8 LUFS and −31.6 dBFS against −35.78 and −31.56 — but the former takes **2.3 seconds against 11.6**. On a twenty-track CD that is eighty seconds instead of seven minutes, which is why levelling became the **normal behaviour**: turn it off with `--no-level`.
+The measurement uses `ebur128` rather than the first pass of `loudnorm`: they give the very same numbers, verified on one file, −35.8 LUFS and −31.6 dBFS against −35.78 and −31.56, but the former takes **2.3 seconds against 11.6**. On a twenty-track CD that is eighty seconds instead of seven minutes, which is why levelling became the **normal behaviour**: turn it off with `--no-level`.
 
-**`--trim` — trims the silence.** YouTube uploads often carry one or two seconds of nothing at the start and end, which **add** to the 2-second gap IMAPI2 inserts between tracks anyway: the result is four or five second pauses in the middle of an album. On the test collection it removed 3.4 seconds per track.
+**`--trim`, trims the silence.** YouTube uploads often carry one or two seconds of nothing at the start and end, which **add** to the 2-second gap IMAPI2 inserts between tracks anyway: the result is four or five second pauses in the middle of an album. On the test collection it removed 3.4 seconds per track.
 
 The tail is removed by reversing the stream, cutting the start and reversing it back: `silenceremove` only knows how to work at the beginning.
 
@@ -993,9 +993,9 @@ The tail is removed by reversing the stream, cutting the start and reversing it 
 
 On a CD-R the running order is decided **once and for all**: there is no way to reorder, add or remove songs afterwards. BurnDex uses three criteria, in order of precedence:
 
-1. **`ordine.txt`** in the folder — one filename per line, blank lines and `#` ignored. Absolute manual control
-2. **Numeric prefix in the name** (`01 - Song.m4a`) — exactly how AudioDex saves playlists, so this is usually what applies and the album order is already correct. It counts **only if every file has one**: with even a single unnumbered file the ordering would become arbitrary precisely where it matters
-3. **Creation date** — a fallback for folders assembled by hand. Careful: if you **copied** the files, the creation date is the date of the copy
+1. **`ordine.txt`** in the folder: one filename per line, blank lines and `#` ignored. Absolute manual control
+2. **Numeric prefix in the name** (`01 - Song.m4a`), exactly how AudioDex saves playlists, so this is usually what applies and the album order is already correct. It counts **only if every file has one**: with even a single unnumbered file the ordering would become arbitrary precisely where it matters
+3. **Creation date**, a fallback for folders assembled by hand. Careful: if you **copied** the files, the creation date is the date of the copy
 
 The criterion actually used is **always printed** below the track list, before the confirmation.
 
@@ -1041,9 +1041,9 @@ fa riavviare l'unita' a meta' masterizzazione. Se una scrittura fallisce:
 
 What it detects, and how:
 
-- 💻 **Laptop or desktop** — from `Win32_SystemEnclosure.ChassisTypes` (8-12, 14, 18, 21, 30-32 = portable; 3-7, 13, 15-17, 23, 24 = stationary) and the model in `Win32_ComputerSystem`
-- 🔌 **Internal or external drive** — from the branch of the PnP tree in `Win32_CDROMDrive.PNPDeviceID`: USB devices sit under `USBSTOR\`, internal ones under `SCSI\` or `IDE\`
-- 🚫 **No drive at all** — normal on a recent laptop: BurnDex says so explicitly and explains that an external USB burner is needed
+- 💻 **Laptop or desktop**: from `Win32_SystemEnclosure.ChassisTypes` (8-12, 14, 18, 21, 30-32 = portable; 3-7, 13, 15-17, 23, 24 = stationary) and the model in `Win32_ComputerSystem`
+- 🔌 **Internal or external drive**, from the branch of the PnP tree in `Win32_CDROMDrive.PNPDeviceID`: USB devices sit under `USBSTOR\`, internal ones under `SCSI\` or `IDE\`
+- 🚫 **No drive at all**, normal on a recent laptop: BurnDex says so explicitly and explains that an external USB burner is needed
 
 The power warning appears **only for external drives** and **before** burning, not as a post-mortem. On an internal drive it would be noise at every startup.
 
@@ -1053,17 +1053,17 @@ The power warning appears **only for external drives** and **before** burning, n
 
 Five stages, all through the native Windows COM API:
 
-1. **Enumeration** — `IMAPI2.MsftDiscMaster2` returns a unique ID for each drive
-2. **Initialisation** — `MsftDiscRecorder2.InitializeDiscRecorder(id)`, which yields the drive letter, make and model
-3. **Querying the medium** — type, state, capacity and supported speeds
-4. **Decoding** — FFmpeg produces raw PCM at 44.1 kHz / 16 bit / stereo
-5. **Track-At-Once writing** — `PrepareMedia()` → one `AddAudioTrack()` per track → `ReleaseMedia()`, which closes and finalises the disc
+1. **Enumeration**: `IMAPI2.MsftDiscMaster2` returns a unique ID for each drive
+2. **Initialisation**: `MsftDiscRecorder2.InitializeDiscRecorder(id)`, which yields the drive letter, make and model
+3. **Querying the medium**: type, state, capacity and supported speeds
+4. **Decoding**: FFmpeg produces raw PCM at 44.1 kHz / 16 bit / stereo
+5. **Track-At-Once writing**: `PrepareMedia()` → one `AddAudioTrack()` per track → `ReleaseMedia()`, which closes and finalises the disc
 
 Three non-obvious details, all discovered the hard way:
 
-- 🔍 **The medium is queried with a different object.** `FreeSectorsOnMedia` and `NumberOfExistingTracks` on the Track-At-Once writer only answer **after `PrepareMedia()`**, which has already opened the write session: far too late to decide whether the disc is suitable. BurnDex uses `MsftDiscFormat2Data` as a **read-only probe** — it answers as soon as you assign the recorder — and keeps Track-At-Once for the actual write
+- 🔍 **The medium is queried with a different object.** `FreeSectorsOnMedia` and `NumberOfExistingTracks` on the Track-At-Once writer only answer **after `PrepareMedia()`**, which has already opened the write session: far too late to decide whether the disc is suitable. BurnDex uses `MsftDiscFormat2Data` as a **read-only probe**, it answers as soon as you assign the recorder, and keeps Track-At-Once for the actual write
 - 📏 **IMAPI2 is fussy about PCM.** It wants the audio **bare, with no WAV header**, aligned to exact multiples of **2352 bytes** (the size of a Red Book audio sector) and at least **4 seconds** long. Off by one byte and `AddAudioTrack` fails. BurnDex pads with just enough silence to satisfy both constraints
-- ⚡ **Speeds are not a continuous scale.** Each drive exposes a few discrete steps (`SupportedWriteSpeeds`, in sectors per second: e.g. 599 and 1800, i.e. 8x and 24x). Asking for 4x does not slow things down, it makes `SetWriteSpeed` **fail**. BurnDex picks the nearest available step without exceeding the request, and passes the **raw** value — 599, not 600 — because that is the only one the drive accepts without argument
+- ⚡ **Speeds are not a continuous scale.** Each drive exposes a few discrete steps (`SupportedWriteSpeeds`, in sectors per second: e.g. 599 and 1800, i.e. 8x and 24x). Asking for 4x does not slow things down, it makes `SetWriteSpeed` **fail**. BurnDex picks the nearest available step without exceeding the request, and passes the **raw** value (599, not 600) because that is the only one the drive accepts without argument
 
 ### Audio CD limits
 
@@ -1102,17 +1102,17 @@ Other safety nets:
 
 - 🔓 **`ReleaseMedia()` is attempted even on error**, otherwise the drive stays locked in exclusive access. It is itself guarded: if the drive is what vanished, the failure to close must not mask the real error
 - 📝 A full log in `logs/burndex.log`, including the COM exception's stack trace
-- 🛑 **Ctrl+C** during writing does not stop the laser — the disc is lost either way — but the drive is released properly
+- 🛑 **Ctrl+C** during writing does not stop the laser, the disc is lost either way, but the drive is released properly
 
 ---
 
-## 🎞 PixDex — remastering a video
+## 🎞 PixDex: remastering a video
 
 ### What it does, and above all what it does not
 
 `PixDex.py` takes a poor-quality video and cleans it up: it removes the artifacts left by compression, smooths stepped gradients and brings it to a higher resolution with upscaling done properly.
 
-This has to be said up front, because it is what creates the most wrong expectations: **PixDex invents no detail that is not in the file.** Upscaling, however careful, cannot rebuild what compression threw away. That is what AI models do — they reconstruct *plausible* detail, but invented, and on a full screen it often gives itself away.
+This has to be said up front, because it is what creates the most wrong expectations: **PixDex invents no detail that is not in the file.** Upscaling, however careful, cannot rebuild what compression threw away. That is what AI models do, they reconstruct *plausible* detail, but invented, and on a full screen it often gives itself away.
 
 PixDex works **by subtraction**: it removes noise, it does not add fake sharpness.
 
@@ -1132,11 +1132,11 @@ Remove those and **the very same amount of detail reads far better**. That is 70
 
 This is the part almost every guide gets wrong, and on its own it separates a good result from a mess:
 
-1. **Deinterlacing**, if needed — working on fields falsifies everything downstream
-2. **Deblocking and noise reduction**, *before* any sharpening — otherwise you engrave the noise and make it permanent
-3. **Debanding, done at 10 bits** — at 8 bits the cure creates new bands: smoothing a step needs in-between values that do not exist at 8 bits
+1. **Deinterlacing**, if needed: working on fields falsifies everything downstream
+2. **Deblocking and noise reduction**, *before* any sharpening: otherwise you engrave the noise and make it permanent
+3. **Debanding, done at 10 bits**, at 8 bits the cure creates new bands: smoothing a step needs in-between values that do not exist at 8 bits
 4. **Upscaling**, on a frame that is finally clean
-5. **Adaptive sharpening**, last — applying it before upscaling throws half the work away in the rescale
+5. **Adaptive sharpening**, last: applying it before upscaling throws half the work away in the rescale
 
 ### The five presets
 
@@ -1152,7 +1152,7 @@ With no instructions, the **diagnosis** picks the preset.
 
 ### How debanding is tuned
 
-`deband` **does not flatten the steps: it dissolves them into noise**, exactly like dithering does. That is the right way to remove a real band — a visible contour is traded for a graininess the eye does not notice. But the filter works on the whole frame, including flat areas where there is no banding at all: there is nothing to trade there, and only the noise is left.
+`deband` **does not flatten the steps: it dissolves them into noise**, exactly like dithering does. That is the right way to remove a real band, a visible contour is traded for a graininess the eye does not notice. But the filter works on the whole frame, including flat areas where there is no banding at all: there is nothing to trade there, and only the noise is left.
 
 Measured on a heavily compressed video (AV1 at 305 kbit/s, 720p to 1440p), on the same flat dark wall:
 
@@ -1162,7 +1162,7 @@ Measured on a heavily compressed video (AV1 at 305 kbit/s, 720p to 1440p), on th
 | threshold 0.035 · range 24 · sharpening 0.55 | 2.686 | 1.204 |
 | **threshold 0.010 · range 16 · sharpening 0.35** | **1.581** | **1.166** |
 
-The gentle tuning wins on **both** counts: less noise *and* less blocking too. The aggressive one bought nothing — it only dirtied the picture, and the file ended up three times heavier because the encoder was spending bits describing that speckle.
+The gentle tuning wins on **both** counts: less noise *and* less blocking too. The aggressive one bought nothing, it only dirtied the picture, and the file ended up three times heavier because the encoder was spending bits describing that speckle.
 
 Hence the low thresholds in the presets. The one exception is **Animation**, which stays the boldest: the large flat colour fills of cartoons really do band, and there the trade pays off.
 
@@ -1171,7 +1171,7 @@ Hence the low thresholds in the presets. The one exception is **Animation**, whi
 Before touching anything, PixDex reads the file with `ffprobe` and looks at three quantities:
 
 - the **resolution**, which says whether upscaling makes sense;
-- the **bits per pixel** — bitrate divided by pixels and frames per second — which say how hard compression hit. Below **0.05 bpp** blocking is visible; below **0.025** it is visible even in motion;
+- the **bits per pixel**, bitrate divided by pixels and frames per second, which say how hard compression hit. Below **0.05 bpp** blocking is visible; below **0.025** it is visible even in motion;
 - the **field order**, which says whether the material is broadcast.
 
 None of the three requires decoding the video, so the advice arrives **instantly** even on an hour-long file.
@@ -1182,7 +1182,7 @@ python PixDex.py -i video.mp4 --info      # analyse and advise, writes nothing
 
 ### How far it upscales, and how to choose
 
-**At the third step PixDex lets you choose**, showing for each mode the result on *that* file — not the marketing label:
+**At the third step PixDex lets you choose**, showing for each mode the result on *that* file, not the marketing label:
 
 ```
 ┌────┬────────────────┬───────────────────────┬────────────────────┐
@@ -1197,7 +1197,7 @@ python PixDex.py -i video.mp4 --info      # analyse and advise, writes nothing
 └────┴────────────────┴───────────────────────┴────────────────────┘
 ```
 
-This is where the program is at its most honest: **the very table that offers you 4K tells you, on the same row, that from a 360p source that 4K adds not one real detail** — only a heavier file. The thresholds:
+This is where the program is at its most honest: **the very table that offers you 4K tells you, on the same row, that from a 360p source that 4K adds not one real detail**, only a heavier file. The thresholds:
 
 | Factor | Verdict | What actually happens |
 |---|---|---|
@@ -1263,13 +1263,13 @@ python PixDex.py -i video.mp4 -y                  # no questions
 
 ### In the GUI
 
-`AudioDexApp.py` has a **Remaster** section: pick the file, press **Analyse** and the diagnosis appears in a panel — what is wrong, and which preset addresses it — *before* committing minutes or hours of processing. When it finishes, the before/after comparison shows up right there in the window, next to the diagnosis.
+`AudioDexApp.py` has a **Remaster** section: pick the file, press **Analyse** and the diagnosis appears in a panel (what is wrong, and which preset addresses it) *before* committing minutes or hours of processing. When it finishes, the before/after comparison shows up right there in the window, next to the diagnosis.
 
 > ⏱ **How long it takes.** It depends on the processor: remastering is the heaviest operation in the whole project. While it runs, the bar shows processed frames and live speed (`1.2x` means it is running faster than the video's duration, `0.5x` twice as long). `--gpu` is much faster.
 
 ---
 
-## ✂ ClipDex — cutting, joining, converting
+## ✂ ClipDex: cutting, joining, converting
 
 `ClipDex.py` is the editing bench: the operations you actually need after a download, without opening an editing suite. Six operations, one subcommand each.
 
@@ -1293,7 +1293,7 @@ python ClipDex.py compat -i v.mp4
 
 ClipDex picks copy by itself whenever it can, and **always says which of the two it is using**.
 
-### `taglia` — extracting a segment
+### `taglia`: extracting a segment
 
 Times are written the way they come to mind: `90`, `1:30`, `01:02:03.5`.
 
@@ -1305,20 +1305,20 @@ previous keyframe, and in this file they are far apart. With --preciso the cut
 lands where you said, at the cost of a re-encode
 ```
 
-With `--preciso` the cut lands on the exact frame — verified: 4.0 s asked, 4.0 s obtained.
+With `--preciso` the cut lands on the exact frame, verified: 4.0 s asked, 4.0 s obtained.
 
-### `unisci` — putting several files in a row
+### `unisci`: putting several files in a row
 
 Before joining, ClipDex compares codec, resolution, pixel format, frame rate and audio characteristics of every file:
 
 - **matching** → glues them in copy mode, instantly;
 - **different** → brings them all to the size of the first and re-encodes, because there is no other way: packets from two different encodings cannot be placed side by side.
 
-A file with different proportions is **framed, not stretched**, and a silent file in the middle gets silence of the same length placed under it — without that, every following audio edit would drift out of sync.
+A file with different proportions is **framed, not stretched**, and a silent file in the middle gets silence of the same length placed under it: without that, every following audio edit would drift out of sync.
 
 By default it adds **one chapter per joined file**, so the result stays navigable like a DVD. `--no-capitoli` turns it off.
 
-### `gif` and `webp` — making an animation
+### `gif` and `webp`: making an animation
 
 A GIF has **256 colours and no more**. FFmpeg's generic palette on a video with gradients produces a mush of dots; computing it on the real frames costs one extra pass. Measured on three seconds of real video, against the same frames not reduced to a palette:
 
@@ -1327,19 +1327,19 @@ A GIF has **256 colours and no more**. FFmpeg's generic palette on a video with 
 | One pass, generic palette | 24.85 dB | 1414 KB |
 | **Two passes, tailored palette** | **26.57 dB** | 2479 KB |
 | Two passes, `sierra2_4a` dither | 26.56 dB | 3133 KB |
-| **Animated WebP** | — | **283 KB** |
+| **Animated WebP** | - | **283 KB** |
 
-Hence the defaults: two passes (**+1.72 dB**, it shows), ordered Bayer dither — `sierra2_4a` costs a quarter more size and gives nothing back — and the push towards **WebP**, which is not bound to 256 colours and weighs **almost nine times less**. Every browser of the last decade reads it; if the destination is a twenty-year-old forum, then you need the GIF.
+Hence the defaults: two passes (**+1.72 dB**, it shows), ordered Bayer dither, `sierra2_4a` costs a quarter more size and gives nothing back, and the push towards **WebP**, which is not bound to 256 colours and weighs **almost nine times less**. Every browser of the last decade reads it; if the destination is a twenty-year-old forum, then you need the GIF.
 
 The three levers that matter: `--fps` (past 15 the size doubles for no visible gain), `--larghezza` (the factor that weighs most) and the duration. With no instructions it starts **one third** of the way in, because the opening is almost always a title card or a black screen.
 
-### `provino` — seeing what is inside
+### `provino`: seeing what is inside
 
 A grid of frames taken at regular intervals across the whole length. To understand what a file contains it beats an animated preview: sixteen moments tell you at a glance whether it is the right video, where the scenes change and whether there are black stretches.
 
-The interval is computed so the grid covers **the whole** duration — sampling at a fixed interval would leave out the second half of long videos. The cell has a fixed size, so the grid stays regular even if the footage changes format halfway.
+The interval is computed so the grid covers **the whole** duration: sampling at a fixed interval would leave out the second half of long videos. The cell has a fixed size, so the grid stays regular even if the footage changes format halfway.
 
-### `compat` — making old devices read it
+### `compat`: making old devices read it
 
 Three constraints, all necessary and all often violated by downloaded files:
 
@@ -1443,7 +1443,7 @@ AudioDex/
 
 The `Shared/` and `Database_Globale/` modules are designed to be **shared across several scrapers** (audio, manga, anime): same visual theme, same logging, same database with type-specific columns.
 
-`BurnDex.py` and `PixDex.py` are **independent**: they share only `Shared/` with AudioDex (Rich theme, logger, texts), import nothing from `AudioDex.py`, and work on files assembled by hand. Neither writes to the global database — burning and remastering are not downloads, and recording them there would distort the download log.
+`BurnDex.py` and `PixDex.py` are **independent**: they share only `Shared/` with AudioDex (Rich theme, logger, texts), import nothing from `AudioDex.py`, and work on files assembled by hand. Neither writes to the global database, burning and remastering are not downloads, and recording them there would distort the download log.
 
 ---
 
@@ -1458,9 +1458,9 @@ Technical details:
 
 - 🧵 **One connection per thread** (`threading.local`): sqlite3 forbids sharing a connection across threads, and writes come from the download threads
 - ⚡ **WAL mode**: concurrent reads and writes without blocking each other
-- ♻️ **`INSERT OR REPLACE`** on the `UNIQUE(scraper_type, source_id, media_kind)` constraint: re-downloading the same track **in the same format** updates the existing row instead of duplicating it, while the **audio** and **video** versions of the same YouTube video coexist as two rows — they are two distinct files on disk
+- ♻️ **`INSERT OR REPLACE`** on the `UNIQUE(scraper_type, source_id, media_kind)` constraint: re-downloading the same track **in the same format** updates the existing row instead of duplicating it, while the **audio** and **video** versions of the same YouTube video coexist as two rows, they are two distinct files on disk
 - 🔄 **Automatic migration**: databases created before video downloading arrived have the old `UNIQUE(scraper_type, source_id)` key, which SQLite cannot change with an `ALTER TABLE`. On first start the table is **rebuilt** and the data copied across, inside a single transaction and after a **safety copy** of the file (`scraper_metadata.db.backup-pre-media-kind`). Historical rows are labelled as `audio`. If anything goes wrong the migration rolls back and the data is left intact
-- 🛡️ **Errors are never fatal**: the database is an auxiliary log — a problem with it is logged as a warning and never interrupts downloads
+- 🛡️ **Errors are never fatal**: the database is an auxiliary log, a problem with it is logged as a warning and never interrupts downloads
 
 ---
 
@@ -1468,7 +1468,7 @@ Technical details:
 
 - Every failed track (after all retries) appears in the **final summary**, with the reason in the log
 - Titles and URLs of failed tracks are saved to **`failed_tracks.txt`** in the output folder, ready to retry with `python AudioDex.py --url <URL>` without redoing the search
-- The full log of every session lives in `logs/audiodex.log` — the logger writes **to file only**: log lines on screen would ruin the live progress bars
+- The full log of every session lives in `logs/audiodex.log`, the logger writes **to file only**: log lines on screen would ruin the live progress bars
 - 🛑 **Ctrl+C**: the first starts a clean shutdown (downloads in flight finish, queued ones are cancelled), the second forces an immediate exit
 
 ---
@@ -1515,17 +1515,17 @@ Technical details:
 
 **New**
 
-- 🖼️ **Square cover art and volume tags, automatically.** The 16:9 YouTube thumbnail went into the tag as it was, and players showing cover art in a square either squashed it or cropped it through a face: now the whole image sits at the centre of a square filled with a blurred copy of itself, and nothing is lost (0.4 s). Volume is measured to EBU R128 and noted in ReplayGain tags — the audio is not touched, they are two tags you can delete. The measurement uses `ebur128` instead of `loudnorm`: same numbers, **2.3 s instead of 11.6**. See [Cover art and volume](#cover-art-and-volume-automatically)
+- 🖼️ **Square cover art and volume tags, automatically.** The 16:9 YouTube thumbnail went into the tag as it was, and players showing cover art in a square either squashed it or cropped it through a face: now the whole image sits at the centre of a square filled with a blurred copy of itself, and nothing is lost (0.4 s). Volume is measured to EBU R128 and noted in ReplayGain tags, the audio is not touched, they are two tags you can delete. The measurement uses `ebur128` instead of `loudnorm`: same numbers, **2.3 s instead of 11.6**. See [Cover art and volume](#cover-art-and-volume-automatically)
 - ⚖️ **BurnDex levelling became the default**, now that it costs four seconds per track instead of twenty. Turn it off with `--no-level`
 - 📦 **A single file: `AudioDex.exe`.** Double-click and it runs: no Python to install, no `.py` file in sight. 64 MB, built with `pyinstaller AudioDex.spec`. FFmpeg deliberately stays out - in single-file mode the contents are re-extracted on every launch, and half a gigabyte to unpack each time would make the wait unbearable for something you install once. Songs, logs and the chosen language end up next to the .exe, where you find them. See [A single file](#-a-single-file-audiodexexe)
-- ✂ **ClipDex — the editing bench.** Six command-line operations: `taglia` a segment (instant in copy mode, and if the keyframe drift shows it tells you with a number), `unisci` several files picking copy or re-encode by itself and adding one chapter each, `gif` and `webp` with the palette computed on the footage (+1.72 dB measured against the generic one; WebP weighs nine times less), `provino` grids and `compat` for old car stereos and TVs. See [ClipDex](#-clipdex--cutting-joining-converting)
+- ✂ **ClipDex, the editing bench.** Six command-line operations: `taglia` a segment (instant in copy mode, and if the keyframe drift shows it tells you with a number), `unisci` several files picking copy or re-encode by itself and adding one chapter each, `gif` and `webp` with the palette computed on the footage (+1.72 dB measured against the generic one; WebP weighs nine times less), `provino` grids and `compat` for old car stereos and TVs. See [ClipDex](#-clipdex-cutting-joining-converting)
 - 📀 **Whole albums split into their tracks.** A great many uploads are "Full Album": a single three-quarter-hour video with chapters. AudioDex recognises them and cuts them **without re-encoding**, into a numbered, tagged folder already fit for BurnDex. The point is not cutting but knowing *whether* to cut: five criteria tell a record from an index, and if even one fails nothing is asked. From the command line, `--split` and `--no-split`. See [Whole albums split into tracks](#-whole-albums-split-into-tracks)
-- 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
+- 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal*: what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
 - ⚖️ **`--level` in BurnDex**: evens out the volume across tracks to the EBU R128 standard, respecting true peak. On three songs at −7, −14 and −21 dB the spread goes from 14.0 dB to **0.59 dB**
 - ✂️ **`--trim` in BurnDex**: trims the silence at the start and end of each track, which adds to the 2-second gap inserted by IMAPI2. On the test collection, 3.4 seconds per track
-- 🛡 **Download integrity checks in AudioDex.** The check was "the file is over 10 KB", and a truncated download passed — only to be recognised as already downloaded on the next attempt, and never fetched again. Container, actual duration against the announced one, and audio stream decoding are now all checked. A damaged file is deleted and the track lands among the failed ones
-- 🎞 **PixDex — video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex--remastering-a-video)
-- 🔧 **Debanding retuned from measurements, not by eye.** The `deband` thresholds were too aggressive and produced speckle in flat areas: the filter does not flatten steps, it dissolves them into noise, and where there is no banding only the noise is left. Measured on an AV1 video at 305 kbit/s, the gentle tuning wins on **both** counts — graininess from 2.686 to 1.581 and blocking from 1.204 to 1.166 — and produces far lighter files, because the encoder no longer spends bits describing the speckle. See [How debanding is tuned](#how-debanding-is-tuned)
+- 🛡 **Download integrity checks in AudioDex.** The check was "the file is over 10 KB", and a truncated download passed: only to be recognised as already downloaded on the next attempt, and never fetched again. Container, actual duration against the announced one, and audio stream decoding are now all checked. A damaged file is deleted and the track lands among the failed ones
+- 🎞 **PixDex, video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex-remastering-a-video)
+- 🔧 **Debanding retuned from measurements, not by eye.** The `deband` thresholds were too aggressive and produced speckle in flat areas: the filter does not flatten steps, it dissolves them into noise, and where there is no banding only the noise is left. Measured on an AV1 video at 305 kbit/s, the gentle tuning wins on **both** counts, graininess from 2.686 to 1.581 and blocking from 1.204 to 1.166, and produces far lighter files, because the encoder no longer spends bits describing the speckle. See [How debanding is tuned](#how-debanding-is-tuned)
 - ⚡ **GPU on by default in the GUI**: measured 2.4× faster on the real filter chain (30.9 s against 73.6 s for the same clip on a Ryzen 5 3500U + Vega 8)
 - 🎚 **Target resolution chosen at the third step**, with a table that for each mode shows the result on *that* file, the upscaling factor and what it is actually worth: the very row that offers 4K says it adds not one detail from a 360p source. From the command line, `--height auto|none|hd|2k|4k|PIXELS`. See [How far it upscales](#how-far-it-upscales-and-how-to-choose)
 - 🖥 **Remaster video section in the GUI**, with the diagnosis shown *before* committing hours of processing and the before/after comparison right there in the window
@@ -1533,13 +1533,13 @@ Technical details:
 **Changes**
 
 - 🇮🇹 **The three CLIs speak Italian only.** No more language question on first launch and no more `--lang`: whoever opens a terminal wants to see the banner and go. The Italian/English choice stays in the GUI, where it is one click and the effect is immediate
-- 🔤 **UTF-8 console output across all tools.** Arrows, box drawing and emoji used to crash the programs with `UnicodeEncodeError` inside the classic `cmd.exe`, which uses the old cp1252 code page — halfway through a download or, worse, a burn. The streams are now reconfigured at startup
+- 🔤 **UTF-8 console output across all tools.** Arrows, box drawing and emoji used to crash the programs with `UnicodeEncodeError` inside the classic `cmd.exe`, which uses the old cp1252 code page: halfway through a download or, worse, a burn. The streams are now reconfigured at startup
 
 ### 2026-07-26
 
 **New**
 
-- 🌍 **Interface in Italian or English.** The GUI has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json`. The three command-line programs speak Italian only: no question on first launch and no option to remember. See [Interface language](#-interface-language)
+- 🌍 **Interface in Italian or English.** The GUI has an **Italiano / English** dropdown in the sidebar: it switches instantly (menu entries, labels, buttons, diagnostics, messages) and remembers the choice in `settings.json`. The three command-line programs speak Italian only: no question on first launch and no option to remember. See [Interface language](#-interface-language)
 - 🗣 **Answers accepted in both languages** whichever one is selected: `s`/`si`/`y`/`yes` to confirm, `q`/`esci`/`exit` to quit, `all`/`tutti`/`tutte` to select everything. Someone running the English interface who types `s` out of habit no longer gets the operation cancelled
 
 **Changes**
@@ -1552,7 +1552,7 @@ Technical details:
 
 **New tool**
 
-- 💿 **BurnDex — audio CD burner.** `BurnDex.py` turns a downloaded collection into a real **audio CD** (Red Book CD-DA), the only format car stereos and older hi-fis are guaranteed to read. It uses **IMAPI2**, the native Windows COM API: no third-party burning software. A four-step wizard with a Rich UI consistent with AudioDex — collection picker, track list with capacity bar, speed choice, confirmation card — plus `--dry-run` to rehearse everything without consuming a disc
+- 💿 **BurnDex, audio CD burner.** `BurnDex.py` turns a downloaded collection into a real **audio CD** (Red Book CD-DA), the only format car stereos and older hi-fis are guaranteed to read. It uses **IMAPI2**, the native Windows COM API: no third-party burning software. A four-step wizard with a Rich UI consistent with AudioDex, collection picker, track list with capacity bar, speed choice, confirmation card, plus `--dry-run` to rehearse everything without consuming a disc
 - 🔢 **Three-criteria track ordering**: `ordine.txt` for manual control, numeric filename prefix (the one AudioDex already writes), creation date as a fallback. The criterion in use is **always stated** before the confirmation, because on a CD-R the running order is decided once and for all
 - 💾 **Recognition of the disc inserted**: it distinguishes CD-R, CD-RW, CD-ROM, DVD±R/RW, DVD-RAM, BD-R/RE and unidentified media, saying for each **why** it will not do and how to fix it. The critical case is a **blank DVD**, which reports as "blank and writable" but cannot hold an audio CD: Red Book is not defined on DVD
 - 💻 **System detection** via WMI: laptop or desktop, presence of an optical drive, and above all whether the drive is **internal or external USB**. On external drives the power warning now appears **before** burning
@@ -1560,8 +1560,8 @@ Technical details:
 
 **Fixes**
 
-- 🐛 **YouTube Mixes broke single-video downloads** *(AudioDex)*: when you copy a link from the player, YouTube appends `&list=RD<videoId>&start_radio=1` — the radio built around that song. `_is_playlist_url` saw the `&list=` and treated it as a playlist, but the canonical `playlist?list=RD…` URL makes YouTube answer *"This playlist type is unviewable"*, and the download stopped with "no tracks found in the playlist". Mixes are now recognised (`RD` + video id, the `RDMM`/`RDEM`/`RDAMVM`/`RDGMEM`/`RDAO` prefixes, or `start_radio=1`) and the video is downloaded, while YouTube Music's `RDCLAK5uy_…` playlists, which are browsable, are still treated as playlists. On top of that, if **any** playlist turns out to be inaccessible but the URL contains a `v=`, the program falls back to the single video instead of giving up
-- 🐛 **Source format chosen according to the output format** *(AudioDex)*: the selector was pinned to `bestaudio[ext=m4a]` regardless of the format requested, so `--format opus` downloaded **AAC** and then recompressed it to Opus — two lossy compressions in a row. The `AUDIO_SOURCE_FORMATS` table now asks YouTube for the codec it serves natively: `opus` takes itag 251 and **copies** it without re-encoding, `mp3` starts from the best available stream. The behaviour of `m4a`, the default, is unchanged
+- 🐛 **YouTube Mixes broke single-video downloads** *(AudioDex)*: when you copy a link from the player, YouTube appends `&list=RD<videoId>&start_radio=1`, the radio built around that song. `_is_playlist_url` saw the `&list=` and treated it as a playlist, but the canonical `playlist?list=RD…` URL makes YouTube answer *"This playlist type is unviewable"*, and the download stopped with "no tracks found in the playlist". Mixes are now recognised (`RD` + video id, the `RDMM`/`RDEM`/`RDAMVM`/`RDGMEM`/`RDAO` prefixes, or `start_radio=1`) and the video is downloaded, while YouTube Music's `RDCLAK5uy_…` playlists, which are browsable, are still treated as playlists. On top of that, if **any** playlist turns out to be inaccessible but the URL contains a `v=`, the program falls back to the single video instead of giving up
+- 🐛 **Source format chosen according to the output format** *(AudioDex)*: the selector was pinned to `bestaudio[ext=m4a]` regardless of the format requested, so `--format opus` downloaded **AAC** and then recompressed it to Opus, two lossy compressions in a row. The `AUDIO_SOURCE_FORMATS` table now asks YouTube for the codec it serves natively: `opus` takes itag 251 and **copies** it without re-encoding, `mp3` starts from the best available stream. The behaviour of `m4a`, the default, is unchanged
 - 🐛 **Querying the disc before committing the drive** *(BurnDex)*: `FreeSectorsOnMedia` on the Track-At-Once writer only answers **after `PrepareMedia()`**, which has already opened the write session. The first version died there with a `com_error`. The medium is now read with `MsftDiscFormat2Data`, which answers immediately, leaving Track-At-Once for writing alone
 - 🐛 **Truthful count of tracks written** *(BurnDex)*: the summary showed the tracks **prepared** rather than the ones actually burned, and after a failure at zero tracks it claimed "9 written". It now counts successful `AddAudioTrack` calls and distinguishes the two cases that matter: `0 of 9` (disc still blank and reusable) from `4 of 9` (half-written, fit for the bin)
 - 🐛 **Paths and filenames inside Rich markup** *(BurnDex)*: a string such as `D:\` ended up inside a markup tag, and since backslash is Rich's escape character it swallowed the closing tag, printing `D:[/dim]`. This applied to any name containing `\` or `[`. Every string coming from disk now goes through `rich.markup.escape()`
@@ -1579,8 +1579,8 @@ Technical details:
 **New features**
 
 - 🔢 **Playlist order preserved on disk**: playlist files are saved with the track number at the front of the name (`01 - Song.m4a`), zero-padded to the playlist size. The number is the one from the **source playlist**: a partial selection (tracks 5-8) keeps `05`-`08`, and a removed video does not shift the following tracks
-- ♻️ **Numbering of already-downloaded files**: songs already present **without a number** (downloaded with an earlier version) are **renamed** rather than re-downloaded — re-running a download on an old folder aligns the numbering at no cost
-- 📊 **Per-phase progress bars**: four bars (Download, Conversion, Lyrics, Tags) show how many tracks have cleared each stage. Previously there was only the byte bar, which sat at 100% while the track was still converting, looking up lyrics or writing tags — it looked stuck
+- ♻️ **Numbering of already-downloaded files**: songs already present **without a number** (downloaded with an earlier version) are **renamed** rather than re-downloaded, re-running a download on an old folder aligns the numbering at no cost
+- 📊 **Per-phase progress bars**: four bars (Download, Conversion, Lyrics, Tags) show how many tracks have cleared each stage. Previously there was only the byte bar, which sat at 100% while the track was still converting, looking up lyrics or writing tags, it looked stuck
 - 🎬 **Full video download**, alongside audio-only: in interactive mode you are **asked** before starting, on the command line there is `--media video` (or `--format mp4`/`mkv` directly). Videos are **tagged like audio** (title, artist, album, track number, cover art, chapters): in `mp4` with mutagen, in `mkv` with FFmpeg. Duplicate detection now separates audio formats from video ones, so the same song can exist in both versions
 - 🎬 **Video card before downloading**: pasting a single video URL brings up a panel with channel, views, likes, subscribers, category, language, date and chapters, followed by a confirmation prompt. Previously a single-video URL started the download **showing nothing**
 - 💿 **Enriched playlist card**: the summary gains the channel, aggregate views, last-updated date, visibility and the number of **unavailable** videos. These were data yt-dlp already returned in the same call and that were being discarded: **no extra network requests**
@@ -1588,7 +1588,7 @@ Technical details:
 
 **Fixes**
 
-- 🐛 **"Failed" tracks that were actually already present**: the "already downloaded" branch read `progress.tasks[task_id]`, but Rich's `Progress.tasks` is a **positional list**, not indexed by `TaskID`. Since the bars of completed files are removed as they go, indices shifted and an `IndexError` was raised, which `download_batch` caught and marked as a **failure** — despite a perfectly good file on disk. On a fully-downloaded playlist the summary showed half the tracks as "Failed"
+- 🐛 **"Failed" tracks that were actually already present**: the "already downloaded" branch read `progress.tasks[task_id]`, but Rich's `Progress.tasks` is a **positional list**, not indexed by `TaskID`. Since the bars of completed files are removed as they go, indices shifted and an `IndexError` was raised, which `download_batch` caught and marked as a **failure**, despite a perfectly good file on disk. On a fully-downloaded playlist the summary showed half the tracks as "Failed"
 - 🐛 **Same-titled tracks fighting over one file**: with two songs sharing a title in the same playlist (e.g. single and album versions), renumbering matched "same title, any number" and the two tracks renamed each other's file, letting only one be downloaded. A file that is **already numbered is now never renamed**
 - 🐛 **Result order in the summary**: the final reordering compared **titles**, so two same-titled tracks (or a title changed by yt-dlp) ended up out of place or at the bottom. Results are now reassembled by the **track's position**
 
@@ -1596,7 +1596,7 @@ Technical details:
 
 **Fixes**
 
-- **YouTube search repaired**: yt-dlp's `default_search` option always returned 0 results with recent versions — search now uses the explicit `ytsearchN:` prefix. yt-dlp was also updated to 2026.6.9 and pinned as a minimum version in `requirements.txt`
+- **YouTube search repaired**: yt-dlp's `default_search` option always returned 0 results with recent versions, search now uses the explicit `ytsearchN:` prefix. yt-dlp was also updated to 2026.6.9 and pinned as a minimum version in `requirements.txt`
 - **IDE-friendly import**: `scraper_db` is imported as `from Database_Globale import scraper_db` instead of via `sys.path` manipulation, so Pylance/VS Code resolve it without false errors
 - **Artist/channel fallback**: `uploader`/`channel` fields with a `None` value no longer print "None" in the tables
 - **Phone-compatible filenames**: `_sanitize_filename` now converts the full-width Unicode look-alikes yt-dlp uses in place of forbidden characters (`/ : | ? * " < >` → `⧸ ： ｜ …`) into `_`, and strips emoji; the file is renamed accordingly after download. Those characters made copying tracks to a phone over USB fail
@@ -1608,9 +1608,9 @@ Technical details:
 
 **New features**
 
-- **Karaoke-style synced lyrics**: after each download the timestamped lyrics are looked up on LRCLIB and embedded in the audio file's tags (LRC format) — a single file that also carries its lyrics. Summary with a `♫ Testi karaoke` count; disable with `--no-lyrics`
+- **Karaoke-style synced lyrics**: after each download the timestamped lyrics are looked up on LRCLIB and embedded in the audio file's tags (LRC format), a single file that also carries its lyrics. Summary with a `♫ Testi karaoke` count; disable with `--no-lyrics`
 - **Private playlists and videos**: a new `--cookies-from-browser <browser>` option that authenticates yt-dlp with browser cookies; the simpler alternative ("Unlisted" playlists) is documented too
-- **Playlist track table** shown before the download confirmation, plus a **Views** column (compact format: `2.1 Mrd`, `45 Mln`, `350 K`) wherever YouTube supplies the figure — playlists do not expose it, so the column is hidden there. Likes are not shown: fetching them would cost ~5 s per track
+- **Playlist track table** shown before the download confirmation, plus a **Views** column (compact format: `2.1 Mrd`, `45 Mln`, `350 K`) wherever YouTube supplies the figure, playlists do not expose it, so the column is hidden there. Likes are not shown: fetching them would cost ~5 s per track
 - **Separate Title and Artist columns**: the artist is derived from the title (`Artist - Song`) or from the channel name, and the title is cleaned of decorations (`(Official Video)`, `(Lyrics)`, …)
 - **`requirements.txt`** with minimum versions and notes on FFmpeg and yt-dlp's frequent updates
 - **GitHub repository** with a `.gitignore` that excludes downloaded content, the local database and logs
@@ -1631,7 +1631,7 @@ The libraries used (yt-dlp, Rich, mutagen, requests, pywin32) are distributed un
 
 Released under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**.
 
-In short — **this is not a legal summary; the licence text governs**:
+In short. **This is not a legal summary: the licence text governs.**
 
 - ✅ **You may** use, study, modify and redistribute AudioDex for **non-commercial purposes**: personal use, research, hobby projects, and use by **charitable or educational** organisations (schools, universities).
 - ❌ **You may not** use it for commercial purposes: selling it, offering it as a paid service, or using it in a company's business.
