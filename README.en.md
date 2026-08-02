@@ -56,24 +56,6 @@ cd AudioDex
 pip install -r requirements.txt
 ```
 
-**Usage** — these lines are alternatives: run **one** at a time.
-
-```bash
-python AudioDex.py                                    # interactive mode
-python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
-```
-
-```bash
-python BurnDex.py --info                              # what's in the drive
-python BurnDex.py                                     # burn a collection to an audio CD
-```
-
-```bash
-python AudioDexApp.py                                 # everything, graphical interface
-python PixDex.py                                      # remaster a downloaded video
-python ClipDex.py                                     # cut, join, GIFs, contact sheets
-```
-
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
 > `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/AudioDex/releases/tag/assets-v1)
 > and is downloaded **once, on first launch**, in the background. The window opens right away:
