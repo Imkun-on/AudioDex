@@ -46,13 +46,36 @@ function traduciPagina() {
 
 /* ── Cambio sezione ───────────────────────────────────────────────────────── */
 
-function cambiaSezione(nome) {
+function cambiaSezione(nome, immediato) {
+  if (nome === SEZIONE && !immediato) return;
+  const uscente = document.querySelector('.sezione.attiva');
   SEZIONE = nome;
   $$('.voce').forEach((v) => v.classList.toggle('attiva', v.dataset.va === nome));
-  $$('.sezione').forEach((s) => s.classList.toggle('attiva', s.dataset.sez === nome));
 
-  // Il diario e' uno solo e si sposta: tenerne quattro significherebbe quattro
-  // cronologie diverse, e non sapere piu' dove guardare.
+  // Prima la sezione che se ne va sfuma e arretra, poi entra la nuova
+  // dall'altro lato: si capisce di essersi spostati, invece di ritrovarsi
+  // altrove senza sapere come. Il ritardo e' quello dell'animazione di
+  // uscita, non un numero scelto a caso.
+  const entra = () => {
+    $$('.sezione').forEach((s) => {
+      s.classList.remove('uscita');
+      s.classList.toggle('attiva', s.dataset.sez === nome);
+    });
+    spostaComuni(nome);
+  };
+
+  if (uscente && uscente.dataset.sez !== nome && !immediato) {
+    uscente.classList.add('uscita');
+    uscente.classList.remove('attiva');
+    setTimeout(entra, 200);
+  } else {
+    entra();
+  }
+}
+
+function spostaComuni(nome) {
+  // Il diario e' uno solo e si sposta: tenerne quattro significherebbe
+  // quattro cronologie diverse, e non sapere piu' dove guardare.
   const slot = document.querySelector(`.sezione[data-sez="${nome}"] .slot-diario`);
   const pannello = $('#pannello-diario');
   if (slot) { slot.appendChild(pannello); pannello.style.display = ''; }
@@ -349,7 +372,7 @@ function avvia() {
     if (window.initPix) window.initPix();
     if (window.initClip) window.initClip();
     traduciPagina();
-    cambiaSezione('audio');
+    cambiaSezione('audio', true);
 
     $$('.voce[data-va]').forEach((v) =>
       v.addEventListener('click', () => cambiaSezione(v.dataset.va)));
