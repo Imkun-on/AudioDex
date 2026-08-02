@@ -131,21 +131,23 @@ python ClipDex.py                                     # cut, join, GIFs, contact
 - 7.4 [Parallelism and progress](#4-parallelism-and-progress)
 - 7.5 [Duplicate detection and retries](#5-duplicate-detection-and-retries)
 
-**Chapter 8 — [📀 Whole albums split into tracks](#-whole-albums-split-into-tracks)**
+**Chapter 8 — [🖼️ Cover art and volume, automatically](#cover-art-and-volume-automatically)**
 
-**Chapter 9 — [🔢 Track ordering](#-track-ordering)**
+**Chapter 9 — [📀 Whole albums split into tracks](#-whole-albums-split-into-tracks)**
+
+**Chapter 10 — [🔢 Track ordering](#-track-ordering)**
 - 8.1 [The problem](#the-problem)
 - 8.2 [How it is solved](#how-it-is-solved)
 - 8.3 [Partial selections and playlists with gaps](#partial-selections-and-playlists-with-gaps)
 - 8.4 [Numbering already-downloaded files](#numbering-already-downloaded-files)
 
-**Chapter 10 — [🧾 Metadata tagging](#-metadata-tagging)**
+**Chapter 11 — [🧾 Metadata tagging](#-metadata-tagging)**
 
-**Chapter 11 — [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
+**Chapter 12 — [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
 
-**Chapter 12 — [💾 Output formats](#-output-formats)**
+**Chapter 13 — [💾 Output formats](#-output-formats)**
 
-**Chapter 13 — [💿 BurnDex — burning an audio CD](#-burndex--burning-an-audio-cd)**
+**Chapter 14 — [💿 BurnDex — burning an audio CD](#-burndex--burning-an-audio-cd)**
 - 12.1 [What it is for, and why an audio CD](#what-it-is-for-and-why-an-audio-cd)
 - 12.2 [Additional requirements](#additional-requirements)
 - 12.3 [The four-step flow](#the-four-step-flow)
@@ -158,7 +160,7 @@ python ClipDex.py                                     # cut, join, GIFs, contact
 - 12.9 [Audio CD limits](#audio-cd-limits)
 - 12.10 [Error diagnosis](#error-diagnosis)
 
-**Chapter 14 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
+**Chapter 15 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
 - 13.1 [What it does, and above all what it does not](#what-it-does-and-above-all-what-it-does-not)
 - 13.2 [Why it works anyway](#why-it-works-anyway)
 - 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
@@ -171,7 +173,7 @@ python ClipDex.py                                     # cut, join, GIFs, contact
 - 13.10 [Command-line options](#command-line-options-pixdex)
 - 13.11 [In the GUI](#in-the-gui)
 
-**Chapter 15 — [✂ ClipDex — cutting, joining, converting](#-clipdex--cutting-joining-converting)**
+**Chapter 16 — [✂ ClipDex — cutting, joining, converting](#-clipdex--cutting-joining-converting)**
 - 15.1 [Copy or re-encode](#copy-or-re-encode-the-choice-that-governs-everything)
 - 15.2 [`taglia`](#taglia--extracting-a-segment)
 - 15.3 [`unisci`](#unisci--putting-several-files-in-a-row)
@@ -179,19 +181,19 @@ python ClipDex.py                                     # cut, join, GIFs, contact
 - 15.5 [`provino`](#provino--seeing-what-is-inside)
 - 15.6 [`compat`](#compat--making-old-devices-read-it)
 
-**Chapter 16 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 17 — [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 17 — [📊 Global database](#-global-database)**
+**Chapter 18 — [📊 Global database](#-global-database)**
 
-**Chapter 18 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 19 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 19 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 20 — [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 20 — [📝 Changelog](#-changelog)**
+**Chapter 21 — [📝 Changelog](#-changelog)**
 
-**Chapter 21 — [📜 Legal notes](#-legal-notes)**
+**Chapter 22 — [📜 Legal notes](#-legal-notes)**
 
-**Chapter 22 — [📄 Licence](#-licence)**
+**Chapter 23 — [📄 Licence](#-licence)**
 
 ---
 
@@ -630,6 +632,20 @@ Downloads run on a `ThreadPoolExecutor` (3 threads by default). A yt-dlp *progre
 
 ---
 
+### Cover art and volume, automatically
+
+Two things happen by themselves on every download, with no options to remember.
+
+**The cover comes out square.** YouTube thumbnails are 16:9, but players show cover art in a square: they either squash it or crop it wherever — often through a face, or cutting the title that sits at the edges. AudioDex places the **whole** image at the centre of a square filled with a blurred, enlarged copy of itself: nothing is lost, and there are none of the black bars that stand out in a grid of covers. It costs 0.4 seconds.
+
+**The volume is measured and noted in the tags.** A YouTube playlist has 9-10 LU jumps between songs. AudioDex measures every file to the EBU R128 standard and writes down how much the player should raise or lower it: `replaygain_track_gain` and `replaygain_track_peak`, in the form VLC and foobar2000 look for.
+
+**The audio is not touched.** They are two tags: no re-encoding, no loss, and it is undone by deleting them. The measurement costs 2.3 seconds on a four-minute song, against the 10-30 of the download itself: it disappears into the noise.
+
+> 🎧 **Not every player reads them.** In `.m4a` files these tags are not standardised the way they are in FLAC or MP3. VLC, mpv and foobar2000 use them; Apple's Music app has its own different field (`iTunNORM`); some car stereos ignore them. Writing them costs nothing and breaks nothing, but do not expect it to work everywhere — if you mostly listen on CD, it is `BurnDex` that really levels, applying the gain to the burned audio.
+
+---
+
 ## 📀 Whole albums split into tracks
 
 A great many uploads are **"Full Album"**: a single three-quarter-hour video with chapters written by whoever uploaded it. AudioDex recognises them and, if you ask, cuts them into the individual tracks — **without re-encoding**, so in seconds and without losing a bit.
@@ -906,7 +922,7 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | System, burners and inserted disc, then exits |
 | `--yes`, `-y` | No questions: all tracks, default speed, no confirmation |
 | `--no-eject` | Do not eject the disc when burning finishes |
-| `--level` | Level the volume across tracks (measures each song: slower, but no jumps in the car) |
+| `--no-level` | Do not level the volume across tracks: leave every song at the volume it was uploaded with |
 | `--trim` | Trim the silence at the start and end of each track |
 
 Examples — these are **alternatives**, run one at a time. The harmless two first:
@@ -942,7 +958,7 @@ Measured on three songs at −7, −14 and −21 dB:
 | Without `--level` | **14.0 dB** |
 | With `--level` | **0.59 dB** |
 
-It costs an analysis pass on every track — about 20 seconds per song — which is why it is optional rather than automatic.
+The measurement uses `ebur128` rather than the first pass of `loudnorm`: they give the very same numbers — verified on one file, −35.8 LUFS and −31.6 dBFS against −35.78 and −31.56 — but the former takes **2.3 seconds against 11.6**. On a twenty-track CD that is eighty seconds instead of seven minutes, which is why levelling became the **normal behaviour**: turn it off with `--no-level`.
 
 **`--trim` — trims the silence.** YouTube uploads often carry one or two seconds of nothing at the start and end, which **add** to the 2-second gap IMAPI2 inserts between tracks anyway: the result is four or five second pauses in the middle of an album. On the test collection it removed 3.4 seconds per track.
 
@@ -1422,6 +1438,8 @@ Technical details:
 
 **New**
 
+- 🖼️ **Square cover art and volume tags, automatically.** The 16:9 YouTube thumbnail went into the tag as it was, and players showing cover art in a square either squashed it or cropped it through a face: now the whole image sits at the centre of a square filled with a blurred copy of itself, and nothing is lost (0.4 s). Volume is measured to EBU R128 and noted in ReplayGain tags — the audio is not touched, they are two tags you can delete. The measurement uses `ebur128` instead of `loudnorm`: same numbers, **2.3 s instead of 11.6**. See [Cover art and volume](#cover-art-and-volume-automatically)
+- ⚖️ **BurnDex levelling became the default**, now that it costs four seconds per track instead of twenty. Turn it off with `--no-level`
 - ✂ **ClipDex — the editing bench.** Six command-line operations: `taglia` a segment (instant in copy mode, and if the keyframe drift shows it tells you with a number), `unisci` several files picking copy or re-encode by itself and adding one chapter each, `gif` and `webp` with the palette computed on the footage (+1.72 dB measured against the generic one; WebP weighs nine times less), `provino` grids and `compat` for old car stereos and TVs. See [ClipDex](#-clipdex--cutting-joining-converting)
 - 📀 **Whole albums split into their tracks.** A great many uploads are "Full Album": a single three-quarter-hour video with chapters. AudioDex recognises them and cuts them **without re-encoding**, into a numbered, tagged folder already fit for BurnDex. The point is not cutting but knowing *whether* to cut: five criteria tell a record from an index, and if even one fails nothing is asked. From the command line, `--split` and `--no-split`. See [Whole albums split into tracks](#-whole-albums-split-into-tracks)
 - 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)

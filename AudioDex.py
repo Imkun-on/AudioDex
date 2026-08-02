@@ -37,6 +37,7 @@ import re
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -78,7 +79,7 @@ i18n.register(TESTI)
 t = i18n.t
 
 try:
-    from mutagen.mp4 import MP4, MP4Cover
+    from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
     _HAS_MUTAGEN = True
 except ImportError:
     _HAS_MUTAGEN = False
@@ -240,6 +241,117 @@ _EMOJI_RE = re.compile(
     '︀-️'           # selettori di variazione (emoji a colori)
     '‍]+'                # giunzione a larghezza zero (emoji composte)
 )
+
+
+# ── Copertina quadrata ───────────────────────────────────────────────────────
+#
+# Le miniature di YouTube sono 16:9, ma i lettori mostrano la copertina in un
+# quadrato: o la schiacciano o la tagliano dove capita, spesso a meta' faccia.
+#
+# Il rimedio non e' ritagliare — su una copertina di un video musicale il
+# titolo sta quasi sempre ai bordi, ed e' la prima cosa che si perde. Si mette
+# invece l'immagine intera al centro di un quadrato riempito da una sua copia
+# sfocata e ingrandita: niente viene tagliato, e il risultato non ha le bande
+# nere che in una griglia di copertine saltano all'occhio.
+
+COPERTINA_LATO = 600     # abbondante per qualunque lettore, senza gonfiare il file
+
+
+def _copertina_quadrata(dati: bytes) -> bytes | None:
+    """Rende quadrata una miniatura 16:9 senza tagliarne via niente.
+
+    Restituisce i byte del JPEG prodotto, o None se qualcosa non va: la
+    copertina e' un di piu', e non deve mai far fallire un download. In quel
+    caso il chiamante incorpora l'immagine originale, com'e' sempre stato.
+    """
+    lato = COPERTINA_LATO
+    catena = (
+        f'[0:v]scale={lato}:{lato}:force_original_aspect_ratio=increase,'
+        f'crop={lato}:{lato},gblur=sigma=24[sfondo];'
+        f'[0:v]scale={lato}:{lato}:force_original_aspect_ratio=decrease'
+        ':flags=lanczos[primo];'
+        '[sfondo][primo]overlay=(W-w)/2:(H-h)/2'
+    )
+    try:
+        with tempfile.TemporaryDirectory(prefix='audiodex_cover_') as tmp:
+            sorgente = os.path.join(tmp, 'in')
+            destinazione = os.path.join(tmp, 'out.jpg')
+            with open(sorgente, 'wb') as fh:
+                fh.write(dati)
+            subprocess.run(
+                ['ffmpeg', '-hide_banner', '-v', 'error', '-y', '-i', sorgente,
+                 '-filter_complex', catena, '-frames:v', '1', '-q:v', '3',
+                 destinazione],
+                capture_output=True, check=True, timeout=60,
+            )
+            with open(destinazione, 'rb') as fh:
+                return fh.read()
+    except (subprocess.SubprocessError, OSError) as exc:
+        log.debug('Copertina non resa quadrata: %s', exc)
+        return None
+
+
+# ── Volume: misura e tag ─────────────────────────────────────────────────────
+#
+# Una playlist di YouTube ha salti di 9-10 LU fra un brano e l'altro: la mano
+# che corre alla manopola a ogni cambio. Scrivere il guadagno nei tag lascia
+# che sia il lettore a livellare in riproduzione: l'audio non viene toccato,
+# quindi non si perde niente e si disfa cancellando un tag.
+#
+# La misura si fa con ``ebur128`` e non con ``loudnorm``: danno gli stessi
+# identici numeri, ma su un brano di quattro minuti il primo impiega 2.3
+# secondi contro 11.6. E' la differenza fra una misura che si puo' fare a
+# ogni download senza accorgersene e una che si dovrebbe chiedere.
+
+# Livello di riferimento dello standard ReplayGain 2.0. Nota: BurnDex usa -16
+# per il CD, un filo piu' alto perche' in auto il rumore di fondo mangia i
+# passaggi deboli. Sono due destinazioni diverse, non un'incoerenza.
+REPLAYGAIN_RIFERIMENTO = -18.0
+
+
+def _misura_volume(path: str) -> dict | None:
+    """Misura loudness integrata e picco reale secondo lo standard EBU R128.
+
+    Restituisce ``{'i': LUFS, 'tp': dBTP}`` oppure None: come per la
+    copertina, non poter misurare non deve mai compromettere un download.
+    """
+    try:
+        out = subprocess.run(
+            ['ffmpeg', '-hide_banner', '-v', 'info', '-i', path,
+             '-af', 'ebur128=framelog=quiet:peak=true', '-f', 'null', '-'],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=300,
+        ).stderr
+    except (subprocess.SubprocessError, OSError) as exc:
+        log.debug('Misura del volume non riuscita su %s: %s', path, exc)
+        return None
+
+    # Il riepilogo finale di ebur128 e' testo indentato, non JSON: si prendono
+    # l'ultima "I:" e l'ultima "Peak:", che sono quelle del riepilogo e non
+    # quelle dei blocchi intermedi.
+    letture = re.findall(r'^\s*I:\s*(-?[\d.]+)\s*LUFS', out, re.M)
+    picchi = re.findall(r'^\s*Peak:\s*(-?[\d.]+)\s*dBFS', out, re.M)
+    if not letture or not picchi:
+        return None
+    try:
+        return {'i': float(letture[-1]), 'tp': float(picchi[-1])}
+    except ValueError:
+        return None
+
+
+def _tag_volume(misura: dict) -> dict[str, bytes]:
+    """Traduce la misura nei tag ReplayGain, pronti da scrivere.
+
+    Il guadagno e' quanto il lettore deve alzare o abbassare per portare il
+    brano al livello di riferimento; il picco e' lineare fra 0 e 1, come vuole
+    lo standard, e serve al lettore per non tosare quando applica il guadagno.
+    """
+    guadagno = REPLAYGAIN_RIFERIMENTO - misura['i']
+    picco_lineare = 10 ** (misura['tp'] / 20)
+    return {
+        'replaygain_track_gain': f'{guadagno:+.2f} dB'.encode(),
+        'replaygain_track_peak': f'{picco_lineare:.6f}'.encode(),
+    }
 
 
 # ── Divisione di un album in tracce ──────────────────────────────────────────
@@ -1112,7 +1224,8 @@ def _display_download_summary(results: list[dict]) -> None:
 
 def _tag_m4a(filepath: str, title: str | None = None, artist: str | None = None,
              album: str | None = None, track_num: int | None = None,
-             thumbnail_url: str | None = None, lyrics: str | None = None) -> None:
+             thumbnail_url: str | None = None, lyrics: str | None = None,
+             volume: bool = True) -> None:
     """Scrive i metadati (titolo, artista, album, n. traccia, copertina, testo) nel file.
 
     I file .m4a usano il container MP4, quindi i tag seguono lo standard
@@ -1151,10 +1264,31 @@ def _tag_m4a(filepath: str, title: str | None = None, artist: str | None = None,
                     img_format = MP4Cover.FORMAT_PNG
                 else:
                     img_format = MP4Cover.FORMAT_JPEG
-                tags['covr'] = [MP4Cover(resp.content, imageformat=img_format)]
+                # Le miniature YouTube sono 16:9 e i lettori le mostrano in un
+                # quadrato: senza questo passaggio escono schiacciate o tagliate.
+                quadrata = _copertina_quadrata(resp.content)
+                if quadrata:
+                    dati, img_format = quadrata, MP4Cover.FORMAT_JPEG
+                else:
+                    dati = resp.content
+                tags['covr'] = [MP4Cover(dati, imageformat=img_format)]
                 log.debug('Copertina aggiunta: %s', title)
             except Exception as e:
                 log.debug('Impossibile scaricare copertina: %s', e)
+
+        # Volume: si misura il file appena scritto e si annota di quanto il
+        # lettore deve alzarlo o abbassarlo. L'audio non viene toccato, quindi
+        # non si perde niente e si disfa cancellando due tag. I nomi seguono
+        # lo standard ReplayGain; nel contenitore MP4 vivono come campi liberi
+        # sotto lo spazio iTunes, che e' dove VLC e foobar2000 li cercano.
+        if volume:
+            misura = _misura_volume(filepath)
+            if misura:
+                for nome, valore in _tag_volume(misura).items():
+                    tags[f'----:com.apple.iTunes:{nome}'] = [
+                        MP4FreeForm(valore)]
+                log.debug('Volume misurato: %.2f LUFS, picco %.2f dBTP',
+                          misura['i'], misura['tp'])
 
         audio.save()
         log.debug('Tag salvati: %s', filepath)

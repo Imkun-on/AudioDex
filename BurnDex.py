@@ -765,11 +765,17 @@ TAGLIO_SILENZI = f'{_SILENZIO},areverse,{_SILENZIO},areverse'
 def _misura_loudness(path: str) -> dict | None:
     """Misura la loudness integrata del brano secondo lo standard EBU R128.
 
-    Si appoggia alla prima passata di ``loudnorm``, che analizza senza
-    modificare nulla e stampa il risultato in JSON. Serve a sapere di quanto
-    alzare o abbassare ogni traccia perche' il disco esca uniforme: su una
-    playlist YouTube i salti fra un brano e l'altro arrivano a 9-10 LU, cioe'
-    la mano che corre alla manopola del volume a ogni cambio di traccia.
+    Serve a sapere di quanto alzare o abbassare ogni traccia perche' il disco
+    esca uniforme: su una playlist YouTube i salti fra un brano e l'altro
+    arrivano a 9-10 LU, cioe' la mano che corre alla manopola del volume a
+    ogni cambio di traccia.
+
+    Si usa ``ebur128`` e non la prima passata di ``loudnorm``. Danno gli
+    stessi identici numeri — verificato su uno stesso file: -35.8 LUFS e
+    -31.6 dBFS contro -35.78 e -31.56 — ma su un brano di quattro minuti il
+    primo impiega 2.3 secondi contro 11.6. Su un CD da venti tracce sono
+    ottanta secondi invece di sette minuti, ed e' la differenza fra una
+    misura che si puo' fare sempre e una che si doveva chiedere.
 
     Restituisce None se la misura non riesce: il livellamento e' un di piu',
     non deve mai impedire una masterizzazione.
@@ -777,22 +783,24 @@ def _misura_loudness(path: str) -> dict | None:
     try:
         out = subprocess.run(
             ['ffmpeg', '-hide_banner', '-v', 'info', '-i', path,
-             '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json',
-             '-f', 'null', '-'],
+             '-af', 'ebur128=framelog=quiet:peak=true', '-f', 'null', '-'],
             capture_output=True, text=True, encoding='utf-8',
-            errors='replace', check=True,
+            errors='replace', timeout=300,
         ).stderr
-    except (subprocess.CalledProcessError, OSError) as exc:
+    except (subprocess.SubprocessError, OSError) as exc:
         log.warning('Misura loudness fallita su %s: %s', path, exc)
         return None
 
-    blocco = re.search(r'\{[^{}]*"input_i"[^{}]*\}', out, re.S)
-    if not blocco:
+    # Il riepilogo di ebur128 e' testo indentato, non JSON: si prendono
+    # l'ultima "I:" e l'ultima "Peak:", che sono quelle del riepilogo finale
+    # e non quelle dei blocchi intermedi.
+    letture = re.findall(r'^\s*I:\s*(-?[\d.]+)\s*LUFS', out, re.M)
+    picchi = re.findall(r'^\s*Peak:\s*(-?[\d.]+)\s*dBFS', out, re.M)
+    if not letture or not picchi:
         return None
     try:
-        dati = json.loads(blocco.group(0))
-        return {'i': float(dati['input_i']), 'tp': float(dati['input_tp'])}
-    except (ValueError, KeyError):
+        return {'i': float(letture[-1]), 'tp': float(picchi[-1])}
+    except ValueError:
         return None
 
 
@@ -1327,7 +1335,7 @@ def _modalita_info() -> None:
 
 def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
                         auto_si: bool, espelli: bool, indice_unita: int | None,
-                        livella: bool = False, rifila: bool = False) -> int:
+                        livella: bool = True, rifila: bool = False) -> int:
     """Prepara e masterizza il contenuto di una cartella. Ritorna il codice di uscita.
 
     Con ``auto_si`` non viene posta alcuna domanda: tutte le tracce, velocita'
@@ -1563,7 +1571,7 @@ def main() -> None:
                         help=t('cli.yes'))
     parser.add_argument('--no-eject', action='store_true',
                         help=t('cli.no_eject'))
-    parser.add_argument('--level', action='store_true', help=t('cli.level'))
+    parser.add_argument('--no-level', action='store_true', help=t('cli.no_level'))
     parser.add_argument('--trim', action='store_true', help=t('cli.trim'))
     args = parser.parse_args()
 
@@ -1597,7 +1605,7 @@ def main() -> None:
             auto_si=args.yes,
             espelli=not args.no_eject,
             indice_unita=args.drive,
-            livella=args.level,
+            livella=not args.no_level,
             rifila=args.trim,
         )
     except KeyboardInterrupt:

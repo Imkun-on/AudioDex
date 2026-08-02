@@ -126,21 +126,23 @@ python ClipDex.py                                     # taglia, unisci, GIF, pro
 - 7.4 [Parallelismo e avanzamento](#4-parallelismo-e-avanzamento)
 - 7.5 [Anti-duplicati e retry](#5-anti-duplicati-e-retry)
 
-**Capitolo 8 — [📀 Album interi divisi in tracce](#-album-interi-divisi-in-tracce)**
+**Capitolo 8 — [🖼️ Copertina e volume, in automatico](#copertina-e-volume-in-automatico)**
 
-**Capitolo 9 — [🔢 L'ordine delle tracce](#-lordine-delle-tracce)**
+**Capitolo 9 — [📀 Album interi divisi in tracce](#-album-interi-divisi-in-tracce)**
+
+**Capitolo 10 — [🔢 L'ordine delle tracce](#-lordine-delle-tracce)**
 - 8.1 [Il problema](#il-problema)
 - 8.2 [Come viene risolto](#come-viene-risolto)
 - 8.3 [Selezioni parziali e playlist con buchi](#selezioni-parziali-e-playlist-con-buchi)
 - 8.4 [Numerazione dei file già scaricati](#numerazione-dei-file-già-scaricati)
 
-**Capitolo 10 — [🧾 Tagging dei metadati](#-tagging-dei-metadati)**
+**Capitolo 11 — [🧾 Tagging dei metadati](#-tagging-dei-metadati)**
 
-**Capitolo 11 — [🎵 Testi sincronizzati (karaoke)](#-testi-sincronizzati-karaoke)**
+**Capitolo 12 — [🎵 Testi sincronizzati (karaoke)](#-testi-sincronizzati-karaoke)**
 
-**Capitolo 12 — [💾 Formati di output](#-formati-di-output)**
+**Capitolo 13 — [💾 Formati di output](#-formati-di-output)**
 
-**Capitolo 13 — [💿 BurnDex — masterizzare un CD audio](#-burndex--masterizzare-un-cd-audio)**
+**Capitolo 14 — [💿 BurnDex — masterizzare un CD audio](#-burndex--masterizzare-un-cd-audio)**
 - 12.1 [A cosa serve e perché un CD audio](#a-cosa-serve-e-perché-un-cd-audio)
 - 12.2 [Requisiti aggiuntivi](#requisiti-aggiuntivi)
 - 12.3 [Il flusso in quattro passi](#il-flusso-in-quattro-passi)
@@ -153,7 +155,7 @@ python ClipDex.py                                     # taglia, unisci, GIF, pro
 - 12.10 [I limiti del CD audio](#i-limiti-del-cd-audio)
 - 12.11 [Diagnosi degli errori](#diagnosi-degli-errori)
 
-**Capitolo 14 — [🎞 PixDex — rimasterizzare un video](#-pixdex--rimasterizzare-un-video)**
+**Capitolo 15 — [🎞 PixDex — rimasterizzare un video](#-pixdex--rimasterizzare-un-video)**
 - 13.1 [A cosa serve, e soprattutto cosa non fa](#a-cosa-serve-e-soprattutto-cosa-non-fa)
 - 13.2 [Perché funziona lo stesso](#perché-funziona-lo-stesso)
 - 13.3 [L'ordine dei filtri non è negoziabile](#lordine-dei-filtri-non-è-negoziabile)
@@ -166,7 +168,7 @@ python ClipDex.py                                     # taglia, unisci, GIF, pro
 - 13.10 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-pixdex)
 - 13.11 [Nella GUI](#nella-gui)
 
-**Capitolo 15 — [✂ ClipDex — tagliare, unire, convertire](#-clipdex--tagliare-unire-convertire)**
+**Capitolo 16 — [✂ ClipDex — tagliare, unire, convertire](#-clipdex--tagliare-unire-convertire)**
 - 15.1 [Copia o ricodifica](#copia-o-ricodifica-è-la-scelta-che-governa-tutto)
 - 15.2 [`taglia`](#taglia--estrarre-uno-spezzone)
 - 15.3 [`unisci`](#unisci--mettere-in-fila-più-file)
@@ -174,19 +176,19 @@ python ClipDex.py                                     # taglia, unisci, GIF, pro
 - 15.5 [`provino`](#provino--capire-cosa-cè-dentro)
 - 15.6 [`compat`](#compat--farlo-leggere-agli-apparecchi-datati)
 
-**Capitolo 16 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
+**Capitolo 17 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
 
-**Capitolo 17 — [📊 Database globale](#-database-globale)**
+**Capitolo 18 — [📊 Database globale](#-database-globale)**
 
-**Capitolo 18 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
+**Capitolo 19 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
 
-**Capitolo 19 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
+**Capitolo 20 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
 
-**Capitolo 20 — [📝 Changelog](#-changelog)**
+**Capitolo 21 — [📝 Changelog](#-changelog)**
 
-**Capitolo 21 — [📜 Note legali](#-note-legali)**
+**Capitolo 22 — [📜 Note legali](#-note-legali)**
 
-**Capitolo 22 — [📄 Licenza](#-licenza)**
+**Capitolo 23 — [📄 Licenza](#-licenza)**
 
 ---
 
@@ -625,6 +627,20 @@ I download girano su un `ThreadPoolExecutor` (default 3 thread). Un *progress ho
 
 ---
 
+### Copertina e volume, in automatico
+
+Due cose succedono da sole a ogni download, senza opzioni da ricordare.
+
+**La copertina esce quadrata.** Le miniature di YouTube sono 16:9, ma i lettori mostrano la copertina in un quadrato: o la schiacciano o la tagliano dove capita — spesso a metà faccia, o togliendo il titolo che sta ai bordi. AudioDex mette l'immagine **intera** al centro di un quadrato riempito da una sua copia sfocata e ingrandita: non si perde niente, e non restano le bande nere che in una griglia di copertine saltano all'occhio. Costa 0,4 secondi.
+
+**Il volume viene misurato e annotato nei tag.** Una playlist YouTube ha salti di 9-10 LU fra un brano e l'altro. AudioDex misura ogni file secondo lo standard EBU R128 e scrive nei tag di quanto il lettore deve alzare o abbassare: `replaygain_track_gain` e `replaygain_track_peak`, nella forma che VLC e foobar2000 cercano.
+
+**L'audio non viene toccato.** Sono due tag: nessuna ricodifica, nessuna perdita, e si disfa cancellandoli. La misura costa 2,3 secondi su un brano di quattro minuti, contro i 10-30 del download stesso: si perde nel rumore.
+
+> 🎧 **Non tutti i lettori li leggono.** Nei file `.m4a` questi tag non sono standardizzati come nei FLAC o negli MP3. VLC, mpv e foobar2000 li usano; l'app Musica di Apple ha un suo campo diverso (`iTunNORM`); alcune autoradio li ignorano. Scriverli non costa e non rompe niente, ma non aspettarti che funzioni ovunque — se ascolti soprattutto su CD, è `BurnDex` a livellare davvero, applicando il guadagno all'audio inciso.
+
+---
+
 ## 📀 Album interi divisi in tracce
 
 Moltissimi caricamenti sono **"Full Album"**: un unico video da tre quarti d'ora con i capitoli scritti da chi ha caricato. AudioDex li riconosce e, se glielo chiedi, li taglia nelle singole tracce — **senza ricodificare**, quindi in pochi secondi e senza perdere un bit.
@@ -901,7 +917,7 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | Sistema, masterizzatori e disco inserito, poi esce |
 | `--yes`, `-y` | Nessuna domanda: tutte le tracce, velocità predefinita, nessuna conferma |
 | `--no-eject` | Non espellere il disco a fine masterizzazione |
-| `--level` | Livella il volume fra le tracce (misura ogni brano: più lento, ma niente salti in auto) |
+| `--no-level` | Non livellare il volume fra le tracce: lascia ogni brano al volume con cui è stato caricato |
 | `--trim` | Rifila i silenzi a inizio e fine traccia |
 
 Esempi — sono **alternative**, da eseguire una alla volta. Prima i due innocui:
@@ -937,7 +953,7 @@ Misurato su tre brani a −7, −14 e −21 dB:
 | Senza `--level` | **14,0 dB** |
 | Con `--level` | **0,59 dB** |
 
-Costa una passata di analisi su ogni traccia — circa 20 secondi a brano — ed è il motivo per cui è opzionale e non automatica.
+La misura si fa con `ebur128` e non con la prima passata di `loudnorm`: danno gli stessi identici numeri — verificato su uno stesso file, −35,8 LUFS e −31,6 dBFS contro −35,78 e −31,56 — ma il primo impiega **2,3 secondi contro 11,6**. Su un CD da venti tracce sono ottanta secondi invece di sette minuti, ed è il motivo per cui il livellamento è diventato il **comportamento normale**: si spegne con `--no-level`.
 
 **`--trim` — rifila i silenzi.** I caricamenti YouTube hanno spesso uno o due secondi di nulla in testa e in coda, che si **sommano** ai 2 secondi di stacco che IMAPI2 inserisce comunque fra una traccia e l'altra: il risultato sono pause di quattro o cinque secondi in mezzo a un album. Sulla raccolta di prova ha tolto 3,4 secondi per traccia.
 
@@ -1417,6 +1433,8 @@ Dettagli tecnici:
 
 **Nuovo**
 
+- 🖼️ **Copertine quadrate e volume nei tag, in automatico.** La miniatura 16:9 di YouTube finiva nel tag com'era, e i lettori che mostrano la copertina in un quadrato la schiacciavano o la tagliavano a metà faccia: ora l'immagine intera sta al centro di un quadrato riempito da una sua copia sfocata, e non si perde niente (0,4 s). Il volume viene misurato secondo EBU R128 e annotato nei tag ReplayGain — l'audio non viene toccato, sono due tag che si cancellano. La misura usa `ebur128` invece di `loudnorm`: stessi numeri, **2,3 s invece di 11,6**. Vedi [Copertina e volume](#copertina-e-volume-in-automatico)
+- ⚖️ **Il livellamento di BurnDex è diventato il default**, ora che costa quattro secondi a traccia invece di venti. Si spegne con `--no-level`
 - ✂ **ClipDex — il banco di montaggio.** Sei operazioni da riga di comando: `taglia` uno spezzone (in copia è istantaneo, e se lo scostamento dal fotogramma chiave si nota te lo dice con un numero), `unisci` più file scegliendo da solo fra copia e ricodifica e mettendo un capitolo per ciascuno, `gif` e `webp` con la palette calcolata sul filmato (+1,72 dB misurati rispetto a quella generica; il WebP pesa nove volte meno), `provino` a griglia e `compat` per autoradio e TV datate. Vedi [ClipDex](#-clipdex--tagliare-unire-convertire)
 - 📀 **Album interi divisi nelle loro tracce.** Moltissimi caricamenti sono "Full Album": un unico video da tre quarti d'ora con i capitoli. AudioDex li riconosce e li taglia **senza ricodificare**, in una cartella numerata e taggata già pronta per BurnDex. Il punto non è tagliare ma capire *se* tagliare: cinque criteri distinguono un disco da un indice, e se anche uno solo non regge non viene chiesto niente. Da riga di comando `--split` e `--no-split`. Vedi [Album interi divisi in tracce](#-album-interi-divisi-in-tracce)
 - 🔊 **Dither a 16 bit in BurnDex, sempre attivo.** La riduzione a 16 bit avveniva per troncatura, che genera distorsione *correlata al segnale* — quella che sui passaggi deboli si sente come suono sporco. Misurato su un tono a −70 dBFS, l'energia sulle armoniche scende da +46,9 dB a +31,1 dB rispetto alla fondamentale. Vedi [Cosa succede all'audio prima di incidere](#cosa-succede-allaudio-prima-di-incidere)

@@ -653,11 +653,11 @@ TESTI: dict[str, dict[str, str]] = {
         'it': 'Nessuna domanda: tutte le tracce, velocita\' predefinita, nessuna conferma',
         'en': 'No questions: all tracks, default speed, no confirmation',
     },
-    'cli.level': {
-        'it': 'Livella il volume fra le tracce (misura ogni brano: piu\' lento, '
-              'ma il disco non fa saltare in aria in auto a ogni cambio)',
-        'en': 'Level the volume across tracks (measures every song: slower, but '
-              'the disc stops making you jump at each track change in the car)',
+    'cli.no_level': {
+        'it': 'Non livellare il volume fra le tracce: lascia ogni brano al volume '
+              'con cui e\' stato caricato, salti in auto compresi',
+        'en': 'Do not level the volume across tracks: leave every song at the '
+              'volume it was uploaded with, jumps in the car included',
     },
     'cli.trim': {
         'it': 'Rifila i silenzi a inizio e fine traccia, che si sommano ai 2 '
