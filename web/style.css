@@ -446,3 +446,114 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
   .due-colonne { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
   .barra { width: 200px; flex-basis: 200px; }
 }
+
+/* ── Interazione ─────────────────────────────────────────────────────────── */
+/* Quanto segue non e' decorazione: e' cio' che permette di scegliere quali
+ * brani scaricare, di vedere a che punto e' ciascuno, e di accorgersi di un
+ * errore senza dover leggere il diario riga per riga. */
+
+.scorciatoie {
+  font-size: 10.5px; color: var(--t2); letter-spacing: .2px;
+  padding-left: 2px; margin-top: -6px;
+}
+
+/* La scheda diventa selezionabile: la casella compare a sinistra e tutta la
+ * riga fa da bersaglio, perche' centrare una casella da 16 px col mouse e'
+ * un fastidio che non serve a nessuno. */
+.scheda { cursor: pointer; position: relative; overflow: hidden; }
+.scheda.spenta { opacity: .42; }
+.scheda.spenta:hover { opacity: .7; }
+
+.casella {
+  flex: 0 0 18px; width: 18px; height: 18px; border-radius: 5px;
+  border: 1.5px solid var(--taglio); background: var(--incavo);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .18s, border-color .18s;
+}
+.casella::after {
+  content: ''; width: 9px; height: 5px; margin-top: -2px;
+  border-left: 2px solid #10041a; border-bottom: 2px solid #10041a;
+  transform: rotate(-45deg) scale(0); transition: transform .2s var(--molla);
+}
+.scheda:not(.spenta) .casella {
+  background: var(--viola); border-color: var(--viola);
+  box-shadow: 0 0 10px #a855f766;
+}
+.scheda:not(.spenta) .casella::after { transform: rotate(-45deg) scale(1); }
+
+/* Stato della singola traccia: una pastiglia che cambia colore e testo, e
+ * una riga di luce che corre lungo il fondo della scheda mentre lavora. */
+.pastiglia {
+  flex: 0 0 auto; font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 3px 8px; border-radius: 999px;
+  background: #ffffff0f; color: var(--t2); border: 1px solid var(--bordo);
+  transition: background .2s, color .2s, border-color .2s;
+  white-space: nowrap;
+}
+.pastiglia.lavora { background: #22e4ff1f; color: var(--ciano); border-color: #22e4ff4d; }
+.pastiglia.ok     { background: #3ddc971f; color: var(--verde); border-color: #3ddc974d; }
+.pastiglia.skip   { background: #ffd1661f; color: var(--giallo); border-color: #ffd1664d; }
+.pastiglia.fail   { background: #ff5d731f; color: var(--rosso); border-color: #ff5d734d; }
+
+.scheda .filo {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
+  background: linear-gradient(90deg, var(--magenta), var(--ciano));
+  transition: width .4s var(--molla), opacity .3s;
+}
+.scheda.in-corso .filo { width: 100%; opacity: 1; animation: filo-scorre 1.5s ease-in-out infinite; }
+.scheda.finita .filo { width: 100%; opacity: 0; }
+@keyframes filo-scorre {
+  0%, 100% { transform: translateX(-100%); }
+  50%      { transform: translateX(0); }
+}
+
+.scheda.in-corso { background: #22e4ff0f; border-color: #22e4ff33; }
+.scheda.fallita  { background: #ff5d730f; border-color: #ff5d7333; }
+
+/* ── Avvisi a comparsa ───────────────────────────────────────────────────── */
+/* Un errore dentro il diario si perde fra cinquanta righe di yt-dlp. Qui
+ * arriva davanti, resta il tempo di leggerlo e se ne va da solo. */
+
+.avvisi {
+  position: fixed; right: var(--s5); bottom: var(--s5); z-index: 50;
+  display: flex; flex-direction: column; gap: var(--s2);
+  pointer-events: none;
+}
+.avviso {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 260px; max-width: 420px;
+  padding: 12px 15px; border-radius: var(--r-m);
+  background: linear-gradient(165deg, #221046f2, #170c33f2);
+  border: 1px solid var(--taglio);
+  box-shadow: var(--ombra-alta), inset 0 1px 0 var(--taglio);
+  backdrop-filter: blur(20px);
+  font-size: 12.5px; color: var(--t0);
+  animation: avviso-entra .34s var(--molla) both;
+  pointer-events: auto;
+}
+.avviso.uscita { animation: avviso-esce .28s ease-in both; }
+.avviso::before {
+  content: ''; width: 3px; align-self: stretch; border-radius: 2px;
+  background: var(--viola); flex: 0 0 3px;
+}
+.avviso.ok::before   { background: var(--verde); box-shadow: 0 0 10px var(--verde); }
+.avviso.fail::before { background: var(--rosso); box-shadow: 0 0 10px var(--rosso); }
+@keyframes avviso-entra { from { opacity: 0; transform: translateX(28px) scale(.96); } }
+@keyframes avviso-esce  { to   { opacity: 0; transform: translateX(28px) scale(.96); } }
+
+/* ── Trascinamento ───────────────────────────────────────────────────────── */
+
+.velo-trascina {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  align-items: center; justify-content: center;
+  background: #08040fd9; backdrop-filter: blur(6px);
+}
+.velo-trascina.visibile { display: flex; animation: avviso-entra .2s ease both; }
+.riquadro-trascina {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  padding: var(--s6) 56px; border-radius: var(--r-l);
+  border: 2px dashed #a855f7a6; background: #a855f714;
+  color: var(--t0); font-size: 15px; font-weight: 700;
+}
+.riquadro-trascina .icona { width: 40px; height: 40px; color: var(--viola); }

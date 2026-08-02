@@ -181,6 +181,8 @@
         </div>
       </section>
 
+      <div class="scorciatoie" data-t="scorciatoie"></div>
+
       <div class="avanzamento" id="avanzamento">
         <div class="binario"><div class="cursa" id="barra"></div></div>
         <div class="avanzamento-testo" id="avanzamento-testo"></div>
@@ -191,6 +193,8 @@
           <div class="titolo-pannello">
             <span data-t="audio.results"></span>
             <div class="spazio"></div>
+            <button class="bottone nudo" id="tutti" data-t="sel.all"></button>
+            <button class="bottone nudo" id="nessuno" data-t="sel.none"></button>
             <span class="targhetta" id="conteggio"></span>
           </div>
           <div id="risultati" class="elenco"></div>
@@ -209,6 +213,15 @@
       </div>
 
     </main>
+  </div>
+
+  <div class="avvisi" id="avvisi"></div>
+
+  <div class="velo-trascina" id="velo-trascina">
+    <div class="riquadro-trascina">
+      <svg class="icona" viewBox="0 0 24 24"><use href="#i-scarica"/></svg>
+      <span data-t="trascina"></span>
+    </div>
   </div>
 
   <script src="app.js"></script>

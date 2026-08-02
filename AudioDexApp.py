@@ -117,6 +117,21 @@ TESTI_APP: dict[str, dict[str, str]] = {
     'res.playlist':     {'it': '{n} brani  ·  {titolo}', 'en': '{n} tracks  ·  {titolo}'},
     'res.single':       {'it': 'Un video  ·  {titolo}', 'en': 'One video  ·  {titolo}'},
     'res.search':       {'it': '{n} risultati', 'en': '{n} results'},
+    'sel.all':          {'it': 'Tutti', 'en': 'All'},
+    'sel.none':         {'it': 'Nessuno', 'en': 'None'},
+    'sel.count':        {'it': '{n} scelti', 'en': '{n} selected'},
+    'fase.attesa':      {'it': 'in coda', 'en': 'queued'},
+    'fase.download':    {'it': 'scarico', 'en': 'downloading'},
+    'fase.convert':     {'it': 'converto', 'en': 'converting'},
+    'fase.lyrics':      {'it': 'cerco il testo', 'en': 'fetching lyrics'},
+    'fase.tag':         {'it': 'scrivo i tag', 'en': 'writing tags'},
+    'fase.ok':          {'it': 'fatto', 'en': 'done'},
+    'fase.skip':        {'it': 'c\'era già', 'en': 'already there'},
+    'fase.fail':        {'it': 'fallito', 'en': 'failed'},
+    'lavoro.avanzo':    {'it': '{fatte} di {totale}', 'en': '{fatte} of {totale}'},
+    'scorciatoie':      {'it': 'Invio per cercare  ·  Ctrl+Invio per scaricare',
+                         'en': 'Enter to search  ·  Ctrl+Enter to download'},
+    'trascina':         {'it': 'Lascia qui il link', 'en': 'Drop the link here'},
     'done.summary':     {'it': 'Scaricati {ok} su {tot}  ·  {falliti} falliti',
                          'en': 'Downloaded {ok} of {tot}  ·  {falliti} failed'},
 }
@@ -287,20 +302,66 @@ class Api:
         return {'ok': True, 'avviato': True}
 
     def _scarica_davvero(self, opzioni: dict) -> None:
+        """Scarica le tracce scelte, raccontando alla pagina cosa succede a
+        ciascuna mentre succede.
+
+        Non si usa ``download_batch``, che disegna da se' le proprie barre con
+        Rich: qui il ciclo lo si tiene in mano per poter dire alla pagina, per
+        ogni singola traccia, se sta scaricando, convertendo, cercando il
+        testo o scrivendo i tag. E' la differenza fra una barra che gira e
+        un'interfaccia che dice cosa sta facendo.
+
+        ``download_single`` protegge ogni uso di Rich con un controllo, quindi
+        passandogli ``progress=None`` lavora in silenzio.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         ad = _motore()
         cartella = (opzioni.get('cartella')
                     or os.path.join(_HERE, 'download_audio'))
         os.makedirs(cartella, exist_ok=True)
 
-        esiti = ad.download_batch(
-            self._risultati,
-            cartella,
-            opzioni.get('formato', 'm4a'),
-            max_workers=int(opzioni.get('paralleli', 3)),
-            fetch_lyrics=bool(opzioni.get('testi', True)),
-            media=opzioni.get('media', 'audio'),
-            dividi=bool(opzioni.get('dividi', False)),
-        )
+        scelti = opzioni.get('scelti')
+        indici = ([i for i in scelti if 0 <= i < len(self._risultati)]
+                  if scelti else list(range(len(self._risultati))))
+        if not indici:
+            _verso_pagina('mostraRiepilogo',
+                          {'testo': i18n.t('err.nothing'), 'ok': False})
+            return
+
+        totale = len(indici)
+        fatte = [0]
+        _verso_pagina('iniziaLavoro', totale)
+
+        def una(indice: int) -> dict:
+            entry = self._risultati[indice]
+            _verso_pagina('tracciaFase', indice, 'download')
+            esito = ad.download_single(
+                entry, cartella, opzioni.get('formato', 'm4a'),
+                track_num=indice + 1,
+                total_tracks=totale,
+                fetch_lyrics=bool(opzioni.get('testi', True)),
+                media=opzioni.get('media', 'audio'),
+                dividi=bool(opzioni.get('dividi', False)),
+                on_phase=lambda fase, k=indice: _verso_pagina('tracciaFase', k, fase),
+            )
+            fatte[0] += 1
+            _verso_pagina('tracciaFinita', indice, esito.get('status', 'fail'),
+                          esito.get('error', ''))
+            _verso_pagina('avanzaLavoro', fatte[0], totale)
+            return esito
+
+        esiti: list[dict] = []
+        with ThreadPoolExecutor(max_workers=int(opzioni.get('paralleli', 3))) as pool:
+            lavori = {pool.submit(una, i): i for i in indici}
+            for lavoro in as_completed(lavori):
+                try:
+                    esiti.append(lavoro.result())
+                except Exception as exc:      # noqa: BLE001
+                    indice = lavori[lavoro]
+                    _verso_pagina('tracciaFinita', indice, 'fail', str(exc))
+                    esiti.append({'status': 'fail'})
+
         ok = sum(1 for e in esiti if e.get('status') == 'ok')
         falliti = sum(1 for e in esiti if e.get('status') == 'fail')
         _verso_pagina('mostraRiepilogo', {
