@@ -209,6 +209,31 @@ BPP_MOLTO_COMPRESSO = 0.025
 # farebbe un valore piu' basso.
 CRF_DEFAULT = 18
 
+# ── Cosa e' davvero un filmato ───────────────────────────────────────────────
+#
+# FFmpeg e' molto piu' accomodante di quanto ci si aspetti: ha un demuxer che
+# legge un file di testo come un'animazione ANSI da terminale e lo dichiara un
+# video 640x400 a 25 fps. Un requirements.txt passa quindi ogni controllo
+# basato sul solo "ffprobe ha trovato un flusso video", e senza questo filtro
+# ci si ritroverebbe a rimasterizzare per mezz'ora un elenco di dipendenze.
+#
+# Anche un'immagine singola e' formalmente un video: un fotogramma, durata
+# zero. Non c'e' niente da rimasterizzare li' dentro.
+CODEC_FINTI = frozenset({'ansi', 'png', 'bmp', 'tiff', 'ppm', 'pgm', 'targa'})
+DURATA_MINIMA = 1.0
+
+
+def e_un_filmato(info: dict) -> bool:
+    """True se cio' che ffprobe ha letto e' davvero un filmato.
+
+    Due criteri, e bastano entrambi presi insieme: il codec non e' fra quelli
+    che descrivono immagini ferme o testo, e dura almeno un secondo. Nessun
+    video vero dura meno, e nessun file di testo dura di piu'.
+    """
+    if info.get('codec') in CODEC_FINTI:
+        return False
+    return float(info.get('duration') or 0) >= DURATA_MINIMA
+
 
 def _check_ffmpeg() -> bool:
     """Verifica che ffmpeg e ffprobe siano raggiungibili nel PATH."""
@@ -1062,7 +1087,7 @@ def main() -> None:
         sys.exit(1)
 
     info = probe(src)
-    if not info:
+    if not info or not e_un_filmato(info):
         console.print(t('probe.error', path=escape(os.path.basename(src))))
         sys.exit(1)
 

@@ -650,7 +650,7 @@ class Api:
 
         px = _pixdex()
         info = px.probe(percorso)
-        if not info:
+        if not info or not px.e_un_filmato(info):
             return {'ok': False, 'errore': i18n.t('pix.unreadable')}
 
         problemi, consigliato = px.diagnosi(info)
@@ -664,7 +664,7 @@ class Api:
                     'nota': px.t(nota),
                     'livello': ('ok' if fattore <= px.FATTORE_BUONO
                                 else 'molle' if fattore <= px.FATTORE_MOLLE else 'finto'),
-                    'consigliata': altezza == automatica}
+                    'consigliata': chiave == 'quality.auto'}
 
         return {
             'ok': True,
@@ -697,7 +697,7 @@ class Api:
         px = _pixdex()
         percorso = opzioni['file'].strip().strip('"')
         info = px.probe(percorso)
-        if not info:
+        if not info or not px.e_un_filmato(info):
             _verso_pagina('aggiungiRiga', i18n.t('pix.unreadable'))
             return
 
@@ -742,6 +742,17 @@ class Api:
     def clip_esegui(self, opzioni: dict) -> dict:
         if self._occupato:
             return {'ok': False, 'errore': i18n.t('err.busy')}
+        # Il controllo si fa qui e non nel thread: rispondere 'avviato' per
+        # poi dire nel diario che mancava il file lascia il programma
+        # occupato per un istante senza motivo, e la risposta era una bugia.
+        sorgenti = [f.strip().strip('"') for f in (opzioni.get('file') or []) if f.strip()]
+        if not sorgenti:
+            return {'ok': False, 'errore': i18n.t('err.no_file')}
+        if opzioni.get('azione') == 'unisci' and len(sorgenti) < 2:
+            return {'ok': False, 'errore': i18n.t('clip.need_two')}
+        mancanti = [f for f in sorgenti if not os.path.isfile(f)]
+        if mancanti:
+            return {'ok': False, 'errore': i18n.t('err.no_file')}
         self._in_thread(self._clip_davvero, opzioni)
         return {'ok': True, 'avviato': True}
 
