@@ -71,6 +71,7 @@ from rich.style import Style
 from rich.table import Column, Table
 from rich.text import Text
 
+from Shared.percorsi import dati as _dati
 from Shared.logger_setup import setup_logger, console, SYM_OK
 from Shared import i18n
 from Shared.strings_pixdex import TESTI
@@ -1053,7 +1054,7 @@ def main() -> None:
     parser.add_argument('--output', '-o', type=str, default=None,
                         help=t('cli.output'))
     parser.add_argument('--base', '-b', type=str,
-                        default=os.path.join(_HERE, 'download_audio'),
+                        default=_dati('download_audio'),
                         help=t('cli.base'))
     parser.add_argument('--preset', '-p', type=str, default=None,
                         choices=sorted(PRESETS), help=t('cli.preset'))

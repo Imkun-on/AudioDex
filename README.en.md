@@ -168,19 +168,21 @@ python ClipDex.py                                     # cut, join, GIFs, contact
 - 15.5 [`provino`](#provino--seeing-what-is-inside)
 - 15.6 [`compat`](#compat--making-old-devices-read-it)
 
-**Chapter 17 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 17 — [📦 A single file: AudioDex.exe](#-a-single-file-audiodexexe)**
 
-**Chapter 18 — [📊 Global database](#-global-database)**
+**Chapter 18 — [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 19 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 19 — [📊 Global database](#-global-database)**
 
-**Chapter 20 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 20 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 21 — [📝 Changelog](#-changelog)**
+**Chapter 21 — [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 22 — [📜 Legal notes](#-legal-notes)**
+**Chapter 22 — [📝 Changelog](#-changelog)**
 
-**Chapter 23 — [📄 Licence](#-licence)**
+**Chapter 23 — [📜 Legal notes](#-legal-notes)**
+
+**Chapter 24 — [📄 Licence](#-licence)**
 
 ---
 
@@ -1315,6 +1317,51 @@ Verified on the produced file: `Constrained Baseline`, `yuv420p`, `level 30`, in
 
 ---
 
+## 📦 A single file: `AudioDex.exe`
+
+Whoever receives the program double-clicks and that is all: **no Python to install, no `.py` file in sight, no need to know what is inside.**
+
+```bash
+pip install pyinstaller
+pyinstaller AudioDex.spec --noconfirm
+```
+
+The result is `dist/AudioDex.exe`, **64 MB**.
+
+### What goes in and what does not
+
+Everything of the program goes in: the four engine modules, the web page, the Python interpreter.
+
+**FFmpeg does not**, and that is a choice. On the development machine the two binaries weigh 400 MB, and in single-file mode the contents are re-extracted into a temporary folder **on every launch**: half a gigabyte to unpack each time would make the wait unbearable, for something you install once with:
+
+```bash
+winget install Gyan.FFmpeg
+```
+
+The program notices by itself if it is missing and says exactly what to type.
+
+### Where your files end up
+
+Inside an executable the program's own folder is temporary and disappears on exit. Files that belong to you therefore go **next to the `.exe`**, where you find them by opening the folder:
+
+```
+AudioDex.exe
+download_audio/     the downloaded songs
+assets/             the background, if you fetch it
+logs/               the logs
+settings.json       the chosen language
+```
+
+The web page instead travels **inside** the executable: it never changes, and has no reason to sit outside.
+
+### Two things to know
+
+> 🛡 **Antivirus software may get suspicious** the first time. It is a known false alarm with PyInstaller executables: the loader that unpacks and starts the program resembles, as a technique, the one used by certain unwanted software. There is no way around it short of code-signing the executable, which costs a certificate.
+
+> ⚙️ **`setuptools` cannot be excluded** from the bundle, however useless it looks in a finished program: something in the chain loads `pkg_resources`, which is part of it. Removing it killed the executable at startup, before the window even opened.
+
+---
+
 ## 🧩 Project architecture
 
 ```
@@ -1434,6 +1481,7 @@ Technical details:
 
 - 🖼️ **Square cover art and volume tags, automatically.** The 16:9 YouTube thumbnail went into the tag as it was, and players showing cover art in a square either squashed it or cropped it through a face: now the whole image sits at the centre of a square filled with a blurred copy of itself, and nothing is lost (0.4 s). Volume is measured to EBU R128 and noted in ReplayGain tags — the audio is not touched, they are two tags you can delete. The measurement uses `ebur128` instead of `loudnorm`: same numbers, **2.3 s instead of 11.6**. See [Cover art and volume](#cover-art-and-volume-automatically)
 - ⚖️ **BurnDex levelling became the default**, now that it costs four seconds per track instead of twenty. Turn it off with `--no-level`
+- 📦 **A single file: `AudioDex.exe`.** Double-click and it runs: no Python to install, no `.py` file in sight. 64 MB, built with `pyinstaller AudioDex.spec`. FFmpeg deliberately stays out - in single-file mode the contents are re-extracted on every launch, and half a gigabyte to unpack each time would make the wait unbearable for something you install once. Songs, logs and the chosen language end up next to the .exe, where you find them. See [A single file](#-a-single-file-audiodexexe)
 - ✂ **ClipDex — the editing bench.** Six command-line operations: `taglia` a segment (instant in copy mode, and if the keyframe drift shows it tells you with a number), `unisci` several files picking copy or re-encode by itself and adding one chapter each, `gif` and `webp` with the palette computed on the footage (+1.72 dB measured against the generic one; WebP weighs nine times less), `provino` grids and `compat` for old car stereos and TVs. See [ClipDex](#-clipdex--cutting-joining-converting)
 - 📀 **Whole albums split into their tracks.** A great many uploads are "Full Album": a single three-quarter-hour video with chapters. AudioDex recognises them and cuts them **without re-encoding**, into a numbered, tagged folder already fit for BurnDex. The point is not cutting but knowing *whether* to cut: five criteria tell a record from an index, and if even one fails nothing is asked. From the command line, `--split` and `--no-split`. See [Whole albums split into tracks](#-whole-albums-split-into-tracks)
 - 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)

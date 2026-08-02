@@ -163,19 +163,21 @@ python ClipDex.py                                     # taglia, unisci, GIF, pro
 - 15.5 [`provino`](#provino--capire-cosa-cè-dentro)
 - 15.6 [`compat`](#compat--farlo-leggere-agli-apparecchi-datati)
 
-**Capitolo 17 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
+**Capitolo 17 — [📦 Un solo file: AudioDex.exe](#-un-solo-file-audiodexexe)**
 
-**Capitolo 18 — [📊 Database globale](#-database-globale)**
+**Capitolo 18 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
 
-**Capitolo 19 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
+**Capitolo 19 — [📊 Database globale](#-database-globale)**
 
-**Capitolo 20 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
+**Capitolo 20 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
 
-**Capitolo 21 — [📝 Changelog](#-changelog)**
+**Capitolo 21 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
 
-**Capitolo 22 — [📜 Note legali](#-note-legali)**
+**Capitolo 22 — [📝 Changelog](#-changelog)**
 
-**Capitolo 23 — [📄 Licenza](#-licenza)**
+**Capitolo 23 — [📜 Note legali](#-note-legali)**
+
+**Capitolo 24 — [📄 Licenza](#-licenza)**
 
 ---
 
@@ -1310,6 +1312,51 @@ Verificato sul file prodotto: `Constrained Baseline`, `yuv420p`, `level 30`, ind
 
 ---
 
+## 📦 Un solo file: `AudioDex.exe`
+
+Chi riceve il programma fa doppio clic e basta: **non installa Python, non vede un file `.py`, non sa nemmeno che c'è dentro.**
+
+```bash
+pip install pyinstaller
+pyinstaller AudioDex.spec --noconfirm
+```
+
+Il risultato è in `dist/AudioDex.exe`, **64 MB**.
+
+### Cosa entra e cosa no
+
+Entra tutto il programma: i quattro moduli del motore, la pagina web, l'interprete Python.
+
+**Non entra FFmpeg**, ed è una scelta. Sulla macchina di sviluppo i due binari pesano 400 MB, e in modalità a file unico il contenuto viene riestratto in una cartella temporanea **a ogni avvio**: mezzo gigabyte da scompattare ogni volta renderebbe l'attesa insopportabile, per una cosa che si installa una volta sola con:
+
+```bash
+winget install Gyan.FFmpeg
+```
+
+Il programma se ne accorge da solo se manca e dice esattamente cosa digitare.
+
+### Dove finiscono i tuoi file
+
+Dentro un eseguibile la cartella del programma è temporanea e sparisce alla chiusura. I file che ti appartengono vanno quindi **accanto all'`.exe`**, dove li ritrovi aprendo la cartella:
+
+```
+AudioDex.exe
+download_audio/     i brani scaricati
+assets/             lo sfondo, se lo scarichi
+logs/               i log
+settings.json       la lingua scelta
+```
+
+La pagina web invece viaggia **dentro** l'eseguibile: non cambia mai, e non ha motivo di stare fuori.
+
+### Due cose da sapere
+
+> 🛡 **L'antivirus può insospettirsi** la prima volta. È un falso allarme noto degli eseguibili fatti con PyInstaller: il caricatore che scompatta e avvia somiglia, come tecnica, a quello di certi programmi indesiderati. Non c'è modo di evitarlo senza firmare digitalmente l'eseguibile, che costa un certificato.
+
+> ⚙️ **`setuptools` non si può escludere** dal pacchetto, per quanto sembri inutile in un programma finito: qualcosa nella catena carica `pkg_resources`, che ne fa parte. Toglierlo faceva morire l'eseguibile all'avvio, prima ancora di aprire la finestra.
+
+---
+
 ## 🧩 Architettura del progetto
 
 ```
@@ -1429,6 +1476,7 @@ Dettagli tecnici:
 
 - 🖼️ **Copertine quadrate e volume nei tag, in automatico.** La miniatura 16:9 di YouTube finiva nel tag com'era, e i lettori che mostrano la copertina in un quadrato la schiacciavano o la tagliavano a metà faccia: ora l'immagine intera sta al centro di un quadrato riempito da una sua copia sfocata, e non si perde niente (0,4 s). Il volume viene misurato secondo EBU R128 e annotato nei tag ReplayGain — l'audio non viene toccato, sono due tag che si cancellano. La misura usa `ebur128` invece di `loudnorm`: stessi numeri, **2,3 s invece di 11,6**. Vedi [Copertina e volume](#copertina-e-volume-in-automatico)
 - ⚖️ **Il livellamento di BurnDex è diventato il default**, ora che costa quattro secondi a traccia invece di venti. Si spegne con `--no-level`
+- 📦 **Un solo file: `AudioDex.exe`.** Doppio clic e parte: niente Python da installare, nessun file `.py` in vista. 64 MB, costruito con `pyinstaller AudioDex.spec`. FFmpeg resta fuori di proposito - in modalita' a file unico il contenuto viene riestratto a ogni avvio, e mezzo gigabyte da scompattare ogni volta renderebbe l'attesa insopportabile per una cosa che si installa una volta sola. I brani, i log e la lingua scelta finiscono accanto all'.exe, dove si ritrovano. Vedi [Un solo file](#-un-solo-file-audiodexexe)
 - ✂ **ClipDex — il banco di montaggio.** Sei operazioni da riga di comando: `taglia` uno spezzone (in copia è istantaneo, e se lo scostamento dal fotogramma chiave si nota te lo dice con un numero), `unisci` più file scegliendo da solo fra copia e ricodifica e mettendo un capitolo per ciascuno, `gif` e `webp` con la palette calcolata sul filmato (+1,72 dB misurati rispetto a quella generica; il WebP pesa nove volte meno), `provino` a griglia e `compat` per autoradio e TV datate. Vedi [ClipDex](#-clipdex--tagliare-unire-convertire)
 - 📀 **Album interi divisi nelle loro tracce.** Moltissimi caricamenti sono "Full Album": un unico video da tre quarti d'ora con i capitoli. AudioDex li riconosce e li taglia **senza ricodificare**, in una cartella numerata e taggata già pronta per BurnDex. Il punto non è tagliare ma capire *se* tagliare: cinque criteri distinguono un disco da un indice, e se anche uno solo non regge non viene chiesto niente. Da riga di comando `--split` e `--no-split`. Vedi [Album interi divisi in tracce](#-album-interi-divisi-in-tracce)
 - 🔊 **Dither a 16 bit in BurnDex, sempre attivo.** La riduzione a 16 bit avveniva per troncatura, che genera distorsione *correlata al segnale* — quella che sui passaggi deboli si sente come suono sporco. Misurato su un tono a −70 dBFS, l'energia sulle armoniche scende da +46,9 dB a +31,1 dB rispetto alla fondamentale. Vedi [Cosa succede all'audio prima di incidere](#cosa-succede-allaudio-prima-di-incidere)

@@ -67,6 +67,7 @@ from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 
+from Shared.percorsi import dati as _dati
 from Shared.logger_setup import setup_logger, console, SYM_OK, SYM_FAIL, SYM_ARROW, SYM_DOT
 from Shared.http_client import retry_delay
 from Shared import i18n
@@ -2172,7 +2173,7 @@ def main() -> None:
     group.add_argument('--url', '-u', type=str, help=t('cli.url'))
 
     parser.add_argument('--output', '-o', type=str,
-                        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download_audio'),
+                        default=_dati('download_audio'),
                         help=t('cli.output'))
     parser.add_argument('--media', '-m', type=str, default=None,
                         choices=['audio', 'video'],

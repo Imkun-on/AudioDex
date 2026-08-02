@@ -49,6 +49,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+from Shared.percorsi import dati as _dati, risorsa as _risorsa
+
 import webview
 
 from Shared import i18n
@@ -367,7 +369,7 @@ class Api:
             'lingua': i18n.get_language(),
             'testi': {k: v for k, v in
                       {**TESTI_AUDIO, **TESTI_APP}.items()},
-            'cartella': os.path.join(_HERE, 'download_audio'),
+            'cartella': _dati('download_audio'),
             'sfondo': self._video_sfondo(),
         }
 
@@ -380,7 +382,7 @@ class Api:
         restano i gradienti animati, che a differenza del ripiego di Flet non
         sono un ripiego mesto ma uno sfondo a sua volta guardabile.
         """
-        percorso = os.path.join(_HERE, 'assets', 'cyberpunk-citadel.mp4')
+        percorso = _dati('assets', 'cyberpunk-citadel.mp4')
         try:
             if os.path.getsize(percorso) < 1_000_000:
                 return ''
@@ -474,7 +476,7 @@ class Api:
 
         ad = _motore()
         cartella = (opzioni.get('cartella')
-                    or os.path.join(_HERE, 'download_audio'))
+                    or _dati('download_audio'))
         os.makedirs(cartella, exist_ok=True)
 
         scelti = opzioni.get('scelti')
@@ -909,7 +911,7 @@ def main() -> None:
 
     _finestra = webview.create_window(
         'AudioDex',
-        os.path.join(_HERE, 'web', 'index.html'),
+        _risorsa('web', 'index.html'),
         js_api=Api(),
         width=1180,
         height=780,

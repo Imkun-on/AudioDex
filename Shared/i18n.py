@@ -46,10 +46,10 @@ DEFAULT_LANG = 'it'
 
 # File della preferenza, accanto agli script. Non e' il database globale:
 # quello raccoglie i download, questa e' un'impostazione dell'interfaccia.
-_SETTINGS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'settings.json',
-)
+# Dentro un eseguibile la cartella di questo file e' temporanea: la
+# preferenza va accanto all'.exe, o si perderebbe a ogni chiusura.
+from Shared.percorsi import dati as _dati
+_SETTINGS_FILE = _dati('settings.json')
 
 _lingua = DEFAULT_LANG
 _catalogo: dict[str, dict[str, str]] = {}

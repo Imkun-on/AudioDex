@@ -84,7 +84,10 @@ def setup_logger(
         Se True crea anche il sub-logger ``<name>.ytdlp``, limitato ai
         WARNING per non riempire il file con l'output verboso di yt-dlp.
     """
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+    # Dentro un eseguibile la cartella di questo file e' temporanea e sparisce
+    # alla chiusura: i log vanno accanto all'.exe, dove si sanno ritrovare.
+    from Shared.percorsi import dati
+    log_dir = dati('logs')
     os.makedirs(log_dir, exist_ok=True)
 
     log = logging.getLogger(name)

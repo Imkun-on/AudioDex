@@ -61,6 +61,7 @@ from rich.style import Style
 from rich.table import Column, Table
 from rich.text import Text
 
+from Shared.percorsi import dati as _dati
 from Shared.logger_setup import setup_logger, console, SYM_OK
 from Shared import i18n
 from Shared.strings_clipdex import TESTI
@@ -765,7 +766,7 @@ def main() -> None:
         epilog=t('cli.epilog'),
     )
     parser.add_argument('--base', '-b', type=str,
-                        default=os.path.join(_HERE, 'download_audio'),
+                        default=_dati('download_audio'),
                         help=t('cli.base'))
     parser.add_argument('--crf', type=int, default=CRF_DEFAULT,
                         help=t('cli.crf', default=CRF_DEFAULT))

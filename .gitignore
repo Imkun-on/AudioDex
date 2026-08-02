@@ -32,3 +32,8 @@ memory/
 
 # Sfondo della GUI: scaricato al primo avvio dalla Release, non versionato
 assets/*.mp4
+
+# Costruzione dell'eseguibile: il .exe pesa 64 MB e si rifa' in due minuti
+# da AudioDex.spec, quindi nel repository non ha senso tenerlo.
+build/
+dist/

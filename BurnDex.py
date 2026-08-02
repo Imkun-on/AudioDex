@@ -60,6 +60,7 @@ from rich.style import Style
 from rich.table import Column, Table
 from rich.text import Text
 
+from Shared.percorsi import dati as _dati
 from Shared.logger_setup import setup_logger, console, SYM_OK, SYM_FAIL, SYM_ARROW
 from Shared import i18n
 from Shared.strings_burndex import TESTI
@@ -1557,7 +1558,7 @@ def main() -> None:
     parser.add_argument('--dir', '-d', type=str, default=None,
                         help=t('cli.dir'))
     parser.add_argument('--base', '-b', type=str,
-                        default=os.path.join(_HERE, 'download_audio'),
+                        default=_dati('download_audio'),
                         help=t('cli.base'))
     parser.add_argument('--speed', '-s', type=int, default=None,
                         help=t('cli.speed', default=DEFAULT_SPEED_X))
