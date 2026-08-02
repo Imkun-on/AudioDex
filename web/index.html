@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>AudioDex</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Lo sfondo: tre strati di luce che si muovono lentamente e una griglia in
+       prospettiva. Nessun file video, nessun download: sono gradienti animati,
+       e pesano zero byte. -->
+  <div class="sfondo" aria-hidden="true">
+    <div class="alone alone-1"></div>
+    <div class="alone alone-2"></div>
+    <div class="alone alone-3"></div>
+    <div class="griglia"></div>
+    <div class="velo"></div>
+  </div>
+
+  <div class="guscio">
+
+    <aside class="barra">
+      <div class="marchio">
+        <div class="logo" data-t="app.title">AudioDex</div>
+        <div class="sottotitolo" data-t="app.subtitle"></div>
+      </div>
+
+      <nav class="menu">
+        <button class="voce attiva" data-sezione="audio">
+          <span class="pallino"></span>
+          <span data-t="menu.audio"></span>
+        </button>
+        <button class="voce disabilitata" disabled>
+          <span class="pallino"></span>
+          <span data-t="menu.burn"></span>
+          <span class="presto" data-t="menu.soon"></span>
+        </button>
+        <button class="voce disabilitata" disabled>
+          <span class="pallino"></span>
+          <span data-t="menu.pix"></span>
+          <span class="presto" data-t="menu.soon"></span>
+        </button>
+        <button class="voce disabilitata" disabled>
+          <span class="pallino"></span>
+          <span data-t="menu.clip"></span>
+          <span class="presto" data-t="menu.soon"></span>
+        </button>
+      </nav>
+
+      <div class="piede">
+        <label class="etichetta-piccola">Lingua</label>
+        <select id="lingua" class="campo">
+          <option value="it">Italiano</option>
+          <option value="en">English</option>
+        </select>
+        <div class="autore" data-t="app.author"></div>
+      </div>
+    </aside>
+
+    <main class="corpo">
+
+      <header class="intestazione">
+        <h1 data-t="audio.title"></h1>
+        <p data-t="audio.desc"></p>
+      </header>
+
+      <section class="pannello">
+        <div class="riga">
+          <div class="campo-gruppo stretto">
+            <label data-t="audio.mode"></label>
+            <select id="modo" class="campo">
+              <option value="url" data-t="audio.mode.url"></option>
+              <option value="search" data-t="audio.mode.search"></option>
+            </select>
+          </div>
+          <div class="campo-gruppo largo">
+            <label id="etichetta-input"></label>
+            <input id="ingresso" class="campo" type="text" spellcheck="false">
+          </div>
+        </div>
+
+        <div class="riga">
+          <div class="campo-gruppo largo">
+            <label data-t="audio.output"></label>
+            <div class="con-bottone">
+              <input id="cartella" class="campo" type="text" spellcheck="false">
+              <button id="sfoglia" class="bottone contorno">…</button>
+            </div>
+          </div>
+          <div class="campo-gruppo stretto">
+            <label data-t="audio.media"></label>
+            <select id="media" class="campo">
+              <option value="audio" data-t="audio.media.audio"></option>
+              <option value="video" data-t="audio.media.video"></option>
+            </select>
+          </div>
+          <div class="campo-gruppo stretto">
+            <label data-t="audio.format"></label>
+            <select id="formato" class="campo"></select>
+          </div>
+          <div class="campo-gruppo minuscolo">
+            <label data-t="audio.workers"></label>
+            <input id="paralleli" class="campo" type="number" min="1" max="8" value="3">
+          </div>
+        </div>
+
+        <div class="interruttori">
+          <label class="interruttore">
+            <input type="checkbox" id="testi" checked>
+            <span class="cursore"></span>
+            <span data-t="audio.lyrics"></span>
+          </label>
+          <label class="interruttore">
+            <input type="checkbox" id="dividi">
+            <span class="cursore"></span>
+            <span data-t="audio.split"></span>
+          </label>
+        </div>
+
+        <div class="azioni">
+          <button id="analizza" class="bottone contorno" data-t="audio.analyze"></button>
+          <div class="spazio"></div>
+          <button id="scarica" class="bottone pieno" data-t="audio.start"></button>
+        </div>
+      </section>
+
+      <div class="avanzamento" id="avanzamento">
+        <div class="barra-esterna"><div class="barra-interna" id="barra"></div></div>
+        <div class="avanzamento-testo" id="avanzamento-testo"></div>
+      </div>
+
+      <div class="due-colonne">
+        <section class="pannello scorrevole">
+          <div class="titolo-pannello">
+            <span data-t="audio.results"></span>
+            <span class="conteggio" id="conteggio"></span>
+          </div>
+          <div id="risultati" class="elenco"></div>
+        </section>
+
+        <section class="pannello scorrevole">
+          <div class="titolo-pannello">
+            <span class="pallino-stato" id="pallino-stato"></span>
+            <span data-t="log.title"></span>
+            <span class="stato" id="stato"></span>
+            <div class="spazio"></div>
+            <button id="svuota" class="bottone testo" data-t="log.clear"></button>
+          </div>
+          <div id="diario" class="diario"></div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

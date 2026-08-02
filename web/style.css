@@ -1,0 +1,334 @@
+/* Tema cyberpunk di AudioDex.
+ *
+ * Lo sfondo animato che in Flet costava un file video da 74 MB, un plugin che
+ * spesso non partiva e un ripiego a gradiente, qui sono tre macchie di luce
+ * che si spostano lentamente piu' una griglia in prospettiva: una trentina di
+ * righe, zero byte da scaricare, e non puo' fallire perche' non c'e' niente
+ * da inizializzare.
+ */
+
+:root {
+  --fondo:        #0d0620;
+  --fondo-2:      #14092e;
+  --pannello:     #170c33cc;
+  --pannello-2:   #1e1140;
+  --bordo:        #ffffff1a;
+  --testo:        #ece8ff;
+  --testo-fioco:  #a493c8;
+  --magenta:      #ff2fd0;
+  --viola:        #a855f7;
+  --ciano:        #22e4ff;
+  --giallo:       #ffe66d;
+  --verde:        #46e6a0;
+  --rosso:        #ff5d73;
+  --raggio:       14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--fondo);
+  color: var(--testo);
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Sfondo animato ─────────────────────────────────────────────────────── */
+
+.sfondo { position: fixed; inset: 0; overflow: hidden; z-index: 0; }
+
+.alone {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.alone-1 {
+  width: 46vw; height: 46vw; left: -8vw; top: -10vw;
+  background: radial-gradient(circle, var(--viola), transparent 70%);
+  animation: deriva-1 34s ease-in-out infinite alternate;
+}
+.alone-2 {
+  width: 40vw; height: 40vw; right: -6vw; top: 18vh;
+  background: radial-gradient(circle, var(--magenta), transparent 70%);
+  animation: deriva-2 28s ease-in-out infinite alternate;
+}
+.alone-3 {
+  width: 36vw; height: 36vw; left: 24vw; bottom: -14vw;
+  background: radial-gradient(circle, var(--ciano), transparent 70%);
+  animation: deriva-3 40s ease-in-out infinite alternate;
+  opacity: 0.35;
+}
+@keyframes deriva-1 { to { transform: translate(14vw, 12vh) scale(1.15); } }
+@keyframes deriva-2 { to { transform: translate(-12vw, 8vh) scale(0.9); } }
+@keyframes deriva-3 { to { transform: translate(8vw, -10vh) scale(1.2); } }
+
+/* La griglia in prospettiva: due gradienti ripetuti, inclinati e sfumati
+ * verso l'alto perche' sembrino allontanarsi. */
+.griglia {
+  position: absolute;
+  left: -50%; right: -50%; bottom: -20vh; height: 70vh;
+  background-image:
+    linear-gradient(to right, #ffffff14 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff14 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(340px) rotateX(62deg);
+  mask-image: linear-gradient(to top, #000 10%, transparent 75%);
+  animation: scorri 6s linear infinite;
+}
+@keyframes scorri { to { background-position: 0 46px; } }
+
+.velo {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #0d0620cc 0%, #0d062088 45%, #0d0620ee 100%);
+}
+
+/* ── Impianto ───────────────────────────────────────────────────────────── */
+
+.guscio {
+  position: relative; z-index: 1;
+  display: flex; height: 100vh;
+}
+
+.barra {
+  width: 232px; flex: 0 0 232px;
+  display: flex; flex-direction: column;
+  padding: 22px 18px;
+  background: #0a0518e6;
+  border-right: 1px solid var(--bordo);
+  backdrop-filter: blur(14px);
+}
+
+.marchio { margin-bottom: 26px; }
+.logo {
+  font-size: 26px; font-weight: 800; letter-spacing: 2px;
+  background: linear-gradient(90deg, var(--magenta), var(--ciano));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 26px #ff2fd055;
+}
+.sottotitolo { font-size: 10.5px; color: var(--testo-fioco); margin-top: 4px; letter-spacing: 0.4px; }
+
+.menu { display: flex; flex-direction: column; gap: 6px; }
+.voce {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--testo-fioco);
+  font-size: 13.5px; font-weight: 600; text-align: left;
+  cursor: pointer; transition: background .18s, color .18s;
+  font-family: inherit;
+}
+.voce:hover:not(:disabled) { background: #ffffff0d; color: var(--testo); }
+.voce.attiva { background: #a855f71f; color: var(--testo); }
+.voce.attiva .pallino { background: var(--magenta); box-shadow: 0 0 12px var(--magenta); }
+.voce.disabilitata { opacity: 0.4; cursor: default; }
+.pallino { width: 3px; height: 20px; border-radius: 2px; background: #ffffff22; flex: 0 0 3px; }
+.presto {
+  margin-left: auto; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--testo-fioco);
+  border: 1px solid var(--bordo); border-radius: 5px; padding: 1px 5px;
+}
+
+.piede { margin-top: auto; display: flex; flex-direction: column; gap: 7px; }
+.etichetta-piccola { font-size: 10.5px; color: var(--testo-fioco); font-weight: 600; }
+.autore { font-size: 10.5px; color: var(--testo-fioco); margin-top: 6px; }
+
+.corpo {
+  flex: 1; min-width: 0;
+  padding: 24px 26px;
+  display: flex; flex-direction: column; gap: 15px;
+  overflow: hidden;
+}
+
+.intestazione h1 {
+  margin: 0 0 5px; font-size: 25px; font-weight: 800; letter-spacing: 0.3px;
+}
+.intestazione p { margin: 0; color: var(--testo-fioco); font-size: 12.5px; max-width: 74ch; }
+
+/* ── Pannelli e campi ───────────────────────────────────────────────────── */
+
+.pannello {
+  background: var(--pannello);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 16px;
+  backdrop-filter: blur(16px);
+}
+.pannello.scorrevole { display: flex; flex-direction: column; min-height: 0; }
+
+.riga { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.campo-gruppo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.campo-gruppo.largo { flex: 1 1 280px; }
+.campo-gruppo.stretto { flex: 0 1 165px; }
+.campo-gruppo.minuscolo { flex: 0 0 92px; }
+.campo-gruppo label { font-size: 10.5px; color: var(--testo-fioco); font-weight: 600; }
+
+.campo {
+  background: var(--pannello-2);
+  border: 1px solid var(--bordo);
+  border-radius: 9px;
+  color: var(--testo);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .16s, box-shadow .16s;
+  -webkit-user-select: text; user-select: text;
+  width: 100%;
+}
+.campo:focus { border-color: var(--viola); box-shadow: 0 0 0 3px #a855f733; }
+select.campo { cursor: pointer; }
+
+.con-bottone { display: flex; gap: 7px; }
+.con-bottone .campo { flex: 1; }
+.con-bottone .bottone { flex: 0 0 42px; padding: 0; }
+
+.interruttori { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+.interruttore {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12.5px; color: var(--testo-fioco); cursor: pointer;
+}
+.interruttore input { display: none; }
+.cursore {
+  width: 38px; height: 21px; border-radius: 11px; flex: 0 0 38px;
+  background: #ffffff1f; position: relative; transition: background .2s;
+}
+.cursore::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--testo-fioco); transition: transform .2s, background .2s;
+}
+.interruttore input:checked + .cursore { background: #a855f755; }
+.interruttore input:checked + .cursore::after {
+  transform: translateX(17px); background: var(--viola);
+  box-shadow: 0 0 10px var(--viola);
+}
+
+.azioni { display: flex; align-items: center; gap: 10px; }
+.spazio { flex: 1; }
+
+.bottone {
+  border-radius: 10px; padding: 10px 20px;
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: transform .12s, box-shadow .18s, background .18s;
+  border: 1px solid transparent;
+}
+.bottone:active:not(:disabled) { transform: translateY(1px); }
+.bottone:disabled { opacity: 0.45; cursor: default; }
+.bottone.contorno { background: transparent; color: var(--ciano); border-color: var(--ciano); }
+.bottone.contorno:hover:not(:disabled) { background: #22e4ff14; box-shadow: 0 0 18px #22e4ff44; }
+.bottone.pieno {
+  background: linear-gradient(90deg, var(--magenta), var(--viola));
+  color: #14061f;
+}
+.bottone.pieno:hover:not(:disabled) { box-shadow: 0 0 26px #ff2fd066; }
+.bottone.testo {
+  background: transparent; border: 0; color: var(--testo-fioco);
+  padding: 4px 8px; font-weight: 600; font-size: 11.5px;
+}
+.bottone.testo:hover { color: var(--testo); }
+
+/* ── Avanzamento ────────────────────────────────────────────────────────── */
+
+.avanzamento { display: none; flex-direction: column; gap: 6px; }
+.avanzamento.visibile { display: flex; }
+.barra-esterna {
+  height: 7px; border-radius: 4px; background: #ffffff14; overflow: hidden;
+}
+.barra-interna {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--magenta), var(--ciano));
+  box-shadow: 0 0 14px var(--magenta);
+  transition: width .3s ease;
+}
+.barra-interna.indeterminata {
+  width: 34%;
+  animation: va-e-vieni 1.3s ease-in-out infinite;
+}
+@keyframes va-e-vieni {
+  0%   { margin-left: -34%; }
+  100% { margin-left: 100%; }
+}
+.avanzamento-testo { font-size: 11.5px; color: var(--testo-fioco); }
+
+/* ── Elenchi e diario ───────────────────────────────────────────────────── */
+
+.due-colonne {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+  flex: 1; min-height: 0;
+}
+
+.titolo-pannello {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 12.5px; font-weight: 700; margin-bottom: 11px;
+}
+.conteggio, .stato { font-size: 11px; color: var(--testo-fioco); font-weight: 600; }
+.pallino-stato {
+  width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px;
+  background: var(--testo-fioco);
+}
+.pallino-stato.working { background: var(--ciano); box-shadow: 0 0 10px var(--ciano); animation: pulsa 1.1s infinite; }
+.pallino-stato.done    { background: var(--verde); box-shadow: 0 0 10px var(--verde); }
+.pallino-stato.error   { background: var(--rosso); box-shadow: 0 0 10px var(--rosso); }
+@keyframes pulsa { 50% { opacity: 0.35; } }
+
+.elenco, .diario {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-right: 5px;
+}
+.diario {
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 11.5px; line-height: 1.55; gap: 1px;
+  -webkit-user-select: text; user-select: text;
+}
+.diario .riga-log { white-space: pre-wrap; word-break: break-word; color: var(--testo-fioco); }
+.diario .riga-log.ok    { color: var(--verde); }
+.diario .riga-log.err   { color: var(--rosso); }
+.diario .riga-log.warn  { color: var(--giallo); }
+
+.vuoto {
+  color: var(--testo-fioco); font-size: 12px; font-style: italic;
+  text-align: center; padding: 22px 10px;
+}
+
+.voce-risultato {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 9px;
+  background: var(--pannello-2); border: 1px solid var(--bordo);
+}
+.voce-numero {
+  flex: 0 0 26px; height: 26px; border-radius: 7px;
+  background: #a855f722; border: 1px solid #a855f755;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 800; color: var(--magenta);
+  font-family: 'Cascadia Mono', monospace;
+}
+.voce-testo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.voce-titolo {
+  font-size: 12.5px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.voce-canale { font-size: 10.5px; color: var(--testo-fioco); }
+.voce-durata {
+  font-size: 11.5px; color: var(--ciano); font-weight: 700;
+  font-family: 'Cascadia Mono', monospace;
+}
+
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ffffff1f; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #ffffff33; }
+
+/* Chi ha chiesto al sistema di ridurre le animazioni le vede ferme: lo
+ * sfondo e' decorazione, non deve dare fastidio a chi ne soffre. */
+@media (prefers-reduced-motion: reduce) {
+  .alone, .griglia, .barra-interna.indeterminata, .pallino-stato.working {
+    animation: none;
+  }
+}
