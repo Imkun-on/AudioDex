@@ -288,6 +288,19 @@ TESTI: dict[str, dict[str, str]] = {
     'confirm.disc': {'it': 'Disco', 'en': 'Disc'},
     'confirm.speed': {'it': 'Velocita\'', 'en': 'Speed'},
     'confirm.tracks': {'it': 'Tracce', 'en': 'Tracks'},
+    'confirm.audio': {'it': 'Audio', 'en': 'Audio'},
+    'confirm.levelled': {
+        'it': '[bright_green]volume livellato[/bright_green]',
+        'en': '[bright_green]volume levelled[/bright_green]',
+    },
+    'confirm.trimmed': {
+        'it': '[bright_green]silenzi rifilati[/bright_green]',
+        'en': '[bright_green]silence trimmed[/bright_green]',
+    },
+    'confirm.audio_untouched': {
+        'it': 'nessuna modifica, solo dither a 16 bit',
+        'en': 'untouched, only 16-bit dithering',
+    },
     'confirm.duration': {'it': 'Durata', 'en': 'Duration'},
     'confirm.free_after': {
         'it': '[dim]({min} min liberi dopo)[/dim]',
@@ -471,6 +484,14 @@ TESTI: dict[str, dict[str, str]] = {
     },
 
     # ── Decodifica e scrittura ───────────────────────────────────────────────
+    'burn.measuring': {
+        'it': 'Misura del volume...',
+        'en': 'Measuring loudness...',
+    },
+    'burn.measured': {
+        'it': '[bright_green]Volume misurato[/bright_green]',
+        'en': '[bright_green]Loudness measured[/bright_green]',
+    },
     'burn.decoding': {
         'it': 'Decodifica in corso...',
         'en': 'Decoding...',
@@ -631,6 +652,18 @@ TESTI: dict[str, dict[str, str]] = {
     'cli.yes': {
         'it': 'Nessuna domanda: tutte le tracce, velocita\' predefinita, nessuna conferma',
         'en': 'No questions: all tracks, default speed, no confirmation',
+    },
+    'cli.level': {
+        'it': 'Livella il volume fra le tracce (misura ogni brano: piu\' lento, '
+              'ma il disco non fa saltare in aria in auto a ogni cambio)',
+        'en': 'Level the volume across tracks (measures every song: slower, but '
+              'the disc stops making you jump at each track change in the car)',
+    },
+    'cli.trim': {
+        'it': 'Rifila i silenzi a inizio e fine traccia, che si sommano ai 2 '
+              'secondi di stacco inseriti comunque fra un brano e l\'altro',
+        'en': 'Trim the silence at the start and end of each track, which adds to '
+              'the 2-second gap inserted between songs anyway',
     },
     'cli.no_eject': {
         'it': 'Non espellere il disco a fine masterizzazione',

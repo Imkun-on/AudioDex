@@ -36,6 +36,7 @@ import random
 import re
 import shutil
 import signal
+import subprocess
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -238,6 +239,86 @@ _EMOJI_RE = re.compile(
     '︀-️'           # selettori di variazione (emoji a colori)
     '‍]+'                # giunzione a larghezza zero (emoji composte)
 )
+
+
+# ── Verifica che il file scaricato sia intero ────────────────────────────────
+#
+# Il controllo che c'era — "il file esiste e supera i 10 KB" — non distingue un
+# brano completo da un download interrotto a meta': un troncamento a due terzi
+# passa senza che nessuno se ne accorga, e lo si scopre mesi dopo in auto.
+#
+# La verifica seria sarebbe ridecodificare tutto, ma costa: misurato su un
+# video di undici minuti, 106 secondi. Impraticabile dopo ogni download. La
+# scomposizione qui sotto ottiene lo stesso risultato in pochi secondi,
+# perche' attacca il problema da dove si manifesta davvero:
+#
+#   1. il contenitore si apre e dichiara una durata?  (mezzo secondo)
+#   2. quella durata coincide con quella annunciata da YouTube?
+#      E' qui che si vede un troncamento: un file tagliato dura meno.
+#   3. il flusso audio si decodifica dall'inizio alla fine senza errori?
+#      Sul video costa 5 secondi invece di 106, perche' salta le immagini.
+#
+# Il flusso video non viene ridecodificato: un file troncato lo e' in entrambi
+# i flussi, e l'audio basta ad accorgersene.
+
+# Scarto tollerato fra durata dichiarata e durata reale. Il 2% copre gli
+# arrotondamenti dei contenitori e l'ultimo pacchetto incompleto, senza
+# lasciar passare un troncamento vero, che toglie ben altro.
+TOLLERANZA_DURATA = 0.02
+
+
+def _durata_reale(path: str) -> float | None:
+    """Durata del file letta dal contenitore, o None se non si apre."""
+    try:
+        out = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=nw=1:nk=1', path],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', check=True, timeout=30,
+        ).stdout.strip()
+        return float(out) if out else None
+    except (subprocess.SubprocessError, ValueError, OSError):
+        return None
+
+
+def _verifica_file(path: str, durata_attesa: float | None = None) -> str:
+    """Controlla che il file sia integro. Restituisce '' se lo e', altrimenti
+    una descrizione del problema, pronta da mostrare e da registrare nel log.
+
+    Un limite noto: senza ``durata_attesa`` un Ogg o un WebM troncato di netto
+    passa il controllo, perche' i pacchetti rimasti sono validi e il
+    contenitore dichiara onestamente la durata piu' corta. Nella pratica
+    yt-dlp la durata la riporta quasi sempre, e nei contenitori MP4 il
+    troncamento si vede comunque perche' l'indice sta in fondo al file e
+    sparisce col taglio.
+    """
+    durata = _durata_reale(path)
+    if durata is None:
+        return t('verify.unreadable')
+
+    if durata_attesa and durata_attesa > 0:
+        mancante = durata_attesa - durata
+        if mancante > max(durata_attesa * TOLLERANZA_DURATA, 1.0):
+            return t('verify.truncated',
+                     reale=_format_duration(durata),
+                     attesa=_format_duration(durata_attesa))
+
+    try:
+        esito = subprocess.run(
+            ['ffmpeg', '-v', 'error', '-xerror', '-i', path,
+             '-map', '0:a?', '-f', 'null', '-'],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=300,
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        log.warning('Verifica non eseguibile su %s: %s', path, exc)
+        return ''          # non poter verificare non equivale a un file rotto
+
+    if esito.returncode != 0 or esito.stderr.strip():
+        prima_riga = (esito.stderr.strip().splitlines() or ['?'])[0]
+        return t('verify.corrupt', reason=prima_riga[:80])
+
+    return ''
 
 
 def _sanitize_filename(name: str) -> str:
@@ -1346,6 +1427,24 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
 
                     # FFmpeg ha finito: il file nel formato richiesto esiste.
                     phase('convert')
+
+                    # Prima di taggarlo e di registrarlo, accertarsi che sia
+                    # intero. Un file troncato che entra nel database e' peggio
+                    # di un download fallito: al giro dopo viene riconosciuto
+                    # come gia' scaricato e non lo si ripesca piu'.
+                    guasto = _verifica_file(
+                        final_file,
+                        info.get('duration') or entry.get('duration'),
+                    )
+                    if guasto:
+                        log.error('%s File non integro: %s (%s)',
+                                  SYM_FAIL, title, guasto)
+                        result['error'] = guasto
+                        try:
+                            os.remove(final_file)
+                        except OSError:
+                            pass
+                        return result
 
                     # Testo: incorporato direttamente nei tag del file audio
                     # (formato LRC con i timestamp), così il brano resta un

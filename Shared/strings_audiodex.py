@@ -62,6 +62,21 @@ TESTI: dict[str, dict[str, str]] = {
         'it': 'Usa i cookie del browser indicato per accedere a playlist/video privati',
         'en': 'Use cookies from the given browser to reach private playlists/videos',
     },
+    # ── Verifica d'integrita' ────────────────────────────────────────────────
+    # Sono messaggi che finiscono nell'elenco dei brani falliti: devono dire
+    # cosa non va in modo che si capisca se val la pena ritentare.
+    'verify.unreadable': {
+        'it': 'file illeggibile: il contenitore non si apre',
+        'en': 'unreadable file: the container will not open',
+    },
+    'verify.truncated': {
+        'it': 'download troncato: dura {reale} invece di {attesa}',
+        'en': 'truncated download: it lasts {reale} instead of {attesa}',
+    },
+    'verify.corrupt': {
+        'it': 'audio danneggiato ({reason})',
+        'en': 'damaged audio ({reason})',
+    },
     'cli.err_video_format': {
         'it': '--format {fmt} e\' un formato video, incompatibile con --media audio',
         'en': '--format {fmt} is a video format, incompatible with --media audio',

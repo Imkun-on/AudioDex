@@ -147,10 +147,11 @@ python PixDex.py                                      # remaster a downloaded vi
 - 12.2 [Additional requirements](#additional-requirements)
 - 12.3 [The four-step flow](#the-four-step-flow)
 - 12.4 [Command-line options](#command-line-options-burndex)
-- 12.5 [Track order on the disc](#track-order-on-the-disc)
+- 12.5 [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
+- 12.6 [Track order on the disc](#track-order-on-the-disc)
 - 12.6 [Recognised disc types](#recognised-disc-types)
-- 12.7 [System detection](#system-detection)
-- 12.8 [How writing works (IMAPI2)](#how-writing-works-imapi2)
+- 12.8 [System detection](#system-detection)
+- 12.9 [How writing works (IMAPI2)](#how-writing-works-imapi2)
 - 12.9 [Audio CD limits](#audio-cd-limits)
 - 12.10 [Error diagnosis](#error-diagnosis)
 
@@ -830,6 +831,8 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | System, burners and inserted disc, then exits |
 | `--yes`, `-y` | No questions: all tracks, default speed, no confirmation |
 | `--no-eject` | Do not eject the disc when burning finishes |
+| `--level` | Level the volume across tracks (measures each song: slower, but no jumps in the car) |
+| `--trim` | Trim the silence at the start and end of each track |
 
 Examples — these are **alternatives**, run one at a time. The harmless two first:
 
@@ -846,6 +849,29 @@ python BurnDex.py -d "..." --speed 24 --yes --no-eject          # unattended
 ```
 
 > 🧪 **Use `--dry-run` the first time.** It runs every check — track list, ordering, disc type, capacity, available speeds — without writing anything. A wasted CD-R is unrecoverable; a rehearsal costs two seconds.
+
+### What happens to the audio before burning
+
+An audio CD is 44.1 kHz, 16 bit, stereo, full stop: whatever you download — a 48 kHz opus, a 44.1 m4a, an old mono upload — has to get there. **How it gets there is not a detail.**
+
+Dropping to 16 bit by **truncating** the values produces distortion that is *correlated with the signal*: on quiet passages, reverb tails and fades, the ear reads it as a dirty sound. **Dithering** replaces it with random noise, which the ear ignores instead. Measured on a −70 dBFS tone, the energy on the harmonics goes from **+46.9 dB to +31.1 dB** relative to the fundamental: almost 16 dB less grime. Dithering is now always on and cannot be turned off.
+
+> 🔬 **The resampler, however, was left as the default.** `soxr` is considered better and the Gyan build has it, but I could not measure a real advantage on the 48 → 44.1 conversion — and asking for it on a build compiled without `libsoxr` would fail the burn halfway through. Not worth the risk for a gain I cannot demonstrate.
+
+**`--level` — evens out the volume across tracks.** A YouTube playlist has 9-10 LU jumps between songs: the hand reaching for the volume knob at every track change. The option measures each track to the EBU R128 standard and brings it to −16 LUFS, never exceeding −1 dBTP of true peak — pushing past that would clip the waveform, and on a CD-R there is no going back.
+
+Measured on three songs at −7, −14 and −21 dB:
+
+| | Spread between loudest and quietest |
+|---|---|
+| Without `--level` | **14.0 dB** |
+| With `--level` | **0.59 dB** |
+
+It costs an analysis pass on every track — about 20 seconds per song — which is why it is optional rather than automatic.
+
+**`--trim` — trims the silence.** YouTube uploads often carry one or two seconds of nothing at the start and end, which **add** to the 2-second gap IMAPI2 inserts between tracks anyway: the result is four or five second pauses in the middle of an album. On the test collection it removed 3.4 seconds per track.
+
+The tail is removed by reversing the stream, cutting the start and reversing it back: `silenceremove` only knows how to work at the beginning.
 
 ### Track order on the disc
 
@@ -1234,6 +1260,10 @@ Technical details:
 
 **New**
 
+- 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
+- ⚖️ **`--level` in BurnDex**: evens out the volume across tracks to the EBU R128 standard, respecting true peak. On three songs at −7, −14 and −21 dB the spread goes from 14.0 dB to **0.59 dB**
+- ✂️ **`--trim` in BurnDex**: trims the silence at the start and end of each track, which adds to the 2-second gap inserted by IMAPI2. On the test collection, 3.4 seconds per track
+- 🛡 **Download integrity checks in AudioDex.** The check was "the file is over 10 KB", and a truncated download passed — only to be recognised as already downloaded on the next attempt, and never fetched again. Container, actual duration against the announced one, and audio stream decoding are now all checked. A damaged file is deleted and the track lands among the failed ones
 - 🎞 **PixDex — video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex--remastering-a-video)
 - 🔧 **Debanding retuned from measurements, not by eye.** The `deband` thresholds were too aggressive and produced speckle in flat areas: the filter does not flatten steps, it dissolves them into noise, and where there is no banding only the noise is left. Measured on an AV1 video at 305 kbit/s, the gentle tuning wins on **both** counts — graininess from 2.686 to 1.581 and blocking from 1.204 to 1.166 — and produces far lighter files, because the encoder no longer spends bits describing the speckle. See [How debanding is tuned](#how-debanding-is-tuned)
 - ⚡ **GPU on by default in the GUI**: measured 2.4× faster on the real filter chain (30.9 s against 73.6 s for the same clip on a Ryzen 5 3500U + Vega 8)

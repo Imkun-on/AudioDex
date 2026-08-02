@@ -142,12 +142,13 @@ python PixDex.py                                      # rimasterizza un video sc
 - 12.2 [Requisiti aggiuntivi](#requisiti-aggiuntivi)
 - 12.3 [Il flusso in quattro passi](#il-flusso-in-quattro-passi)
 - 12.4 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-burndex)
-- 12.5 [L'ordine delle tracce sul disco](#lordine-delle-tracce-sul-disco)
-- 12.6 [Tipologie di disco riconosciute](#tipologie-di-disco-riconosciute)
-- 12.7 [Riconoscimento del sistema](#riconoscimento-del-sistema)
-- 12.8 [Come funziona la scrittura (IMAPI2)](#come-funziona-la-scrittura-imapi2)
-- 12.9 [I limiti del CD audio](#i-limiti-del-cd-audio)
-- 12.10 [Diagnosi degli errori](#diagnosi-degli-errori)
+- 12.5 [Cosa succede all'audio prima di incidere](#cosa-succede-allaudio-prima-di-incidere)
+- 12.6 [L'ordine delle tracce sul disco](#lordine-delle-tracce-sul-disco)
+- 12.7 [Tipologie di disco riconosciute](#tipologie-di-disco-riconosciute)
+- 12.8 [Riconoscimento del sistema](#riconoscimento-del-sistema)
+- 12.9 [Come funziona la scrittura (IMAPI2)](#come-funziona-la-scrittura-imapi2)
+- 12.10 [I limiti del CD audio](#i-limiti-del-cd-audio)
+- 12.11 [Diagnosi degli errori](#diagnosi-degli-errori)
 
 **Capitolo 13 — [🎞 PixDex — rimasterizzare un video](#-pixdex--rimasterizzare-un-video)**
 - 13.1 [A cosa serve, e soprattutto cosa non fa](#a-cosa-serve-e-soprattutto-cosa-non-fa)
@@ -825,6 +826,8 @@ Ordine: numero di traccia nel nome  ·  stacchi da 2 s inclusi nel totale
 | `--info`, `-i` | Sistema, masterizzatori e disco inserito, poi esce |
 | `--yes`, `-y` | Nessuna domanda: tutte le tracce, velocità predefinita, nessuna conferma |
 | `--no-eject` | Non espellere il disco a fine masterizzazione |
+| `--level` | Livella il volume fra le tracce (misura ogni brano: più lento, ma niente salti in auto) |
+| `--trim` | Rifila i silenzi a inizio e fine traccia |
 
 Esempi — sono **alternative**, da eseguire una alla volta. Prima i due innocui:
 
@@ -841,6 +844,29 @@ python BurnDex.py -d "..." --speed 24 --yes --no-eject          # automatico
 ```
 
 > 🧪 **Usa `--dry-run` la prima volta.** Esegue tutti i controlli — scaletta, ordine, tipo di disco, capienza, velocità disponibili — senza scrivere nulla. Un CD-R sbagliato è irrecuperabile, una prova a vuoto costa due secondi.
+
+### Cosa succede all'audio prima di incidere
+
+Un CD audio è 44.1 kHz, 16 bit, stereo, e basta: qualunque cosa tu scarichi — un opus a 48 kHz, un m4a a 44.1, un vecchio caricamento mono — va portata lì. **Il come non è indifferente.**
+
+Scendere a 16 bit **troncando** i valori genera una distorsione *correlata al segnale*: sui passaggi deboli, code di riverbero e dissolvenze, l'orecchio la riconosce come suono sporco. Il **dither** la sostituisce con rumore casuale, che invece si ignora. Misurato su un tono a −70 dBFS, l'energia sulle armoniche passa da **+46,9 dB a +31,1 dB** rispetto alla fondamentale: quasi 16 dB di sporcizia in meno. Da oggi il dither c'è sempre, non si disattiva.
+
+> 🔬 **Il ricampionatore invece è rimasto quello predefinito.** `soxr` è considerato migliore e la build Gyan ce l'ha, ma non sono riuscito a misurare un vantaggio reale nel passaggio 48 → 44.1 — e chiederlo su una build compilata senza `libsoxr` farebbe fallire la masterizzazione a metà. Non vale il rischio per un guadagno che non so dimostrare.
+
+**`--level` — livella il volume fra le tracce.** Una playlist YouTube ha salti di 9-10 LU fra un brano e l'altro: la mano che corre alla manopola a ogni cambio. L'opzione misura ogni traccia secondo lo standard EBU R128 e la porta a −16 LUFS, senza mai superare −1 dBTP di picco reale — spingere oltre toserebbe la forma d'onda, e su un CD-R non si torna indietro.
+
+Misurato su tre brani a −7, −14 e −21 dB:
+
+| | Scarto fra la più forte e la più debole |
+|---|---|
+| Senza `--level` | **14,0 dB** |
+| Con `--level` | **0,59 dB** |
+
+Costa una passata di analisi su ogni traccia — circa 20 secondi a brano — ed è il motivo per cui è opzionale e non automatica.
+
+**`--trim` — rifila i silenzi.** I caricamenti YouTube hanno spesso uno o due secondi di nulla in testa e in coda, che si **sommano** ai 2 secondi di stacco che IMAPI2 inserisce comunque fra una traccia e l'altra: il risultato sono pause di quattro o cinque secondi in mezzo a un album. Sulla raccolta di prova ha tolto 3,4 secondi per traccia.
+
+La coda si toglie girando il flusso, tagliando l'inizio e rigirandolo: `silenceremove` sa lavorare solo in testa.
 
 ### L'ordine delle tracce sul disco
 
@@ -1229,6 +1255,10 @@ Dettagli tecnici:
 
 **Nuovo**
 
+- 🔊 **Dither a 16 bit in BurnDex, sempre attivo.** La riduzione a 16 bit avveniva per troncatura, che genera distorsione *correlata al segnale* — quella che sui passaggi deboli si sente come suono sporco. Misurato su un tono a −70 dBFS, l'energia sulle armoniche scende da +46,9 dB a +31,1 dB rispetto alla fondamentale. Vedi [Cosa succede all'audio prima di incidere](#cosa-succede-allaudio-prima-di-incidere)
+- ⚖️ **`--level` in BurnDex**: livella il volume fra le tracce secondo lo standard EBU R128, rispettando il picco reale. Su tre brani a −7, −14 e −21 dB lo scarto passa da 14,0 dB a **0,59 dB**
+- ✂️ **`--trim` in BurnDex**: rifila i silenzi a inizio e fine traccia, che si sommano ai 2 secondi di stacco inseriti da IMAPI2. Sulla raccolta di prova, 3,4 secondi per traccia
+- 🛡 **Verifica d'integrità dei download in AudioDex.** Il controllo era «il file supera i 10 KB», e un download troncato passava — per poi essere riconosciuto come già scaricato al tentativo successivo, e non ripescato mai più. Ora si controllano contenitore, durata effettiva contro quella annunciata, e decodifica del flusso audio. Un file non integro viene cancellato e la traccia finisce fra quelle fallite
 - 🎞 **PixDex — rimasterizzatore video.** `PixDex.py` prende un video di qualità scarsa e lo ripulisce: toglie i quadretti della compressione, appiana le bande a scalini nei cieli e nelle dissolvenze, e ingrandisce con Lanczos. **Cinque preset** (Pulito, Standard, Forte, Animazione, Vecchio) scelti automaticamente da una **diagnosi** che legge risoluzione, bit per pixel e ordine dei campi senza decodificare il file. La sbandatura è svolta a **10 bit**, perché a 8 bit il rimedio genera bande nuove. A fine lavoro salva un PNG col **confronto prima/dopo**, i due fotogrammi alla stessa altezza per non barare. Non inventa dettaglio: lavora in sottrazione. Vedi [PixDex](#-pixdex--rimasterizzare-un-video)
 - 🔧 **Sbandatura ritarata su misure, non a occhio.** Le soglie di `deband` erano troppo aggressive e producevano puntinato nelle zone piatte: il filtro non appiattisce i gradini, li dissolve in rumore, e dove banda non c'è resta solo il rumore. Misurato su un video AV1 a 305 kbit/s, la taratura prudente vince su **entrambi** i fronti — granulosità da 2,686 a 1,581 e quadretti da 1,204 a 1,166 — e produce file molto più leggeri, perché l'encoder non spende più bit per descrivere il puntinato. Vedi [Come è tarata la sbandatura](#come-è-tarata-la-sbandatura)
 - ⚡ **GPU accesa di default nella GUI**: misurata 2,4× più veloce sulla catena di filtri vera (30,9 s contro 73,6 s per lo stesso spezzone su Ryzen 5 3500U + Vega 8)
