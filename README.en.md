@@ -1,6 +1,11 @@
 <div align="center">
 
-# 🎧 AudioDex
+<img src="image.png" alt="MediaDex — the Burning section" width="900">
+
+# 🎧 MediaDex
+
+<b>AudioDex</b> · <b>BurnDex</b> · <b>PixDex</b> · <b>ClipDex</b><br>
+<i>four tools, a single window</i>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
@@ -22,7 +27,7 @@
   <img src="https://img.shields.io/badge/pywebview-6.2-2C5BB4?logo=python&logoColor=white" alt="pywebview">
   <img src="https://img.shields.io/badge/WebView2-already_in_Windows-0078D4?logo=microsoftedge&logoColor=white" alt="WebView2">
   <img src="https://img.shields.io/badge/HTML_·_CSS_·_JS-interface-E34F26?logo=html5&logoColor=white" alt="HTML CSS JS">
-  <img src="https://img.shields.io/badge/Theme-dark_cyberpunk-EC4899?logo=neovim&logoColor=white" alt="Dark theme">
+  <img src="https://img.shields.io/badge/Theme-green_phosphor_on_black-39FF88?logo=neovim&logoColor=black" alt="Dark theme">
   <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-audio_only-EC1C24?logo=itunes&logoColor=white" alt="Formats">
   <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
 </p>
@@ -48,24 +53,63 @@
 
 </div>
 
-**Download** [**`AudioDex.exe`**](https://github.com/Imkun-on/AudioDex/releases/latest) and double-click it: no Python to install, no `.py` file in sight. You only need FFmpeg, installed once — and the program reminds you by itself if it is missing:
+**Download** [**`AudioDex.exe`**](https://github.com/Imkun-on/MediaDex/releases/latest) and double-click it: no Python to install, no `.py` file in sight. You only need FFmpeg, installed once — and the program reminds you by itself if it is missing:
 
 ```bash
 winget install Gyan.FFmpeg
 ```
 
+<details>
+<summary><b>⚠️ Windows says “AudioDex.exe isn't commonly downloaded”. Is it a virus?</b></summary>
+
+<br>
+
+**No — and Windows isn't saying it is.** That sentence means exactly what it says: this
+file is new and few people have downloaded it. The check is called **SmartScreen**, and
+it doesn't look inside the file: it looks at how *known* the file is. A freshly published
+program is known to nobody, so the same warning appears on a perfectly harmless
+executable — like this one — and would *not* appear on malware that has been circulating
+for months.
+
+The warning goes away in one of two ways, neither of which has anything to do with what
+the program contains: when enough people download it without reporting it, or if the
+executable is **signed** with a code-signing certificate (from ~€100/year for an OV one,
+which still has to build reputation over time; an EV certificate grants it immediately,
+but costs considerably more). For a non-commercial project like this one, paying for a
+certificate just to silence a warning makes little sense.
+
+**How to proceed:**
+
+1. In your browser's download bar, next to the file: `···` → **Keep** → **Keep anyway**.
+2. On the first double-click, if the blue window appears: **More info** → **Run anyway**.
+
+**If you'd rather verify than trust** — which is the right instinct with any executable
+off the internet:
+
+```powershell
+Get-FileHash .\AudioDex.exe -Algorithm SHA256
+```
+
+The hash must match the one published in the
+[Release](https://github.com/Imkun-on/MediaDex/releases/latest) notes. If it matches, the
+file you have is bit-for-bit the one built from this source. You can also upload it to
+[VirusTotal](https://www.virustotal.com/), or skip the executable entirely and **run from
+source** with the three lines below: it is the same program.
+
+</details>
+
 **Or from source**, if you want to get your hands in it:
 
 ```bash
-git clone https://github.com/Imkun-on/AudioDex.git
-cd AudioDex
+git clone https://github.com/Imkun-on/MediaDex.git
+cd MediaDex
 pip install -r requirements.txt
 ```
 
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
-> `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/AudioDex/releases/tag/assets-v1)
+> `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/MediaDex/releases/tag/assets-v1)
 > and is downloaded **once, on first launch**, in the background. The window opens right away:
-> until the download finishes — or if it fails — the background is a dark purple gradient.
+> until the download finishes — or if it fails — the background is the theme's green gradients, which hold up perfectly on their own.
 
 > 🌍 **A note on the screenshots.** Both tools speak **English or Italian** — they ask
 > which one you want on first launch, see [Interface language](#-interface-language).

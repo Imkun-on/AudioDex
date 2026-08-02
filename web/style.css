@@ -337,8 +337,16 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
   box-shadow: 0 0 16px var(--magenta);
   transition: width .35s var(--molla);
 }
-.cursa.indeterminata { width: 32%; animation: va-e-vieni 1.4s ease-in-out infinite; }
-@keyframes va-e-vieni { 0% { margin-left: -32%; } 100% { margin-left: 100%; } }
+/* La barra dice sempre un numero vero: la larghezza e' la frazione che il
+ * motore ha davvero portato a termine - byte scaricati, tracce scritte,
+ * fotogrammi codificati. Non esiste piu' uno stato «indeterminato» che va
+ * avanti e indietro: al suo posto, quando un motore non sa quanto manca, la
+ * barra sta ferma e a parlare e' la riga di testo sotto. */
+.cursa.attesa {
+  width: 100%;
+  background: linear-gradient(90deg, #39ff8814, #39ff8828, #39ff8814);
+  box-shadow: none;
+}
 .avanzamento-testo { font-size: 11.5px; color: var(--t1); }
 
 /* ── Colonne, elenco, diario ────────────────────────────────────────────── */
@@ -440,7 +448,7 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
 /* Chi ha chiesto al sistema meno animazioni le vede ferme: lo sfondo e'
  * decorazione, non deve dare fastidio a chi ne soffre. */
 @media (prefers-reduced-motion: reduce) {
-  .alone, .griglia, .cursa.indeterminata, .spia.working, .scheda { animation: none; }
+  .alone, .griglia, .spia.working, .scheda { animation: none; }
   * { transition-duration: .01ms !important; }
 }
 
@@ -505,12 +513,11 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
   background: linear-gradient(90deg, var(--magenta), var(--ciano));
   transition: width .4s var(--molla), opacity .3s;
 }
-.scheda.in-corso .filo { width: 100%; opacity: 1; animation: filo-scorre 1.5s ease-in-out infinite; }
+/* Il filo sotto la scheda e' i byte scaricati di *quella* traccia: la larghezza
+ * la scrive tracciaAvanza(). Prima scorreva avanti e indietro senza voler dire
+ * niente, e su una playlist lunga erano venti animazioni che non informavano. */
+.scheda.in-corso .filo { opacity: 1; }
 .scheda.finita .filo { width: 100%; opacity: 0; }
-@keyframes filo-scorre {
-  0%, 100% { transform: translateX(-100%); }
-  50%      { transform: translateX(0); }
-}
 
 .scheda.in-corso { background: #86ff5e0f; border-color: #86ff5e33; }
 .scheda.fallita  { background: #ff4d3d0f; border-color: #ff4d3d33; }
@@ -938,4 +945,76 @@ select.campo {
   0%, 97.4% { opacity: 1; }
   97.6%     { opacity: .985; }
   97.9%     { opacity: 1; }
+}
+
+/* ── Il velo di caricamento ──────────────────────────────────────────────── */
+/* Copre la finestra dal momento in cui compare a quello in cui la pagina ha
+ * ricevuto i testi, la cartella e lo sfondo. E' lo stesso disegno della
+ * schermata che PyInstaller mostra mentre scompatta l'eseguibile - stesso
+ * marchio, stesso verde, stesso nero - cosi' i due momenti sembrano uno solo
+ * e non due programmi diversi che si passano il turno. */
+
+.velo-avvio {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(60% 50% at 50% 42%, #12561f52, transparent 70%),
+    var(--f0);
+  transition: opacity .45s var(--molla), visibility .45s;
+}
+.velo-avvio.via { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* Le righe di scansione anche qui: e' la stessa stanza. */
+.velo-avvio::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom, #00000000 0 2px, #0000002e 2px 3px);
+}
+
+.avvio-blocco { display: grid; justify-items: center; gap: var(--s4); }
+
+.avvio-marchio {
+  width: 96px; height: 96px; color: var(--magenta);
+  filter: drop-shadow(0 0 14px #39ff8859);
+}
+/* Le barre si muovono come un livello audio: e' l'unica cosa che dice che il
+ * programma sta lavorando e non si e' piantato. */
+.avvio-marchio rect {
+  transform-box: fill-box; transform-origin: center;
+  animation: livello 1.15s ease-in-out infinite;
+}
+.avvio-marchio .b1 { animation-delay: -.9s; }
+.avvio-marchio .b2 { animation-delay: -.45s; color: var(--ciano); fill: var(--ciano); }
+.avvio-marchio .b3 { animation-delay: -.15s; }
+.avvio-marchio .b4 { animation-delay: -.65s; }
+
+@keyframes livello {
+  0%, 100% { transform: scaleY(.42); }
+  50%      { transform: scaleY(1); }
+}
+
+.avvio-nome {
+  font-size: 26px; font-weight: 700; letter-spacing: .5px;
+  color: var(--t0); text-shadow: 0 0 18px #39ff8840;
+}
+
+.avvio-barra {
+  width: 190px; height: 3px; border-radius: 2px;
+  background: #7cff8c1a; overflow: hidden;
+}
+/* Si riempie per passi veri: ogni scatto e' un pezzo di avvio portato a
+ * termine (la pagina, i testi, le quattro sezioni, l'ultimo disegno). Non
+ * scorre avanti e indietro, perche' andare avanti e indietro non e' una
+ * informazione. */
+.avvio-barra span {
+  display: block; width: 0; height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--viola), var(--magenta));
+  box-shadow: 0 0 10px #39ff8866;
+  transition: width .28s var(--molla);
+}
+
+/* Chi ha chiesto meno movimento al sistema operativo lo ottiene anche qui. */
+@media (prefers-reduced-motion: reduce) {
+  .avvio-marchio rect { animation: none; }
+  .avvio-barra span { transition: none; }
 }

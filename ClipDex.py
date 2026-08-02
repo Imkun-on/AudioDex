@@ -62,6 +62,7 @@ from rich.table import Column, Table
 from rich.text import Text
 
 from Shared.percorsi import dati as _dati
+from Shared.spia_avanzamento import Spiato
 from Shared.logger_setup import setup_logger, console, SYM_OK
 from Shared import i18n
 from Shared.strings_clipdex import TESTI
@@ -149,8 +150,14 @@ def _passo(numero: int, totale: int, titolo: str) -> None:
 
 
 def _progress() -> Progress:
-    """Barra di avanzamento comune a tutte le operazioni che ricodificano."""
-    return Progress(
+    """Barra di avanzamento comune a tutte le operazioni che ricodificano.
+
+    E' uno ``Spiato`` e non un ``Progress`` per una ragione sola: a terminale
+    non cambia niente, ma quando a chiamare e' l'interfaccia grafica i
+    fotogrammi contati qui arrivano anche alla sua barra. Vedi
+    Shared/spia_avanzamento.
+    """
+    return Spiato(
         SpinnerColumn(style='bright_blue'),
         TextColumn('{task.description}', table_column=Column(
             width=26, no_wrap=True, overflow='ellipsis')),

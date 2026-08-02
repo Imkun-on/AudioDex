@@ -50,6 +50,7 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 from Shared.percorsi import dati as _dati, risorsa as _risorsa
+from Shared import spia_avanzamento as _spia
 
 import webview
 
@@ -70,6 +71,109 @@ _DLG_CARTELLA = getattr(getattr(webview, 'FileDialog', None), 'FOLDER',
                         getattr(webview, 'FOLDER_DIALOG', 2))
 _DLG_APRI = getattr(getattr(webview, 'FileDialog', None), 'OPEN',
                     getattr(webview, 'OPEN_DIALOG', 10))
+
+
+# ── L'avvio: cosa si vede, e in che ordine ───────────────────────────────────
+#
+# Chi fa doppio clic su un file unico da 40 MB aspetta diversi secondi mentre
+# il contenuto viene riestratto in una cartella temporanea, e in quei secondi
+# non gira una riga di questo file: se sullo schermo non compare niente, il
+# doppio clic sembra non aver funzionato e se ne fa un altro, avviando due
+# copie. La sequenza e' questa:
+#
+#   1. il bootloader di PyInstaller mostra assets/caricamento.png;
+#   2. il programma parte e prepara la finestra, ma la tiene *nascosta*;
+#   3. la pagina si carica e chiama avvio(): li' la finestra compare, ma
+#      l'immagine resta ancora sopra;
+#   4. al primo fotogramma davvero disegnato la pagina chiama dipinta(), e
+#      l'immagine se ne va scoprendo il velo di caricamento - stesso marchio,
+#      stesso verde, nessuno stacco;
+#   5. la barra del velo si riempie per passi veri (testi arrivati, quattro
+#      sezioni pronte, tutto tradotto) e arrivata in fondo sfuma
+#      sull'interfaccia.
+#
+# Il punto 2 e' quello che conta. Mostrando la finestra subito, per un
+# istante si vedrebbe il bianco con cui WebView2 dipinge se stesso finche' non
+# ha finito di inizializzarsi: un lampo bianco in un programma tutto nero e
+# verde e' esattamente cio' che si nota di piu'.
+
+try:
+    import pyi_splash as _splash          # type: ignore[import-not-found]
+except ImportError:
+    # Fuori dall'eseguibile il modulo non esiste, e non c'e' nemmeno niente da
+    # scompattare: non c'e' immagine da chiudere.
+    _splash = None
+
+_gia_mostrata = False
+_gia_chiusa = False
+
+
+def _mostra_finestra() -> None:
+    """Fuori la finestra. Chiamarla piu' di una volta non fa danni."""
+    global _gia_mostrata
+    if _gia_mostrata or _finestra is None:
+        return
+    _gia_mostrata = True
+    try:
+        _finestra.show()
+    except Exception:
+        pass
+
+
+def _chiudi_caricamento() -> None:
+    """Via l'immagine di PyInstaller.
+
+    Va fatto dopo aver mostrato la finestra, non prima: finche' la finestra e'
+    nascosta WebView2 non disegna nulla, e nell'istante in cui compare le
+    servono ancora un paio di secondi per impaginare. Togliendo l'immagine
+    subito, quei secondi sarebbero un rettangolo nero e vuoto; lasciandocela
+    sopra, chi guarda continua a vedere il marchio finche' non c'e' altro da
+    vedere.
+    """
+    global _gia_chiusa
+    if _gia_chiusa or _splash is None:
+        return
+    _gia_chiusa = True
+    try:
+        _splash.close()
+    except Exception:
+        pass
+
+
+def _pronti() -> None:
+    """Tutt'e due, per la rete di sicurezza: meglio scoperti che invisibili."""
+    _mostra_finestra()
+    _chiudi_caricamento()
+
+
+def _riporta_avanzamento(descrizione: str, fatti: float, totale: float | None) -> None:
+    """Porta alla pagina un avanzamento riferito da un motore.
+
+    E' l'unico traduttore fra il modo in cui i motori contano - tracce,
+    fotogrammi, settori - e la barra: qui si decide soltanto come mostrarlo,
+    mai quanto sia avanzato il lavoro.
+    """
+    if not totale:
+        # Un motore che non sa quanto manca non deve far finta di saperlo:
+        # resta la scritta, la barra non si muove.
+        _verso_pagina('avanzaLavoro', 0, 0, None, descrizione)
+        return
+    _verso_pagina('avanzaLavoro', int(fatti), int(totale),
+                  min(fatti / totale, 1.0), descrizione)
+
+
+def _scadenza_avvio(secondi: int = 25) -> None:
+    """Rete di sicurezza: la finestra deve comparire comunque.
+
+    Se qualcosa impedisce alla pagina di arrivare fino in fondo - un errore
+    nel motore grafico di Windows, un file che non si carica - senza questa il
+    programma resterebbe una schermata di caricamento immobile, con la
+    finestra nascosta e niente da chiudere se non il Gestione attivita'.
+    Meglio un'interfaccia a meta', che si vede e si chiude.
+    """
+    orologio = threading.Timer(secondi, _pronti)
+    orologio.daemon = True      # non deve trattenere il programma alla chiusura
+    orologio.start()
 
 # ── Testi propri dell'interfaccia ────────────────────────────────────────────
 # Non stanno in Shared/ perche' riguardano solo questa finestra, e mescolarli
@@ -362,8 +466,25 @@ class Api:
 
     # ── Avvio ────────────────────────────────────────────────────────────────
 
+    def dipinta(self) -> dict:
+        """La finestra ha disegnato il primo fotogramma: si puo' scoprire.
+
+        Ora che la finestra e' visibile i fotogrammi ricominciano, quindi
+        questa chiamata arriva davvero - a differenza di quando la finestra
+        era ancora nascosta.
+        """
+        _chiudi_caricamento()
+        return {'ok': True}
+
     def avvio(self) -> dict:
         """Tutto cio' che serve alla pagina per disegnarsi la prima volta."""
+        # E' anche il primo segno di vita della pagina, e l'unico momento in
+        # cui si possa mostrare la finestra: finche' resta nascosta WebView2
+        # non disegna un fotogramma - sospende perfino requestAnimationFrame -
+        # quindi aspettare di sapere che ha dipinto sarebbe aspettare per
+        # sempre. L'immagine di caricamento resta ancora un momento, e la
+        # toglie dipinta() qui sotto.
+        _mostra_finestra()
         return {
             'ok': True,
             'lingua': i18n.get_language(),
@@ -491,9 +612,45 @@ class Api:
         fatte = [0]
         _verso_pagina('iniziaLavoro', totale)
 
+        # Quanto e' avanzato il download di ogni traccia ancora in corso, da 0
+        # a 1, ricavato dai byte che yt-dlp conta gia' per conto suo.
+        #
+        # Il peso 0.9 non e' un abbellimento: scaricare i byte e' quasi tutto
+        # il lavoro di una traccia, ma non tutto - dopo restano la conversione
+        # con FFmpeg, il testo sincronizzato e i tag. Contando i byte per
+        # l'intero, la barra arriverebbe in fondo con il programma ancora al
+        # lavoro, che e' il difetto peggiore che possa avere una barra. Cosi'
+        # invece l'ultimo decimo lo mette solo la traccia davvero finita.
+        PESO_BYTE = 0.9
+        quote: dict[int, float] = {}
+        ultimo_invio = [0.0]
+        serratura = threading.Lock()
+
+        def riferisci(forza: bool = False) -> None:
+            """Manda alla pagina l'avanzamento complessivo, byte compresi."""
+            import time as _time
+            with serratura:
+                adesso = _time.monotonic()
+                # Il ponte con JavaScript non va intasato: con otto download in
+                # parallelo yt-dlp chiama decine di volte al secondo, e l'occhio
+                # non vede nessuna differenza sotto il decimo di secondo.
+                if not forza and adesso - ultimo_invio[0] < 0.12:
+                    return
+                ultimo_invio[0] = adesso
+                parziale = fatte[0] + sum(quote.values()) * PESO_BYTE
+            _verso_pagina('avanzaLavoro', fatte[0], totale,
+                          min(parziale / totale, 1.0) if totale else 0)
+
         def una(indice: int) -> dict:
             entry = self._risultati[indice]
             _verso_pagina('tracciaFase', indice, 'download')
+
+            def byte(scaricati: int, totali: int, k=indice) -> None:
+                frazione = min(scaricati / totali, 1.0) if totali else 0.0
+                quote[k] = frazione
+                _verso_pagina('tracciaAvanza', k, round(frazione, 4))
+                riferisci()
+
             esito = ad.download_single(
                 entry, cartella, opzioni.get('formato', 'm4a'),
                 track_num=indice + 1,
@@ -502,11 +659,14 @@ class Api:
                 media=opzioni.get('media', 'audio'),
                 dividi=bool(opzioni.get('dividi', False)),
                 on_phase=lambda fase, k=indice: _verso_pagina('tracciaFase', k, fase),
+                on_progress=byte,
             )
-            fatte[0] += 1
+            with serratura:
+                fatte[0] += 1
+                quote.pop(indice, None)
             _verso_pagina('tracciaFinita', indice, esito.get('status', 'fail'),
                           esito.get('error', ''))
-            _verso_pagina('avanzaLavoro', fatte[0], totale)
+            riferisci(forza=True)
             return esito
 
         esiti: list[dict] = []
@@ -618,20 +778,26 @@ class Api:
             da_incidere = temporanea
             _verso_pagina('aggiungiRiga', i18n.t('burn.reordered'))
 
-        _verso_pagina('iniziaLavoro', 0)      # avanzamento indeterminato
+        # BurnDex conta gia' tutto quello che serve - tracce misurate,
+        # decodificate, scritte - per la barra che disegna a terminale: qui la
+        # si ascolta e la si ripete alla pagina. Le fasi si succedono, e ogni
+        # fase riparte da zero con il proprio totale: e' la verita', ed e'
+        # anche cio' che ci si aspetta guardando masterizzare.
+        _verso_pagina('iniziaLavoro', 0)
         try:
             velocita = opzioni.get('velocita')
             unita = opzioni.get('unita')
-            bd.masterizza_cartella(
-                da_incidere,
-                speed_x=int(velocita) if velocita not in (None, '', 'auto') else None,
-                dry_run=bool(opzioni.get('prova')),
-                auto_si=True,
-                espelli=not bool(opzioni.get('no_eject')),
-                indice_unita=int(unita) if unita not in (None, '', 'auto') else None,
-                livella=bool(opzioni.get('livella', True)),
-                rifila=bool(opzioni.get('rifila')),
-            )
+            with _spia.ascolta(_riporta_avanzamento):
+                bd.masterizza_cartella(
+                    da_incidere,
+                    speed_x=int(velocita) if velocita not in (None, '', 'auto') else None,
+                    dry_run=bool(opzioni.get('prova')),
+                    auto_si=True,
+                    espelli=not bool(opzioni.get('no_eject')),
+                    indice_unita=int(unita) if unita not in (None, '', 'auto') else None,
+                    livella=bool(opzioni.get('livella', True)),
+                    rifila=bool(opzioni.get('rifila')),
+                )
         finally:
             if temporanea:
                 _shutil.rmtree(temporanea, ignore_errors=True)
@@ -766,37 +932,43 @@ class Api:
             _verso_pagina('aggiungiRiga', i18n.t('err.no_file'))
             return
 
+        # ClipDex chiede a FFmpeg quanti fotogrammi ha gia' prodotto (l'opzione
+        # -progress) e con quelli disegna la sua barra a terminale. Restando in
+        # ascolto, gli stessi fotogrammi muovono anche questa.
         _verso_pagina('iniziaLavoro', 0)
         primo = sorgenti[0]
         esito = False
 
-        if azione == 'unisci':
-            if len(sorgenti) < 2:
-                _verso_pagina('aggiungiRiga', i18n.t('clip.need_two'))
-                return
-            dst = cd._nome_uscita(primo, 'ClipDex unito', '.mp4')
-            esito = cd.unisci(sorgenti, dst, capitoli=bool(opzioni.get('capitoli', True)))
-        elif azione == 'taglia':
-            inizio = cd.leggi_tempo(opzioni.get('da')) or 0.0
-            fine = cd.leggi_tempo(opzioni.get('a'))
-            dst = cd._nome_uscita(primo, 'ClipDex taglio')
-            esito = cd.taglia(primo, dst, inizio, fine, preciso=bool(opzioni.get('preciso')))
-        elif azione in ('gif', 'webp'):
-            dst = cd._nome_uscita(primo, f'ClipDex {azione}',
-                                  '.gif' if azione == 'gif' else '.webp')
-            funzione = cd.gif if azione == 'gif' else cd.webp
-            esito = funzione(primo, dst, cd.leggi_tempo(opzioni.get('da')),
-                             cd.leggi_tempo(opzioni.get('durata')),
-                             int(opzioni.get('fps') or cd.GIF_FPS),
-                             int(opzioni.get('larghezza') or cd.GIF_LARGHEZZA))
-        elif azione == 'provino':
-            dst = cd._nome_uscita(primo, 'ClipDex provino', '.png')
-            esito = cd.provino(primo, dst,
-                               int(opzioni.get('righe') or cd.PROVINO_RIGHE),
-                               int(opzioni.get('colonne') or cd.PROVINO_COLONNE))
-        else:                                   # compat
-            dst = cd._nome_uscita(primo, 'ClipDex compat', '.mp4')
-            esito = cd.compat(primo, dst)
+        with _spia.ascolta(_riporta_avanzamento):
+            if azione == 'unisci':
+                if len(sorgenti) < 2:
+                    _verso_pagina('aggiungiRiga', i18n.t('clip.need_two'))
+                    return
+                dst = cd._nome_uscita(primo, 'ClipDex unito', '.mp4')
+                esito = cd.unisci(sorgenti, dst,
+                                  capitoli=bool(opzioni.get('capitoli', True)))
+            elif azione == 'taglia':
+                inizio = cd.leggi_tempo(opzioni.get('da')) or 0.0
+                fine = cd.leggi_tempo(opzioni.get('a'))
+                dst = cd._nome_uscita(primo, 'ClipDex taglio')
+                esito = cd.taglia(primo, dst, inizio, fine,
+                                  preciso=bool(opzioni.get('preciso')))
+            elif azione in ('gif', 'webp'):
+                dst = cd._nome_uscita(primo, f'ClipDex {azione}',
+                                      '.gif' if azione == 'gif' else '.webp')
+                funzione = cd.gif if azione == 'gif' else cd.webp
+                esito = funzione(primo, dst, cd.leggi_tempo(opzioni.get('da')),
+                                 cd.leggi_tempo(opzioni.get('durata')),
+                                 int(opzioni.get('fps') or cd.GIF_FPS),
+                                 int(opzioni.get('larghezza') or cd.GIF_LARGHEZZA))
+            elif azione == 'provino':
+                dst = cd._nome_uscita(primo, 'ClipDex provino', '.png')
+                esito = cd.provino(primo, dst,
+                                   int(opzioni.get('righe') or cd.PROVINO_RIGHE),
+                                   int(opzioni.get('colonne') or cd.PROVINO_COLONNE))
+            else:                                   # compat
+                dst = cd._nome_uscita(primo, 'ClipDex compat', '.mp4')
+                esito = cd.compat(primo, dst)
 
         # Il provino e' un'immagine: si mostra, invece di limitarsi a dire
         # dov'e' finita. E' tutto il senso di un provino.
@@ -905,6 +1077,8 @@ class Api:
 
 def main() -> None:
     global _finestra
+    _scadenza_avvio()
+
     # La lingua e' quella salvata dalla GUI Flet: le due interfacce condividono
     # settings.json, cosi' passare dall'una all'altra non fa ripartire da capo.
     i18n.set_language(i18n.load_saved() or 'it')
@@ -916,10 +1090,21 @@ def main() -> None:
         width=1180,
         height=780,
         min_size=(900, 620),
-        background_color='#0d0620',
+        # Il fondo della finestra prima che la pagina dipinga: il nero
+        # verdastro del tema (--f1 in style.css). Con qualunque altro colore
+        # ogni avvio comincerebbe con un lampo di un tema che non esiste piu'.
+        background_color='#060b07',
         text_select=False,
+        # Nascosta finche' la pagina non e' pronta: vedi il commento in cima
+        # al file. La mostra _pronti().
+        hidden=True,
     )
-    webview.start()
+
+    # L'icona della finestra. Su Windows pywebview, se non gliela si passa,
+    # la estrae dall'eseguibile: lanciando i sorgenti finirebbe quella di
+    # python.exe, quindi gliela si indica sempre.
+    icona = _risorsa('assets', 'AudioDex.ico')
+    webview.start(icon=icona if os.path.isfile(icona) else None)
 
 
 if __name__ == '__main__':

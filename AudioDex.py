@@ -1470,13 +1470,16 @@ class _YtDlpProgressHook:
     impostata al primo valore disponibile.
     """
 
-    def __init__(self, progress: Progress, task_id, title: str, on_downloaded=None):
+    def __init__(self, progress: Progress | None, task_id, title: str,
+                 on_downloaded=None, on_progress=None):
         """Lega questo hook alla barra di una singola traccia.
 
         Parametri
         ---------
         progress, task_id
             La barra Rich e l'identificativo dell'attività da aggiornare.
+            Possono essere None: chi non disegna a terminale — l'interfaccia
+            grafica — passa solo ``on_progress``.
         title : str
             Titolo della traccia, tenuto per i messaggi diagnostici.
         on_downloaded : callable | None
@@ -1484,6 +1487,11 @@ class _YtDlpProgressHook:
             tracker delle fasi che il download è finito e che da lì in poi
             sta lavorando FFmpeg: senza, la barra "Download" resterebbe
             indietro per tutta la conversione.
+        on_progress : callable | None
+            Richiamata con ``(scaricati, totale)`` in byte a ogni blocco.
+            E' l'unico modo che ha un chiamante senza terminale di sapere a
+            che punto è un download: il numero c'è già, e prima non usciva
+            di qui.
 
         ``_started`` e ``_total`` esistono perché la dimensione del file non
         è nota alla prima chiamata: si registra il primo totale utile e lo si
@@ -1493,6 +1501,7 @@ class _YtDlpProgressHook:
         self.task_id = task_id
         self.title = title
         self.on_downloaded = on_downloaded
+        self.on_progress = on_progress
         self._started = False
         self._total = 0
 
@@ -1520,13 +1529,21 @@ class _YtDlpProgressHook:
                 downloaded = d.get('downloaded_bytes', 0)
                 if total > 0:
                     self._total = total
-                    if not self._started:
-                        self.progress.update(self.task_id, total=total)
+                    if self.progress is not None:
+                        if not self._started:
+                            self.progress.update(self.task_id, total=total)
+                            self._started = True
+                        self.progress.update(self.task_id, completed=downloaded)
+                    else:
                         self._started = True
-                    self.progress.update(self.task_id, completed=downloaded)
+                    if self.on_progress:
+                        self.on_progress(downloaded, total)
             elif d['status'] == 'finished':
                 if self._started and self._total > 0:
-                    self.progress.update(self.task_id, completed=self._total)
+                    if self.progress is not None:
+                        self.progress.update(self.task_id, completed=self._total)
+                    if self.on_progress:
+                        self.on_progress(self._total, self._total)
                 # I byte sono arrivati: da qui in poi lavora FFmpeg.
                 if self.on_downloaded:
                     self.on_downloaded()
@@ -1538,7 +1555,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                     track_num: int | None = None, album: str | None = None,
                     progress: Progress | None = None, task_id=None,
                     fetch_lyrics: bool = True, total_tracks: int | None = None,
-                    numbered: bool = False, on_phase=None,
+                    numbered: bool = False, on_phase=None, on_progress=None,
                     media: str = 'audio', dividi: bool = False) -> dict:
     """Scarica una singola traccia e ne registra i metadati.
 
@@ -1660,10 +1677,11 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
         if on_phase:
             on_phase(name)
 
-    if progress and task_id is not None:
+    if (progress and task_id is not None) or on_progress:
         hook = _YtDlpProgressHook(
-            progress, task_id, title,
+            progress if task_id is not None else None, task_id, title,
             on_downloaded=lambda: phase('download'),
+            on_progress=on_progress,
         )
         ydl_opts['progress_hooks'] = [hook]
 

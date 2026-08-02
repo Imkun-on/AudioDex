@@ -414,6 +414,25 @@
     </div>
   </div>
 
+  <!-- Il velo di caricamento.
+       Prende il testimone dalla schermata che PyInstaller mostra mentre
+       scompatta l'eseguibile: quella sparisce quando la finestra compare,
+       questo quando la pagina e' davvero pronta. Senza, in mezzo si vedrebbe
+       per un istante l'interfaccia ancora vuota e senza traduzioni. -->
+  <div class="velo-avvio" id="velo-avvio">
+    <div class="avvio-blocco">
+      <svg class="avvio-marchio" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="33.5" fill="none" stroke="currentColor" stroke-width="6.2"/>
+        <rect class="b1" x="31.15" y="35" width="6.2" height="30" rx="3.1" fill="currentColor"/>
+        <rect class="b2" x="41.65" y="22.5" width="6.2" height="55" rx="3.1" fill="currentColor"/>
+        <rect class="b3" x="52.15" y="29.5" width="6.2" height="41" rx="3.1" fill="currentColor"/>
+        <rect class="b4" x="62.65" y="40" width="6.2" height="20" rx="3.1" fill="currentColor"/>
+      </svg>
+      <div class="avvio-nome">AudioDex</div>
+      <div class="avvio-barra"><span></span></div>
+    </div>
+  </div>
+
   <script src="tendine.js"></script>
   <script src="app.js"></script>
   <script src="sez-burn.js"></script>

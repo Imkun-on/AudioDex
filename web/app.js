@@ -121,13 +121,21 @@ window.cambiaStato = (stato) => {
     if (window.riabilitaPix) window.riabilitaPix();
   }
   $('#avanzamento').classList.toggle('visibile', inCorso);
-  $('#barra').classList.toggle('indeterminata', inCorso);
-  if (inCorso) $('#avanzamento-testo').textContent = t('status.working') + '…';
+  if (inCorso) {
+    // La barra riparte da zero, non da un valore finto: il primo numero vero
+    // arriva dal motore entro una frazione di secondo.
+    $('#barra').style.width = '0%';
+    $('#barra').classList.remove('attesa');
+    $('#avanzamento-testo').textContent = t('status.working') + '…';
+  }
 };
 
 window.iniziaLavoro = (totale) => {
   $('#avanzamento').classList.add('visibile');
-  $('#barra').classList.toggle('indeterminata', !totale);
+  // 'attesa' e' il caso in cui il motore non ha ancora detto quanto sia il
+  // lavoro: la barra non finge un avanzamento, resta una striscia spenta
+  // finche' non arriva il primo conteggio.
+  $('#barra').classList.toggle('attesa', !totale);
   $('#barra').style.width = totale ? '0%' : '';
   $('#avanzamento-testo').textContent = totale
     ? t('lavoro.avanzo', { fatte: 0, totale }) : t('status.working') + '…';
@@ -135,16 +143,44 @@ window.iniziaLavoro = (totale) => {
   SCHEDE.forEach((s, i) => {
     if (!s) return;
     s.classList.remove('in-corso', 'finita', 'fallita');
+    const filo = s.querySelector('.filo');
+    if (filo) filo.style.width = '0%';
     const p = s.querySelector('.pastiglia');
     p.className = 'pastiglia';
     p.textContent = SCELTI.has(i) ? t('fase.attesa') : '';
   });
 };
 
-window.avanzaLavoro = (fatte, totale) => {
-  $('#barra').classList.remove('indeterminata');
-  $('#barra').style.width = Math.round((fatte / (totale || 1)) * 100) + '%';
-  $('#avanzamento-testo').textContent = t('lavoro.avanzo', { fatte, totale });
+/* L'avanzamento vero.
+ *
+ *   fatte, totale   le unita' del motore: tracce, fotogrammi, brani incisi.
+ *   frazione        opzionale, da 0 a 1: il riempimento reale della barra
+ *                   quando e' piu' fine del conteggio a unita' intere - i
+ *                   byte di un download stanno dentro una traccia sola.
+ *                   Se e' null il motore non sa quanto manca, e la barra
+ *                   resta ferma invece di inventare.
+ *   testo           opzionale: cosa sta lavorando in questo momento.
+ */
+window.avanzaLavoro = (fatte, totale, frazione = null, testo = '') => {
+  const barra = $('#barra');
+  const noto = frazione !== null && frazione !== undefined;
+  barra.classList.toggle('attesa', !noto && !totale);
+  if (noto) {
+    barra.style.width = (Math.max(0, Math.min(1, frazione)) * 100).toFixed(1) + '%';
+  } else if (totale) {
+    barra.style.width = Math.round((fatte / totale) * 100) + '%';
+  }
+  const conteggio = totale ? t('lavoro.avanzo', { fatte, totale }) : '';
+  $('#avanzamento-testo').textContent =
+    [testo, conteggio].filter(Boolean).join('  ·  ') || t('status.working') + '…';
+};
+
+/* Quanto e' scaricata *questa* traccia, in byte: il filo sotto la scheda. */
+window.tracciaAvanza = (i, frazione) => {
+  const s = SCHEDE[i];
+  if (!s) return;
+  const filo = s.querySelector('.filo');
+  if (filo) filo.style.width = (Math.max(0, Math.min(1, frazione)) * 100).toFixed(1) + '%';
 };
 
 window.tracciaFase = (i, fase) => {
@@ -176,7 +212,7 @@ window.tracciaFinita = (i, esito, errore) => {
 
 window.mostraRiepilogo = (dati) => {
   $('#avanzamento-testo').textContent = dati.testo;
-  $('#barra').classList.remove('indeterminata');
+  $('#barra').classList.remove('attesa');
   $('#barra').style.width = '100%';
   window.aggiungiRiga(dati.testo);
   avvisa(dati.testo, dati.ok ? 'ok' : 'fail');
@@ -349,9 +385,65 @@ async function scarica() {
 
 /* ── Avvio ────────────────────────────────────────────────────────────────── */
 
+const T_AVVIO = performance.now();
+
+/* I passi dell'avvio, contati.
+ *
+ * Sono i pezzi che vanno messi insieme prima che l'interfaccia sia usabile,
+ * ed e' un elenco chiuso e noto: per questo la barra del velo puo' dire un
+ * numero vero invece di scorrere avanti e indietro. Ogni chiamata a
+ * passoAvvio() e' un pezzo davvero finito, non un'attesa a tempo. */
+const PASSI_AVVIO = 7;
+let passiFatti = 0;
+
+function passoAvvio() {
+  passiFatti = Math.min(passiFatti + 1, PASSI_AVVIO);
+  const b = document.querySelector('.avvio-barra span');
+  if (b) b.style.width = (passiFatti / PASSI_AVVIO * 100).toFixed(0) + '%';
+}
+
+/* Toglie il velo di caricamento. Si puo' chiamare quante volte si vuole.
+ *
+ * L'elemento non viene rimosso subito ma dopo la dissolvenza, altrimenti
+ * sparirebbe di scatto; e viene rimosso davvero, non solo nascosto, perche'
+ * un rettangolo a tutto schermo che resta nell'albero e' un rischio inutile
+ * per i clic.
+ *
+ * I 500 ms minimi non sono un'attesa finta: su una macchina veloce la pagina
+ * e' pronta in un attimo, e un velo che appare e sparisce in cinquanta
+ * millesimi si vede come uno sfarfallio, non come un caricamento. */
+function togliVelo() {
+  const v = document.getElementById('velo-avvio');
+  if (!v || v.dataset.uscita) return;
+  v.dataset.uscita = '1';
+  const resta = Math.max(0, 500 - (performance.now() - T_AVVIO));
+  setTimeout(() => {
+    v.classList.add('via');
+    setTimeout(() => v.remove(), 600);
+  }, resta);
+}
+
 function avvia() {
+  /* Se l'apertura si inceppa - un errore nel motore, una chiamata che non
+   * torna - il velo deve comunque andarsene: meglio un'interfaccia a meta',
+   * che si vede e si puo' chiudere, che una schermata di caricamento
+   * perpetua. */
+  setTimeout(togliVelo, 12000);
+  passoAvvio();                       // 1. la pagina e i suoi script ci sono
+
   window.addEventListener('pywebviewready', async () => {
+    passoAvvio();                     // 2. il ponte con Python risponde
     const dati = await window.pywebview.api.avvio();
+    passoAvvio();                     // 3. testi, lingua e cartelle sono arrivati
+    // La finestra adesso e' sullo schermo, quindi i fotogrammi ripartono: al
+    // primo davvero composto si dice a Python di togliere l'immagine di
+    // caricamento. Due requestAnimationFrame annidati perche' il primo finisce
+    // il fotogramma in corso e il secondo comincia quello dopo, a disegno
+    // fatto.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try { window.pywebview.api.dipinta(); } catch (e) { /* la rete di
+        sicurezza in Python la toglie comunque */ }
+    }));
     TESTI = dati.testi;
     LINGUA = dati.lingua;
     $('#lingua').value = LINGUA;
@@ -368,11 +460,14 @@ function avvia() {
     }
 
     aggiornaFormati();
+    passoAvvio();                     // 4. la sezione Audio e' pronta
     if (window.initBurn) window.initBurn();
     if (window.initPix) window.initPix();
     if (window.initClip) window.initClip();
+    passoAvvio();                     // 5. e anche le altre tre
     traduciPagina();
     if (window.potenziaTendine) window.potenziaTendine();
+    passoAvvio();                     // 6. tutto e' nella lingua giusta
     cambiaSezione('audio', true);
 
     $$('.voce[data-va]').forEach((v) =>
@@ -432,5 +527,11 @@ function avvia() {
       LINGUA = esito.lingua;
       traduciPagina();
     });
+
+    // Ultima riga: da qui l'interfaccia e' disegnata, tradotta e reattiva.
+    // Toglierlo prima avrebbe scoperto un'interfaccia che non risponde ancora
+    // ai clic, che e' peggio di un attimo di attesa in piu'.
+    passoAvvio();                     // 7. risponde ai comandi: si puo' usare
+    togliVelo();
   });
 }

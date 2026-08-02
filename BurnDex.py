@@ -61,6 +61,7 @@ from rich.table import Column, Table
 from rich.text import Text
 
 from Shared.percorsi import dati as _dati
+from Shared.spia_avanzamento import Spiato
 from Shared.logger_setup import setup_logger, console, SYM_OK, SYM_FAIL, SYM_ARROW
 from Shared import i18n
 from Shared.strings_burndex import TESTI
@@ -174,8 +175,12 @@ def _progress(descrizione_larghezza: int = 32) -> Progress:
     La colonna della descrizione ha larghezza fissa: senza, ogni titolo di
     lunghezza diversa sposterebbe la barra a destra e a sinistra a ogni
     traccia, con un effetto di tremolio molto sgradevole.
+
+    E' uno ``Spiato`` e non un ``Progress`` per una ragione sola: a terminale
+    non cambia niente, ma quando a chiamare e' l'interfaccia grafica i numeri
+    contati qui arrivano anche alla sua barra. Vedi Shared/spia_avanzamento.
     """
-    return Progress(
+    return Spiato(
         SpinnerColumn(style='bright_blue'),
         TextColumn('{task.description}', table_column=Column(
             width=descrizione_larghezza, no_wrap=True, overflow='ellipsis')),

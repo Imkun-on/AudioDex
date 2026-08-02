@@ -33,6 +33,7 @@ nascosti = [
     # li carica solo quando la sezione corrispondente viene aperta.
     'AudioDex', 'BurnDex', 'PixDex', 'ClipDex',
     'Shared.i18n', 'Shared.logger_setup', 'Shared.http_client', 'Shared.percorsi',
+    'Shared.spia_avanzamento',
     'Shared.strings_audiodex', 'Shared.strings_burndex',
     'Shared.strings_pixdex', 'Shared.strings_clipdex',
     'Database_Globale.scraper_db',
@@ -51,6 +52,10 @@ dati = [
     # La pagina: e' l'interfaccia vera e propria.
     ('web', 'web'),
 ]
+# L'icona della finestra: la stessa dell'eseguibile, ma pywebview la vuole
+# come file, non incorporata nelle risorse del .exe.
+if os.path.exists(os.path.join('assets', 'AudioDex.ico')):
+    dati.append((os.path.join('assets', 'AudioDex.ico'), 'assets'))
 dati += collect_data_files('yt_dlp')
 
 a = Analysis(
@@ -69,16 +74,59 @@ a = Analysis(
     # parte di setuptools e si porta dietro le proprie dipendenze interne.
     # Toglierlo faceva morire l'eseguibile all'avvio, prima ancora di aprire
     # la finestra, con un ModuleNotFoundError su 'jaraco'.
-    excludes=['tkinter', 'unittest', 'pydoc', 'doctest', 'test',
-              'matplotlib', 'numpy', 'PIL'],
+    #
+    # tkinter NON si puo' piu' escludere: la schermata di caricamento qui sotto
+    # e' disegnata da Tcl/Tk, ed e' l'unico modo di mostrare qualcosa mentre il
+    # file unico si scompatta - in quel momento il programma vero non e' ancora
+    # partito e nessuna riga di codice nostro puo' girare.
+    #
+    # Qt e IPython pesavano insieme 52 MB su 165, e non ne veniva eseguita
+    # una riga:
+    #   PySide6  pywebview sa parlare con piu' motori grafici e PyInstaller
+    #            li impacchetta tutti. Su Windows si usa winforms, quello di
+    #            sistema; Qt era 45 MB scompattati a ogni avvio per niente.
+    #   IPython  rich, per capire se sta scrivendo dentro un notebook, prova
+    #            a importarlo dentro un try. PyInstaller vede l'import e si
+    #            porta dietro IPython, jedi e traitlets: qui non c'e' nessun
+    #            notebook, e il try regge benissimo l'assenza.
+    excludes=['unittest', 'pydoc', 'doctest', 'test',
+              'matplotlib', 'numpy', 'PIL',
+              'PySide6', 'PySide2', 'PyQt5', 'PyQt6', 'qtpy', 'shiboken6',
+              'IPython', 'jedi'],
     noarchive=False,
     optimize=0,
 )
 
 pyz = PYZ(a.pure)
 
+# La schermata di caricamento.
+#
+#     Un file unico da 67 MB viene riestratto in una cartella temporanea a ogni
+#     avvio, e sono diversi secondi in cui sullo schermo non succede niente:
+#     chi lancia il programma pensa che il doppio clic non abbia funzionato e
+#     ne fa un altro, avviando due copie.
+#
+#     La chiude il programma stesso quando la pagina e' pronta a mostrarsi (in
+#     AudioDexApp, alla prima chiamata di avvio()), cosi' l'immagine sparisce
+#     nell'istante in cui compare la finestra e non un attimo prima.
+#     text_pos resta None di proposito. Dandogli una posizione, il bootloader
+#     ci scrive dentro il nome di ogni file che sta scompattando: percorsi
+#     interni come 'jedi\\third_party\\typeshed\\...' che a chi guarda non
+#     dicono niente e che escono dal riquadro. La frase e' gia' disegnata
+#     nell'immagine.
+caricamento = Splash(
+    os.path.join('assets', 'caricamento.png'),
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    minify_script=True,
+    always_on_top=False,        # stare davanti a tutto e' da finestra di errore
+)
+
 exe = EXE(
     pyz,
+    caricamento,
+    caricamento.binaries,
     a.scripts,
     a.binaries,
     a.datas,
@@ -97,4 +145,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    # Il marchio: il disco con le barre del livello, verde su nero come
+    # l'interfaccia. Senza questa riga Windows mostra l'icona di ripiego di
+    # PyInstaller, che non c'entra niente con il programma.
+    icon=os.path.join('assets', 'AudioDex.ico'),
 )
