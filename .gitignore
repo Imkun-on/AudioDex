@@ -27,3 +27,9 @@ venv/
 .claude/
 Thumbs.db
 desktop.ini
+
+# Appunti di lavoro locali
+memory/
+
+# Sfondo della GUI: scaricato al primo avvio dalla Release, non versionato
+assets/*.mp4
