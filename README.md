@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/FFmpeg-richiesto-007808?logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Rich-TUI-4EC820?logo=windowsterminal&logoColor=white" alt="Rich">
   <img src="https://img.shields.io/badge/Mutagen-tagging-3776AB?logo=python&logoColor=white" alt="Mutagen">
+  <img src="https://img.shields.io/badge/Requests-HTTP-2C5BB4?logo=curl&logoColor=white" alt="Requests">
   <img src="https://img.shields.io/badge/LRCLIB-testi_karaoke-8B5CF6?logo=musicbrainz&logoColor=white" alt="LRCLIB">
   <img src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-solo_audio-EC1C24?logo=itunes&logoColor=white" alt="Formati">
@@ -21,6 +22,15 @@
   <img src="https://img.shields.io/badge/pywin32-COM_bridge-3776AB?logo=python&logoColor=white" alt="pywin32">
   <img src="https://img.shields.io/badge/Red_Book-CD--DA_44.1kHz_16bit-C0392B?logo=audiomack&logoColor=white" alt="Red Book">
   <img src="https://img.shields.io/badge/Windows-solo_masterizzazione-0078D4?logo=windows11&logoColor=white" alt="Windows">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/AudioDexGUI-interfaccia_grafica-06B6D4?logo=materialdesign&logoColor=white" alt="AudioDexGUI">
+  <img src="https://img.shields.io/badge/Flet-0.86-02569B?logo=flutter&logoColor=white" alt="Flet">
+  <img src="https://img.shields.io/badge/Flutter-motore_di_rendering-42A5F5?logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/flet--video-sfondo_in_loop-8E44AD?logo=vlcmediaplayer&logoColor=white" alt="flet-video">
+  <img src="https://img.shields.io/badge/Tema-cyberpunk_scuro-EC4899?logo=neovim&logoColor=white" alt="Tema scuro">
+  <img src="https://img.shields.io/badge/i18n-🇮🇹_IT_·_🇬🇧_EN-16A34A" alt="i18n">
 </p>
 
 <p align="center">
@@ -62,6 +72,10 @@ python AudioDex.py --url "https://www.youtube.com/playlist?list=..."
 ```bash
 python BurnDex.py --info                              # cosa c'è nel lettore
 python BurnDex.py                                     # masterizza una raccolta su CD audio
+```
+
+```bash
+python AudioDexGUI.py                                 # entrambi, con interfaccia grafica
 ```
 
 ---
