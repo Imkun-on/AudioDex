@@ -104,6 +104,12 @@ cd MediaDex
 pip install -r requirements.txt
 ```
 
+<p align="center">
+  <img src="screenshot.png" alt="MediaDex — the Burning section" width="900">
+</p>
+
+<p align="center"><i>The Burning section: a folder of tracks becomes a real audio CD.</i></p>
+
 > 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
 > `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/MediaDex/releases/tag/assets-v1)
 > and is downloaded **once, on first launch**, in the background. The window opens right away:
@@ -114,12 +120,6 @@ pip install -r requirements.txt
 > The terminal transcripts throughout this document were captured before the English
 > interface existed, so they show the Italian output verbatim; the layout is identical
 > in English, only the words differ.
-
-<p align="center">
-  <img src="screenshot.png" alt="MediaDex — the Burning section" width="900">
-</p>
-
-<p align="center"><i>The Burning section: a folder of tracks becomes a real audio CD.</i></p>
 
 ---
 
