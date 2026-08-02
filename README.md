@@ -78,6 +78,11 @@ python BurnDex.py                                     # masterizza una raccolta 
 python AudioDexGUI.py                                 # entrambi, con interfaccia grafica
 ```
 
+> 🎞️ **Il video di sfondo della GUI non è nel repository** (pesa 74 MB e rallenterebbe ogni
+> `git clone`): sta come allegato della [Release `assets-v1`](https://github.com/Imkun-on/AudioDex/releases/tag/assets-v1)
+> e viene scaricato **una volta sola al primo avvio**, in background. La finestra si apre subito:
+> finché il download non è finito — o se non riesce — lo sfondo è un gradiente viola scuro.
+
 ---
 
 ## 📖 Indice

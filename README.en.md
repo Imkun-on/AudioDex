@@ -77,6 +77,11 @@ python BurnDex.py                                     # burn a collection to an 
 python AudioDexGUI.py                                 # both tools, graphical interface
 ```
 
+> 🎞️ **The GUI background video is not in the repository** (74 MB would slow down every
+> `git clone`): it lives as an attachment of the [`assets-v1` Release](https://github.com/Imkun-on/AudioDex/releases/tag/assets-v1)
+> and is downloaded **once, on first launch**, in the background. The window opens right away:
+> until the download finishes — or if it fails — the background is a dark purple gradient.
+
 > 🌍 **A note on the screenshots.** Both tools speak **English or Italian** — they ask
 > which one you want on first launch, see [Interface language](#-interface-language).
 > The terminal transcripts throughout this document were captured before the English
