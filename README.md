@@ -154,12 +154,13 @@ python PixDex.py                                      # rimasterizza un video sc
 - 13.2 [Perché funziona lo stesso](#perché-funziona-lo-stesso)
 - 13.3 [L'ordine dei filtri non è negoziabile](#lordine-dei-filtri-non-è-negoziabile)
 - 13.4 [I cinque preset](#i-cinque-preset)
-- 13.5 [La diagnosi](#la-diagnosi)
-- 13.6 [Fin dove ingrandisce, e come sceglierlo](#fin-dove-ingrandisce-e-come-sceglierlo)
-- 13.7 [Il confronto prima/dopo](#il-confronto-primadopo)
-- 13.8 [Codifica: software o GPU](#codifica-software-o-gpu)
-- 13.9 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-pixdex)
-- 13.10 [Nella GUI](#nella-gui)
+- 13.5 [Come è tarata la sbandatura](#come-è-tarata-la-sbandatura)
+- 13.6 [La diagnosi](#la-diagnosi)
+- 13.7 [Fin dove ingrandisce, e come sceglierlo](#fin-dove-ingrandisce-e-come-sceglierlo)
+- 13.8 [Il confronto prima/dopo](#il-confronto-primadopo)
+- 13.9 [Codifica: software o GPU](#codifica-software-o-gpu)
+- 13.10 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-pixdex)
+- 13.11 [Nella GUI](#nella-gui)
 
 **Capitolo 14 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
 
@@ -1002,6 +1003,22 @@ Tolti quelli, **la stessa identica quantità di dettaglio si legge molto meglio*
 
 Senza indicazioni, il preset lo sceglie la **diagnosi**.
 
+### Come è tarata la sbandatura
+
+`deband` **non appiattisce i gradini: li dissolve in rumore**, esattamente come fa il dithering. È il modo giusto di togliere una banda vera — un contorno visibile viene barattato con una granulosità che l'occhio non nota. Ma il filtro lavora su tutto il fotogramma, comprese le zone piatte dove banda non ce n'è: lì non c'è niente da barattare e resta solo il rumore.
+
+Misurato su un video molto compresso (AV1 a 305 kbit/s, da 720p a 1440p), nella stessa parete scura uniforme:
+
+| Taratura | Granulosità | Quadretti |
+|---|---|---|
+| solo ingrandimento, nessun filtro | 0,805 | 1,618 |
+| soglia 0,035 · raggio 24 · nitidezza 0,55 | 2,686 | 1,204 |
+| **soglia 0,010 · raggio 16 · nitidezza 0,35** | **1,581** | **1,166** |
+
+La taratura prudente vince su **entrambi** i fronti: meno rumore *e* anche meno quadretti. Quella aggressiva non comprava niente — sporcava e basta, e il file finiva per pesare il triplo perché l'encoder spendeva bit per descrivere quel puntinato.
+
+Da qui le soglie basse dei preset. L'unica eccezione è **Animazione**, che resta la più decisa: le grandi campiture di colore piatto dei cartoni bandano davvero, e lì il baratto conviene.
+
 ### La diagnosi
 
 Prima di toccare qualsiasi cosa, PixDex legge il file con `ffprobe` e guarda tre grandezze:
@@ -1066,7 +1083,7 @@ I due fotogrammi vengono portati **alla stessa altezza**: altrimenti l'ingrandim
 
 | | `libx264` (default) | `--gpu` (`h264_amf`) |
 |---|---|---|
-| Velocità | lenta | **molto più veloce** |
+| Velocità | lenta | **2,4× più veloce** (misurato su Ryzen 5 3500U + Vega 8) |
 | Qualità a parità di peso | **migliore** | un filo meno pulita |
 | Quando | il caso normale | file lunghi, quando il tempo conta più della resa |
 
@@ -1213,6 +1230,8 @@ Dettagli tecnici:
 **Nuovo**
 
 - 🎞 **PixDex — rimasterizzatore video.** `PixDex.py` prende un video di qualità scarsa e lo ripulisce: toglie i quadretti della compressione, appiana le bande a scalini nei cieli e nelle dissolvenze, e ingrandisce con Lanczos. **Cinque preset** (Pulito, Standard, Forte, Animazione, Vecchio) scelti automaticamente da una **diagnosi** che legge risoluzione, bit per pixel e ordine dei campi senza decodificare il file. La sbandatura è svolta a **10 bit**, perché a 8 bit il rimedio genera bande nuove. A fine lavoro salva un PNG col **confronto prima/dopo**, i due fotogrammi alla stessa altezza per non barare. Non inventa dettaglio: lavora in sottrazione. Vedi [PixDex](#-pixdex--rimasterizzare-un-video)
+- 🔧 **Sbandatura ritarata su misure, non a occhio.** Le soglie di `deband` erano troppo aggressive e producevano puntinato nelle zone piatte: il filtro non appiattisce i gradini, li dissolve in rumore, e dove banda non c'è resta solo il rumore. Misurato su un video AV1 a 305 kbit/s, la taratura prudente vince su **entrambi** i fronti — granulosità da 2,686 a 1,581 e quadretti da 1,204 a 1,166 — e produce file molto più leggeri, perché l'encoder non spende più bit per descrivere il puntinato. Vedi [Come è tarata la sbandatura](#come-è-tarata-la-sbandatura)
+- ⚡ **GPU accesa di default nella GUI**: misurata 2,4× più veloce sulla catena di filtri vera (30,9 s contro 73,6 s per lo stesso spezzone su Ryzen 5 3500U + Vega 8)
 - 🎚 **Scelta della risoluzione d'arrivo al terzo passo**, con una tabella che per ogni modalità mostra il risultato su *quel* file, il fattore di ingrandimento e quanto vale davvero: la stessa riga che offre il 4K dice che da un 360p non aggiunge un solo dettaglio. Da riga di comando `--height auto|none|hd|2k|4k|PIXEL`. Vedi [Fin dove ingrandisce](#fin-dove-ingrandisce-e-come-sceglierlo)
 - 🖥 **Sezione Rimasterizza video nella GUI**, con la diagnosi mostrata *prima* di impegnare ore di lavorazione e il confronto prima/dopo direttamente nella finestra
 

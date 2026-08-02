@@ -167,8 +167,8 @@ GUI_TESTI: dict[str, dict[str, str]] = {
     'gui.pix.preset.auto': {'it': 'Automatico (dalla diagnosi)', 'en': 'Automatic (from diagnosis)'},
     'gui.pix.height':     {'it': 'Risoluzione finale', 'en': 'Final resolution'},
     'gui.pix.height.auto': {'it': 'Automatica', 'en': 'Automatic'},
-    'gui.pix.gpu':        {'it': 'Codifica su GPU AMD (veloce, un filo meno pulita)',
-                           'en': 'Encode on the AMD GPU (fast, slightly less clean)'},
+    'gui.pix.gpu':        {'it': 'Codifica sulla GPU AMD — circa 2,4× più veloce, file un po\' più pesante',
+                           'en': 'Encode on the AMD GPU — about 2.4× faster, slightly heavier file'},
     'gui.pix.compare':    {'it': 'Salva immagine di confronto prima/dopo',
                            'en': 'Save a before/after comparison image'},
     'gui.pix.action.analyze': {'it': 'Analizza', 'en': 'Analyse'},
@@ -1960,12 +1960,20 @@ def build_pix_view(state: AppState, log_view: ft.ListView,
         ],
     )
 
+    # La codifica sulla GPU è accesa di default. Misurato su un portatile con
+    # Ryzen 5 3500U e Vega 8, sulla catena di filtri vera: 30,9 s contro 73,6 s
+    # per lo stesso spezzone: 2,4 volte più veloce. Il guadagno supera quello
+    # della sola codifica perché su quattro core i filtri e l'encoder si
+    # contendono la CPU, e spostando l'encoder i filtri se la prendono tutta.
+    # Il prezzo è un file circa un quinto più pesante a parità di resa.
+    _gpu_salvato = presets.get('pix_gpu')
     _confronto_salvato = presets.get('pix_compare')
     toggles = ft.Column(
         spacing=8,
         controls=[
             ft.Row(spacing=10, controls=[
-                ft.Switch(ref=gpu_switch, value=bool(presets.get('pix_gpu')),
+                ft.Switch(ref=gpu_switch,
+                          value=True if _gpu_salvato is None else bool(_gpu_salvato),
                           active_color=Colors.NEON_PURPLE, on_change=_persist),
                 ft.Text(i18n.t('gui.pix.gpu'), color=Colors.TEXT_DIM, size=12,
                         expand=True, no_wrap=False),

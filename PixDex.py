@@ -420,11 +420,33 @@ def _pannello_diagnosi(problemi: list[str], consigliato: str) -> None:
 # agli oggetti in movimento. Per questo resta sempre moderato.
 
 
+# ── Come e' tarata la sbandatura ─────────────────────────────────────────────
+#
+# ``deband`` non appiattisce i gradini: li dissolve in rumore, come fa il
+# dithering. E' il modo giusto di togliere una banda vera, perche' un contorno
+# visibile viene barattato con una granulosita' che l'occhio non nota. Ma il
+# filtro lavora su tutto il fotogramma, comprese le zone piatte dove banda non
+# ce n'e': li' non c'e' niente da barattare e resta solo il rumore.
+#
+# Misurato su un video molto compresso (AV1 a 305 kbit/s, 720p -> 1440p), nella
+# stessa parete scura uniforme:
+#
+#     taratura                    granulosita'   quadretti
+#     solo ingrandimento              0.805        1.618
+#     1thr 0.035 range 24 cas 0.55    2.686        1.204
+#     1thr 0.010 range 16 cas 0.35    1.581        1.166
+#
+# La taratura prudente vince su *entrambi* i fronti: meno rumore e anche meno
+# quadretti. Quella aggressiva non comprava niente — sporcava e basta, e il
+# file finiva per pesare il triplo perche' l'encoder spendeva bit per
+# descrivere quel puntinato. Da qui le soglie basse che si vedono sotto.
+
+
 def _f_pulito(_info: dict) -> list[str]:
     """Sorgente gia' discreta: si toglie solo la sporcizia della compressione."""
     return [
         'deblock=filter=weak:block=4',
-        'deband=1thr=0.02:2thr=0.02:3thr=0.02:4thr=0.02:range=16:blur=1',
+        'deband=1thr=0.008:2thr=0.008:3thr=0.008:4thr=0.008:range=16:blur=1',
     ]
 
 
@@ -433,7 +455,7 @@ def _f_standard(_info: dict) -> list[str]:
     return [
         'deblock=filter=weak:block=4',
         'hqdn3d=1.5:1.2:4:3',
-        'deband=1thr=0.02:2thr=0.02:3thr=0.02:4thr=0.02:range=16:blur=1',
+        'deband=1thr=0.010:2thr=0.010:3thr=0.010:4thr=0.010:range=16:blur=1',
     ]
 
 
@@ -448,7 +470,7 @@ def _f_forte(_info: dict) -> list[str]:
         'deblock=filter=strong:block=4',
         'atadenoise=0a=0.02:1a=0.02:2a=0.02:s=9',
         'hqdn3d=3:2.5:6:4.5',
-        'deband=1thr=0.035:2thr=0.035:3thr=0.035:4thr=0.035:range=24:blur=1',
+        'deband=1thr=0.010:2thr=0.010:3thr=0.010:4thr=0.010:range=16:blur=1',
     ]
 
 
@@ -463,7 +485,7 @@ def _f_animazione(_info: dict) -> list[str]:
     return [
         'deblock=filter=weak:block=4',
         'hqdn3d=1:0.8:2:2',
-        'deband=1thr=0.04:2thr=0.04:3thr=0.04:4thr=0.04:range=24:blur=1',
+        'deband=1thr=0.020:2thr=0.020:3thr=0.020:4thr=0.020:range=24:blur=1',
     ]
 
 
@@ -479,7 +501,7 @@ def _f_vecchio(_info: dict) -> list[str]:
         'bwdif=mode=send_frame:parity=auto:deint=all',
         'deblock=filter=strong:block=4',
         'hqdn3d=4:3:6:4.5',
-        'deband=1thr=0.03:2thr=0.03:3thr=0.03:4thr=0.03:range=24:blur=1',
+        'deband=1thr=0.012:2thr=0.012:3thr=0.012:4thr=0.012:range=16:blur=1',
     ]
 
 
@@ -488,35 +510,35 @@ PRESETS: dict[str, dict] = {
         'nome': lambda: t('preset.pulito.name'),
         'desc': lambda: t('preset.pulito.desc'),
         'filtri': _f_pulito,
-        'sharpen': 0.25,
+        'sharpen': 0.20,
         'upscale': False,
     },
     'standard': {
         'nome': lambda: t('preset.standard.name'),
         'desc': lambda: t('preset.standard.desc'),
         'filtri': _f_standard,
-        'sharpen': 0.40,
+        'sharpen': 0.30,
         'upscale': True,
     },
     'forte': {
         'nome': lambda: t('preset.forte.name'),
         'desc': lambda: t('preset.forte.desc'),
         'filtri': _f_forte,
-        'sharpen': 0.55,
+        'sharpen': 0.35,
         'upscale': True,
     },
     'animazione': {
         'nome': lambda: t('preset.animazione.name'),
         'desc': lambda: t('preset.animazione.desc'),
         'filtri': _f_animazione,
-        'sharpen': 0.65,
+        'sharpen': 0.45,
         'upscale': True,
     },
     'vecchio': {
         'nome': lambda: t('preset.vecchio.name'),
         'desc': lambda: t('preset.vecchio.desc'),
         'filtri': _f_vecchio,
-        'sharpen': 0.35,
+        'sharpen': 0.30,
         'upscale': True,
     },
 }

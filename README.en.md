@@ -159,12 +159,13 @@ python PixDex.py                                      # remaster a downloaded vi
 - 13.2 [Why it works anyway](#why-it-works-anyway)
 - 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
 - 13.4 [The five presets](#the-five-presets)
-- 13.5 [The diagnosis](#the-diagnosis)
-- 13.6 [How far it upscales, and how to choose](#how-far-it-upscales-and-how-to-choose)
-- 13.7 [The before/after comparison](#the-beforeafter-comparison)
-- 13.8 [Encoding: software or GPU](#encoding-software-or-gpu)
-- 13.9 [Command-line options](#command-line-options-pixdex)
-- 13.10 [In the GUI](#in-the-gui)
+- 13.5 [How debanding is tuned](#how-debanding-is-tuned)
+- 13.6 [The diagnosis](#the-diagnosis)
+- 13.7 [How far it upscales, and how to choose](#how-far-it-upscales-and-how-to-choose)
+- 13.8 [The before/after comparison](#the-beforeafter-comparison)
+- 13.9 [Encoding: software or GPU](#encoding-software-or-gpu)
+- 13.10 [Command-line options](#command-line-options-pixdex)
+- 13.11 [In the GUI](#in-the-gui)
 
 **Chapter 14 — [🧩 Project architecture](#-project-architecture)**
 
@@ -1007,6 +1008,22 @@ This is the part almost every guide gets wrong, and on its own it separates a go
 
 With no instructions, the **diagnosis** picks the preset.
 
+### How debanding is tuned
+
+`deband` **does not flatten the steps: it dissolves them into noise**, exactly like dithering does. That is the right way to remove a real band — a visible contour is traded for a graininess the eye does not notice. But the filter works on the whole frame, including flat areas where there is no banding at all: there is nothing to trade there, and only the noise is left.
+
+Measured on a heavily compressed video (AV1 at 305 kbit/s, 720p to 1440p), on the same flat dark wall:
+
+| Tuning | Graininess | Blocking |
+|---|---|---|
+| upscale only, no filters | 0.805 | 1.618 |
+| threshold 0.035 · range 24 · sharpening 0.55 | 2.686 | 1.204 |
+| **threshold 0.010 · range 16 · sharpening 0.35** | **1.581** | **1.166** |
+
+The gentle tuning wins on **both** counts: less noise *and* less blocking too. The aggressive one bought nothing — it only dirtied the picture, and the file ended up three times heavier because the encoder was spending bits describing that speckle.
+
+Hence the low thresholds in the presets. The one exception is **Animation**, which stays the boldest: the large flat colour fills of cartoons really do band, and there the trade pays off.
+
 ### The diagnosis
 
 Before touching anything, PixDex reads the file with `ffprobe` and looks at three quantities:
@@ -1071,7 +1088,7 @@ Both frames are brought to **the same height**: otherwise upscaling would make t
 
 | | `libx264` (default) | `--gpu` (`h264_amf`) |
 |---|---|---|
-| Speed | slow | **much faster** |
+| Speed | slow | **2.4× faster** (measured on a Ryzen 5 3500U + Vega 8) |
 | Quality at equal size | **better** | slightly less clean |
 | When | the normal case | long files, when time matters more than the result |
 
@@ -1218,6 +1235,8 @@ Technical details:
 **New**
 
 - 🎞 **PixDex — video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex--remastering-a-video)
+- 🔧 **Debanding retuned from measurements, not by eye.** The `deband` thresholds were too aggressive and produced speckle in flat areas: the filter does not flatten steps, it dissolves them into noise, and where there is no banding only the noise is left. Measured on an AV1 video at 305 kbit/s, the gentle tuning wins on **both** counts — graininess from 2.686 to 1.581 and blocking from 1.204 to 1.166 — and produces far lighter files, because the encoder no longer spends bits describing the speckle. See [How debanding is tuned](#how-debanding-is-tuned)
+- ⚡ **GPU on by default in the GUI**: measured 2.4× faster on the real filter chain (30.9 s against 73.6 s for the same clip on a Ryzen 5 3500U + Vega 8)
 - 🎚 **Target resolution chosen at the third step**, with a table that for each mode shows the result on *that* file, the upscaling factor and what it is actually worth: the very row that offers 4K says it adds not one detail from a 360p source. From the command line, `--height auto|none|hd|2k|4k|PIXELS`. See [How far it upscales](#how-far-it-upscales-and-how-to-choose)
 - 🖥 **Remaster video section in the GUI**, with the diagnosis shown *before* committing hours of processing and the before/after comparison right there in the window
 
