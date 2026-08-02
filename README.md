@@ -20,8 +20,9 @@
   <img src="https://img.shields.io/badge/10--bit-sbandatura-0EA5E9?logo=adobelightroom&logoColor=white" alt="10 bit">
   <img src="https://img.shields.io/badge/Lanczos-ingrandimento-6366F1?logo=imagedotsc&logoColor=white" alt="Lanczos">
   <img src="https://img.shields.io/badge/libx264_·_h264__amf-codifica-C0392B?logo=amd&logoColor=white" alt="Encoder">
-  <img src="https://img.shields.io/badge/Flet-0.86-02569B?logo=flutter&logoColor=white" alt="Flet">
-  <img src="https://img.shields.io/badge/flet--video-sfondo_in_loop-8E44AD?logo=vlcmediaplayer&logoColor=white" alt="flet-video">
+  <img src="https://img.shields.io/badge/pywebview-6.2-2C5BB4?logo=python&logoColor=white" alt="pywebview">
+  <img src="https://img.shields.io/badge/WebView2-già_nel_sistema-0078D4?logo=microsoftedge&logoColor=white" alt="WebView2">
+  <img src="https://img.shields.io/badge/HTML_·_CSS_·_JS-interfaccia-E34F26?logo=html5&logoColor=white" alt="HTML CSS JS">
   <img src="https://img.shields.io/badge/Tema-cyberpunk_scuro-EC4899?logo=neovim&logoColor=white" alt="Tema scuro">
   <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-solo_audio-EC1C24?logo=itunes&logoColor=white" alt="Formati">
   <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
@@ -69,7 +70,7 @@ python BurnDex.py                                     # masterizza una raccolta 
 ```
 
 ```bash
-python AudioDexGUI.py                                 # entrambi, con interfaccia grafica
+python AudioDexApp.py                                 # tutto, con interfaccia grafica
 python PixDex.py                                      # rimasterizza un video scaricato
 python ClipDex.py                                     # taglia, unisci, GIF, provini
 ```
@@ -307,7 +308,7 @@ pip install pywin32          # solo per BurnDex (masterizzazione CD, Windows)
 
 **Da terminale si lavora in italiano.** I tre programmi a riga di comando — `AudioDex.py`, `BurnDex.py`, `PixDex.py` — parlano italiano e basta: nessuna domanda all'avvio, nessuna opzione `--lang` da ricordare. Apri il terminale, lanci, parti.
 
-**Nella GUI la scelta c'è, ed è un clic.** `AudioDexGUI.py` ha un menu a tendina **Italiano / English** nella barra laterale: cambia lingua all'istante — voci di menu, etichette, pulsanti, diagnosi, messaggi — e ricorda la scelta in `settings.json` per i lanci successivi.
+**Nella GUI la scelta c'è, ed è un clic.** `AudioDexApp.py` ha un menu a tendina **Italiano / English** nella barra laterale: cambia lingua all'istante — voci di menu, etichette, pulsanti, diagnosi, messaggi — e ricorda la scelta in `settings.json` per i lanci successivi.
 
 È lì che la scelta ha senso. Un menu a tendina lo vedi, lo provi e ne cogli subito l'effetto; la stessa scelta come argomento da digitare era solo una cosa in più da ricordare a ogni lancio.
 
@@ -1219,7 +1220,7 @@ python PixDex.py -i video.mp4 -y                  # nessuna domanda
 
 ### Nella GUI
 
-`AudioDexGUI.py` ha la sezione **Rimasterizza video**: si sceglie il file, si preme **Analizza** e la diagnosi compare in un pannello — cosa non va, e quale preset lo affronta — *prima* di impegnare minuti od ore di lavorazione. A fine lavoro il confronto prima/dopo si vede direttamente nella finestra, accanto alla diagnosi.
+`AudioDexApp.py` ha la sezione **Rimasterizza**: si sceglie il file, si preme **Analizza** e la diagnosi compare in un pannello — cosa non va, e quale preset lo affronta — *prima* di impegnare minuti od ore di lavorazione. A fine lavoro il confronto prima/dopo si vede direttamente nella finestra, accanto alla diagnosi.
 
 > ⏱ **Quanto ci mette.** Dipende dal processore: la rimasterizzazione è l'operazione più pesante di tutto il progetto. Durante la lavorazione la barra mostra fotogrammi elaborati e velocità in tempo reale (`1.2x` significa che va più veloce della durata del video, `0.5x` il doppio del tempo). Con `--gpu` si va molto più veloci.
 
@@ -1317,7 +1318,14 @@ AudioDex/
 ├── BurnDex.py                # 💿 Masterizzatore di CD audio (Windows, IMAPI2)
 ├── PixDex.py                 # 🎞 Rimasterizzatore video (FFmpeg, multipiattaforma)
 ├── ClipDex.py                # ✂ Montaggio: taglia, unisci, GIF, provini, compatibilità
-├── AudioDexGUI.py            # 🖥 Interfaccia grafica Flet per tutti e tre
+├── AudioDexApp.py            # 🖥 Interfaccia grafica: apre la finestra ed espone il motore
+├── web/                      # L'interfaccia vera e propria
+│   ├── index.html            # Struttura delle quattro sezioni
+│   ├── style.css             # Tema e sfondo animato
+│   ├── app.js                # Nucleo e sezione Audio
+│   ├── sez-burn.js           # Sezione Masterizzazione
+│   ├── sez-pix.js            # Sezione Rimasterizza
+│   └── sez-clip.js           # Sezione Montaggio
 ├── Shared/
 │   ├── __init__.py
 │   ├── logger_setup.py       # Logger su file + tema/simboli Rich condivisi

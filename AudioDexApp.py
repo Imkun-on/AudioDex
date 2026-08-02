@@ -60,6 +60,15 @@ i18n.register(TESTI_AUDIO)
 # poterla raggiungere per spingere gli aggiornamenti alla pagina.
 _finestra: webview.Window | None = None
 
+# pywebview 6 ha rinominato le costanti dei selettori di file. Si prendono le
+# nuove quando esistono e si ricade sulle vecchie: cosi' il programma non
+# stampa avvisi di deprecazione sulle versioni recenti e continua a girare su
+# quelle precedenti.
+_DLG_CARTELLA = getattr(getattr(webview, 'FileDialog', None), 'FOLDER',
+                        getattr(webview, 'FOLDER_DIALOG', 2))
+_DLG_APRI = getattr(getattr(webview, 'FileDialog', None), 'OPEN',
+                    getattr(webview, 'OPEN_DIALOG', 10))
+
 # ── Testi propri dell'interfaccia ────────────────────────────────────────────
 # Non stanno in Shared/ perche' riguardano solo questa finestra, e mescolarli
 # al catalogo di AudioDex renderebbe piu' difficile capire, leggendo quel file,
@@ -388,7 +397,7 @@ class Api:
     def scegli_cartella(self) -> dict:
         """Apre il selettore di cartelle del sistema."""
         try:
-            scelta = _finestra.create_file_dialog(webview.FOLDER_DIALOG)
+            scelta = _finestra.create_file_dialog(_DLG_CARTELLA)
         except Exception as exc:
             return {'ok': False, 'errore': str(exc)}
         return {'ok': True, 'cartella': scelta[0] if scelta else ''}
@@ -798,7 +807,7 @@ class Api:
             tipi = ('Video (' + ' '.join(f'*{e}' for e in sorted(cd.VIDEO_EXTS)) + ')',
                     'Audio (*.m4a;*.mp3;*.opus;*.wav;*.flac)', 'Tutti (*.*)')
             scelti = _finestra.create_file_dialog(
-                webview.OPEN_DIALOG, allow_multiple=bool(multi), file_types=tipi)
+                _DLG_APRI, allow_multiple=bool(multi), file_types=tipi)
         except Exception as exc:                # noqa: BLE001
             return {'ok': False, 'errore': str(exc), 'file': []}
         return {'ok': True, 'file': list(scelti) if scelti else []}

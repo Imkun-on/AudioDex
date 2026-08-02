@@ -19,8 +19,9 @@
   <img src="https://img.shields.io/badge/10--bit-debanding-0EA5E9?logo=adobelightroom&logoColor=white" alt="10 bit">
   <img src="https://img.shields.io/badge/Lanczos-upscaling-6366F1?logo=imagedotsc&logoColor=white" alt="Lanczos">
   <img src="https://img.shields.io/badge/libx264_·_h264__amf-encoding-C0392B?logo=amd&logoColor=white" alt="Encoder">
-  <img src="https://img.shields.io/badge/Flet-0.86-02569B?logo=flutter&logoColor=white" alt="Flet">
-  <img src="https://img.shields.io/badge/flet--video-looping_background-8E44AD?logo=vlcmediaplayer&logoColor=white" alt="flet-video">
+  <img src="https://img.shields.io/badge/pywebview-6.2-2C5BB4?logo=python&logoColor=white" alt="pywebview">
+  <img src="https://img.shields.io/badge/WebView2-already_in_Windows-0078D4?logo=microsoftedge&logoColor=white" alt="WebView2">
+  <img src="https://img.shields.io/badge/HTML_·_CSS_·_JS-interface-E34F26?logo=html5&logoColor=white" alt="HTML CSS JS">
   <img src="https://img.shields.io/badge/Theme-dark_cyberpunk-EC4899?logo=neovim&logoColor=white" alt="Dark theme">
   <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-audio_only-EC1C24?logo=itunes&logoColor=white" alt="Formats">
   <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
@@ -68,7 +69,7 @@ python BurnDex.py                                     # burn a collection to an 
 ```
 
 ```bash
-python AudioDexGUI.py                                 # both tools, graphical interface
+python AudioDexApp.py                                 # everything, graphical interface
 python PixDex.py                                      # remaster a downloaded video
 python ClipDex.py                                     # cut, join, GIFs, contact sheets
 ```
@@ -312,7 +313,7 @@ pip install pywin32          # BurnDex only (CD burning, Windows)
 
 **In the terminal, everything is in Italian.** The three command-line programs — `AudioDex.py`, `BurnDex.py`, `PixDex.py` — speak Italian only: no question on first launch, no `--lang` option to remember. Open the terminal, run, go.
 
-**In the GUI the choice is there, one click away.** `AudioDexGUI.py` has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json` for later runs.
+**In the GUI the choice is there, one click away.** `AudioDexApp.py` has an **Italiano / English** dropdown in the sidebar: it switches instantly — menu entries, labels, buttons, diagnostics, messages — and remembers the choice in `settings.json` for later runs.
 
 That is where the choice belongs. A dropdown is visible, you try it and see the effect right away; the same choice as a command-line argument was just one more thing to remember every time.
 
@@ -1224,7 +1225,7 @@ python PixDex.py -i video.mp4 -y                  # no questions
 
 ### In the GUI
 
-`AudioDexGUI.py` has a **Remaster video** section: pick the file, press **Analyse** and the diagnosis appears in a panel — what is wrong, and which preset addresses it — *before* committing minutes or hours of processing. When it finishes, the before/after comparison shows up right there in the window, next to the diagnosis.
+`AudioDexApp.py` has a **Remaster** section: pick the file, press **Analyse** and the diagnosis appears in a panel — what is wrong, and which preset addresses it — *before* committing minutes or hours of processing. When it finishes, the before/after comparison shows up right there in the window, next to the diagnosis.
 
 > ⏱ **How long it takes.** It depends on the processor: remastering is the heaviest operation in the whole project. While it runs, the bar shows processed frames and live speed (`1.2x` means it is running faster than the video's duration, `0.5x` twice as long). `--gpu` is much faster.
 
@@ -1322,7 +1323,14 @@ AudioDex/
 ├── BurnDex.py                # 💿 Audio CD burner (Windows, IMAPI2)
 ├── PixDex.py                 # 🎞 Video remasterer (FFmpeg, cross-platform)
 ├── ClipDex.py                # ✂ Editing: cut, join, GIFs, sheets, compatibility
-├── AudioDexGUI.py            # 🖥 Flet graphical interface for all three
+├── AudioDexApp.py            # 🖥 Graphical interface: opens the window, exposes the engine
+├── web/                      # The interface itself
+│   ├── index.html            # Structure of the four sections
+│   ├── style.css             # Theme and animated background
+│   ├── app.js                # Core and Audio section
+│   ├── sez-burn.js           # Burning section
+│   ├── sez-pix.js            # Remaster section
+│   └── sez-clip.js           # Editing section
 ├── Shared/
 │   ├── __init__.py
 │   ├── logger_setup.py       # File logger + shared Rich theme/symbols
