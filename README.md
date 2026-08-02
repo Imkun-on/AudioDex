@@ -12,33 +12,19 @@
   <img src="https://img.shields.io/badge/Requests-HTTP-2C5BB4?logo=curl&logoColor=white" alt="Requests">
   <img src="https://img.shields.io/badge/LRCLIB-testi_karaoke-8B5CF6?logo=musicbrainz&logoColor=white" alt="LRCLIB">
   <img src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white" alt="SQLite">
-  <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-solo_audio-EC1C24?logo=itunes&logoColor=white" alt="Formati">
-  <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/BurnDex-CD_audio-BD10E0?logo=compactdisc&logoColor=white" alt="BurnDex">
   <img src="https://img.shields.io/badge/IMAPI2-COM_nativa-0078D4?logo=windows&logoColor=white" alt="IMAPI2">
   <img src="https://img.shields.io/badge/pywin32-COM_bridge-3776AB?logo=python&logoColor=white" alt="pywin32">
   <img src="https://img.shields.io/badge/Red_Book-CD--DA_44.1kHz_16bit-C0392B?logo=audiomack&logoColor=white" alt="Red Book">
   <img src="https://img.shields.io/badge/Windows-solo_masterizzazione-0078D4?logo=windows11&logoColor=white" alt="Windows">
-</p>
-
-<p align="center">
   <img src="https://img.shields.io/badge/PixDex-rimasterizza_video-F97316?logo=vlcmediaplayer&logoColor=white" alt="PixDex">
-  <img src="https://img.shields.io/badge/FFmpeg-catena_di_filtri-007808?logo=ffmpeg&logoColor=white" alt="FFmpeg filtri">
   <img src="https://img.shields.io/badge/10--bit-sbandatura-0EA5E9?logo=adobelightroom&logoColor=white" alt="10 bit">
   <img src="https://img.shields.io/badge/Lanczos-ingrandimento-6366F1?logo=imagedotsc&logoColor=white" alt="Lanczos">
   <img src="https://img.shields.io/badge/libx264_·_h264__amf-codifica-C0392B?logo=amd&logoColor=white" alt="Encoder">
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/AudioDexGUI-interfaccia_grafica-06B6D4?logo=materialdesign&logoColor=white" alt="AudioDexGUI">
   <img src="https://img.shields.io/badge/Flet-0.86-02569B?logo=flutter&logoColor=white" alt="Flet">
-  <img src="https://img.shields.io/badge/Flutter-motore_di_rendering-42A5F5?logo=flutter&logoColor=white" alt="Flutter">
   <img src="https://img.shields.io/badge/flet--video-sfondo_in_loop-8E44AD?logo=vlcmediaplayer&logoColor=white" alt="flet-video">
   <img src="https://img.shields.io/badge/Tema-cyberpunk_scuro-EC4899?logo=neovim&logoColor=white" alt="Tema scuro">
-  <img src="https://img.shields.io/badge/i18n-🇮🇹_IT_·_🇬🇧_EN-16A34A" alt="i18n">
+  <img src="https://img.shields.io/badge/m4a_·_mp3_·_opus-solo_audio-EC1C24?logo=itunes&logoColor=white" alt="Formati">
+  <img src="https://img.shields.io/badge/License-PolyForm_Noncommercial-orange" alt="PolyForm Noncommercial License">
 </p>
 
 <p align="center">
