@@ -718,8 +718,24 @@ def _comando_encoder(gpu: bool, crf: int) -> list[str]:
     e' una scelta consapevole per i file lunghi.
     """
     if gpu:
+        # I valori sono molto piu' generosi di quelli che verrebbero spontanei,
+        # e c'e' un motivo misurato. Con cqp 20/22 il codificatore AMD rimette
+        # i quadretti che i filtri hanno appena tolto: sullo stesso spezzone,
+        # da 1.169 dopo i filtri a 2.184 dopo la codifica - peggio del non
+        # aver fatto niente, visto che il solo ingrandimento sta a 1.618.
+        #
+        #     dopo i filtri, senza codifica    1.169
+        #     libx264 CRF 18                   1.150
+        #     amf cqp 12/14                    1.223
+        #     amf cqp 16/18                    1.632
+        #     amf cqp 20/22                    2.184
+        #
+        # A 12/14 la pulizia sopravvive, al prezzo di un file circa tre volte
+        # e mezzo piu' pesante. E' un baratto accettabile solo perche' su una
+        # rimasterizzazione il punto e' togliere i difetti: risparmiare spazio
+        # rimettendoli dentro non ha senso.
         return ['-c:v', 'h264_amf', '-quality', 'quality',
-                '-rc', 'cqp', '-qp_i', '20', '-qp_p', '22', '-qp_b', '24']
+                '-rc', 'cqp', '-qp_i', '12', '-qp_p', '14', '-qp_b', '16']
     return ['-c:v', 'libx264', '-preset', 'medium', '-crf', str(crf)]
 
 
