@@ -60,7 +60,7 @@ function potenzia(select) {
     voci().forEach((o, i) => {
       const voce = document.createElement('button');
       voce.type = 'button';
-      voce.className = 'tendina-voce' + (i === select.selectedIndex ? ' scelta' : '');
+      voce.className = 'tendina-voce' + (i === select.selectedIndex ? ' tendina-scelta' : '');
       voce.textContent = o.textContent;
       if (o.title) voce.title = o.title;
       voce.addEventListener('click', (e) => { e.stopPropagation(); scegli(i); });

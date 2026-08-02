@@ -877,9 +877,18 @@ select.campo {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tendina-voce.evidenziata { background: #39ff8814; color: var(--t0); }
-.tendina-voce.scelta {
+/* Il nome e' 'tendina-scelta' e non 'scelta' di proposito: quest'ultima e'
+   gia' dei riquadri di risoluzione in PixDex, dove vale 'flex: 1 1 128px'.
+   Applicata qui dentro, in un pannello che e' a sua volta una colonna
+   flessibile, faceva crescere la voce scelta fino a riempire tutto. */
+.tendina-voce.tendina-scelta {
   color: var(--verde); font-weight: 700;
   box-shadow: inset 2px 0 0 var(--verde);
+}
+/* Nessuna regola pensata per altro deve poter entrare qui dentro. */
+.tendina-pannello > .tendina-voce {
+  flex: 0 0 auto; flex-direction: row; min-width: 0;
+  border: 0; background: transparent;
 }
 
 /* ── Costo di disegno ────────────────────────────────────────────────────── */
