@@ -6,6 +6,7 @@ A cosa serve
     risoluzione piu' alta con un ingrandimento fatto bene.
 
 Cosa NON fa (ed e' importante saperlo)
+
     Non inventa dettaglio che nel file non c'e'. Un ingrandimento, per quanto
     curato, non puo' ricostruire quello che la compressione ha buttato via:
     quello lo fanno i modelli AI, che ricostruiscono un dettaglio *plausibile*
@@ -176,6 +177,26 @@ VIDEO_EXTS = frozenset({'.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v',
 # poi la nitidezza puo' solo peggiorare. Meglio un 720p onesto di un 4K finto.
 SCALA_ALTEZZE = (480, 720, 1080, 1440, 2160)
 MAX_FATTORE_UPSCALE = 2.0
+
+# Modalita' di ingrandimento offerte per nome, sia a schermo che con --height.
+# ``None`` significa "decidi tu": e' l'automatico, che si ferma al doppio.
+# Le altre sono richieste esplicite, e vengono rispettate anche quando la
+# sorgente non le giustifica — ma non in silenzio: la tabella di scelta dice
+# apertamente quando un 4K sarebbe solo un 360p gonfiato.
+MODI_QUALITA: dict[str, int | None] = {
+    'auto': None,
+    'none': 0,      # nessun ingrandimento: solo pulizia, alla risoluzione nativa
+    'hd': 1080,
+    '2k': 1440,
+    '4k': 2160,
+}
+
+# Soglie del giudizio sul fattore di ingrandimento. Fino al doppio
+# l'interpolazione ha abbastanza pixel veri da cui partire; fino al triplo il
+# risultato regge ma si ammorbidisce; oltre, si sta solo scrivendo un numero
+# piu' grande nei metadati del file.
+FATTORE_BUONO = 2.0
+FATTORE_MOLLE = 3.0
 
 # Sotto questa densita' di bit per pixel il file e' compresso al punto che i
 # quadretti si vedono: 0.05 bpp e' la soglia empirica sotto cui YouTube inizia
@@ -511,14 +532,132 @@ def altezza_obiettivo(info: dict, richiesta: int | None, preset: str) -> int:
     h = info['height']
     if not h:
         return 0
-    if richiesta:
-        return richiesta
+    if richiesta is not None:
+        # Zero e' la richiesta esplicita di non ingrandire ("solo pulizia"):
+        # va distinta da "nessuna richiesta", che invece lascia decidere qui.
+        # Trattarle allo stesso modo — come farebbe un banale ``if richiesta``
+        # — riporterebbe l'automatico proprio a chi ha chiesto di non toccare
+        # la risoluzione.
+        return richiesta if richiesta > 0 else h
     if not PRESETS[preset]['upscale']:
         return h
 
     tetto = int(h * MAX_FATTORE_UPSCALE)
     candidati = [a for a in SCALA_ALTEZZE if h < a <= tetto]
     return candidati[-1] if candidati else h
+
+
+def risolvi_altezza(valore: str | None) -> int | None:
+    """Traduce il valore di ``--height`` in un'altezza in pixel.
+
+    Accetta sia i nomi (``auto``, ``hd``, ``2k``, ``4k``, ``none``) sia un
+    numero. I nomi esistono perche' nessuno ragiona in "millequaranta pixel di
+    altezza": si ragiona in "HD" e "4K", ed e' giusto che il programma parli
+    la stessa lingua di chi lo usa. ``None`` significa automatico.
+    """
+    if valore is None:
+        return None
+    chiave = valore.strip().lower()
+    if chiave in MODI_QUALITA:
+        return MODI_QUALITA[chiave]
+    try:
+        altezza = int(chiave.rstrip('p'))
+    except ValueError:
+        return None
+    return altezza if altezza > 0 else None
+
+
+def _fattore(info: dict, altezza: int) -> float:
+    """Di quante volte l'immagine viene ingrandita in altezza."""
+    h = info['height']
+    return (altezza / h) if h and altezza else 1.0
+
+
+def _giudizio_fattore(fattore: float) -> tuple[str, str]:
+    """Restituisce (colore, chiave del commento) per un fattore di ingrandimento.
+
+    E' il cuore dell'onesta' di questa schermata: la stessa tabella che offre
+    il 4K dice anche, sulla stessa riga, che da un 360p il 4K non aggiunge
+    un solo dettaglio vero.
+    """
+    if fattore <= 1.0:
+        return 'bright_green', 'quality.note_native'
+    if fattore <= FATTORE_BUONO:
+        return 'bright_green', 'quality.note_ok'
+    if fattore <= FATTORE_MOLLE:
+        return 'yellow', 'quality.note_soft'
+    return 'red', 'quality.note_fake'
+
+
+def _scegli_qualita(info: dict, preset: str) -> int | None:
+    """Fa scegliere a che risoluzione portare il video.
+
+    Mostra per ogni modalita' il risultato concreto su *questo* file — non
+    l'etichetta commerciale — con il fattore di ingrandimento e un giudizio.
+    Vedere scritto "360p → 2160p, 6.00×, nessun dettaglio in piu'" accanto
+    alla voce 4K vale piu' di qualsiasi avvertenza in un manuale.
+
+    Restituisce l'altezza scelta, oppure None se si rinuncia.
+    """
+    automatica = altezza_obiettivo(info, None, preset)
+
+    voci: list[tuple[str, int]] = [
+        ('quality.auto', automatica),
+        ('quality.none', info['height']),
+        ('quality.hd', 1080),
+        ('quality.2k', 1440),
+        ('quality.4k', 2160),
+    ]
+
+    # Le larghezze sono fissate a mano perche' la somma deve stare nei 68
+    # caratteri comuni a tutto il progetto: lasciate libere, la colonna del
+    # commento si stringe fino a spezzare le parole a meta'.
+    tab = Table(box=HEAVY_HEAD, border_style='grey37', width=LARGHEZZA,
+                header_style='bold bright_blue', padding=(0, 1))
+    tab.add_column('#', justify='right', width=2, style='dim')
+    tab.add_column(t('quality.col_mode'), width=14, no_wrap=True)
+    tab.add_column(t('quality.col_result'), width=21, justify='right')
+    tab.add_column(t('quality.col_note'), width=18, no_wrap=True)
+
+    for i, (chiave, altezza) in enumerate(voci, 1):
+        fattore = _fattore(info, altezza)
+        colore, nota = _giudizio_fattore(fattore)
+        etichetta = t(chiave)
+        if chiave == 'quality.auto':
+            etichetta = '★ ' + etichetta
+        risultato = (f"{info['height']}p → [bold]{altezza}p[/bold]  "
+                     f'[{colore}]{fattore:.2f}×[/{colore}]'
+                     if altezza != info['height']
+                     else f"[bold]{altezza}p[/bold]  [{colore}]{fattore:.2f}×[/{colore}]")
+        tab.add_row(str(i), f'[{colore}]{etichetta}[/{colore}]', risultato,
+                    f'[{colore}]{t(nota)}[/{colore}]')
+
+    tab.add_row(str(len(voci) + 1), t('quality.custom'), '', '')
+
+    console.print()
+    console.print(tab)
+    console.print(t('quality.hint'))
+
+    risposta = _chiedi(t('quality.prompt'))
+    if not risposta:
+        return automatica
+    if not risposta.isdigit():
+        console.print(t('quality.invalid'))
+        return automatica
+
+    scelta = int(risposta)
+    if 1 <= scelta <= len(voci):
+        return voci[scelta - 1][1]
+    if scelta == len(voci) + 1:
+        libera = _chiedi(t('quality.custom_prompt'))
+        altezza = risolvi_altezza(libera)
+        if altezza:
+            return altezza
+        console.print(t('quality.invalid'))
+        return automatica
+
+    console.print(t('quality.invalid'))
+    return automatica
 
 
 def catena_filtri(preset: str, info: dict, altezza: int) -> str:
@@ -578,10 +717,16 @@ def _pannello_piano(info: dict, preset: str, altezza: int,
     tab.add_row(t('plan.preset'), f"[bold bright_green]{PRESETS[preset]['nome']()}[/]")
     tab.add_row('', f"[dim]{PRESETS[preset]['desc']()}[/dim]")
     if altezza and altezza != info['height']:
-        fattore = altezza / info['height'] if info['height'] else 1.0
+        fattore = _fattore(info, altezza)
+        colore, nota = _giudizio_fattore(fattore)
         tab.add_row(t('plan.resolution'),
                     f"{info['height']}p [dim]→[/dim] [bold]{altezza}p[/bold]"
-                    f"  [dim]({fattore:.2f}×)[/dim]")
+                    f"  [{colore}]{fattore:.2f}×[/{colore}]")
+        # L'avviso compare solo quando serve, e dice cosa aspettarsi invece di
+        # limitarsi a sconsigliare: chi ha scelto il 4K sapendo cosa fa deve
+        # poter tirare dritto senza sentirsi rimproverare a ogni lancio.
+        if fattore > FATTORE_BUONO:
+            tab.add_row('', f'[{colore}]{t(nota)}[/{colore}]')
     else:
         tab.add_row(t('plan.resolution'), f"{info['height']}p  [dim]({t('plan.no_upscale')})[/dim]")
     tab.add_row(t('plan.encoder'),
@@ -823,6 +968,10 @@ def main() -> None:
       - --input <file>       -> rimasterizza quel file;
       - --info --input <f>   -> analizza e consiglia, senza scrivere nulla.
 
+    La risoluzione d'arrivo si sceglie al terzo passo, con una tabella che per
+    ogni modalita' mostra il risultato su *questo* file e quanto vale davvero:
+    da riga di comando la stessa scelta si fissa con --height auto|hd|2k|4k.
+
     Come negli altri due strumenti la lingua va fissata prima di costruire il
     parser, perche' i testi di --help vengono composti mentre il parser si crea.
     """
@@ -845,7 +994,8 @@ def main() -> None:
                         help=t('cli.base'))
     parser.add_argument('--preset', '-p', type=str, default=None,
                         choices=sorted(PRESETS), help=t('cli.preset'))
-    parser.add_argument('--height', type=int, default=None,
+    parser.add_argument('--height', type=str, default=None,
+                        metavar='auto|none|hd|2k|4k|PIXEL',
                         help=t('cli.height'))
     parser.add_argument('--crf', type=int, default=CRF_DEFAULT,
                         help=t('cli.crf', default=CRF_DEFAULT))
@@ -863,7 +1013,7 @@ def main() -> None:
         sys.exit(1)
 
     # ── Passo 1: sorgente ───────────────────────────────────────────────────
-    _passo(1, 4, t('step.source'))
+    _passo(1, 5, t('step.source'))
     src = (os.path.abspath(args.input) if args.input
            else _scegli_video(os.path.abspath(args.base)))
     if not src:
@@ -881,7 +1031,7 @@ def main() -> None:
     _pannello_sorgente(info)
 
     # ── Passo 2: diagnosi ───────────────────────────────────────────────────
-    _passo(2, 4, t('step.diagnosis'))
+    _passo(2, 5, t('step.diagnosis'))
     problemi, consigliato = diagnosi(info)
     _pannello_diagnosi(problemi, consigliato)
 
@@ -890,13 +1040,24 @@ def main() -> None:
         return
 
     preset = args.preset or consigliato
-    altezza = altezza_obiettivo(info, args.height, preset)
+
+    # ── Passo 3: risoluzione d'arrivo ───────────────────────────────────────
+    # La scelta si chiede solo quando ha senso chiederla: se --height e' stato
+    # passato la decisione e' gia' presa, e con --yes non c'e' nessuno davanti
+    # allo schermo. In entrambi i casi vale l'automatico, che si ferma al
+    # doppio ed e' l'unico valore difendibile senza aver visto il file.
+    _passo(3, 5, t('step.quality'))
+    richiesta = risolvi_altezza(args.height)
+    if args.height is None and not args.yes:
+        richiesta = _scegli_qualita(info, preset)
+    altezza = altezza_obiettivo(info, richiesta, preset)
+
     catena = catena_filtri(preset, info, altezza)
     dst = os.path.abspath(args.output) if args.output else nome_uscita(
         src, altezza or info['height'], None)
 
-    # ── Passo 3: conferma ───────────────────────────────────────────────────
-    _passo(3, 4, t('step.plan'))
+    # ── Passo 4: conferma ───────────────────────────────────────────────────
+    _passo(4, 5, t('step.plan'))
     _pannello_piano(info, preset, altezza, catena, args.gpu, args.crf, dst)
 
     if not args.yes:
@@ -909,7 +1070,7 @@ def main() -> None:
             return
 
     # ── Passo 4: lavorazione ────────────────────────────────────────────────
-    _passo(4, 4, t('step.remaster'))
+    _passo(5, 5, t('step.remaster'))
     console.print()
     if not rimasterizza(info, dst, catena, args.gpu, args.crf):
         sys.exit(1)

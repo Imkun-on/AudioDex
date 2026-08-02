@@ -28,8 +28,51 @@ TESTI: dict[str, dict[str, str]] = {
     },
     'step.source': {'it': 'Sorgente', 'en': 'Source'},
     'step.diagnosis': {'it': 'Diagnosi', 'en': 'Diagnosis'},
+    'step.quality': {'it': 'Risoluzione d\'arrivo', 'en': 'Target resolution'},
     'step.plan': {'it': 'Piano di lavoro', 'en': 'Work plan'},
     'step.remaster': {'it': 'Rimasterizzazione', 'en': 'Remastering'},
+
+    # ── Scelta della risoluzione ─────────────────────────────────────────────
+    # Le note accanto a ogni voce sono il punto di tutta la schermata: la
+    # stessa tabella che offre il 4K dice, sulla stessa riga, quando quel 4K
+    # non porterebbe un solo dettaglio in piu'.
+    'quality.col_mode': {'it': 'Come', 'en': 'How'},
+    'quality.col_result': {'it': 'Risultato', 'en': 'Result'},
+    'quality.col_note': {'it': 'Quanto vale', 'en': 'What it is worth'},
+    'quality.auto': {'it': 'Automatica', 'en': 'Automatic'},
+    'quality.none': {'it': 'Solo pulizia', 'en': 'Cleanup only'},
+    'quality.hd': {'it': 'HD  1080p', 'en': 'HD  1080p'},
+    'quality.2k': {'it': '2K  1440p', 'en': '2K  1440p'},
+    'quality.4k': {'it': '4K  2160p', 'en': '4K  2160p'},
+    'quality.custom': {
+        'it': 'Altra altezza…',
+        'en': 'Another height…',
+    },
+    # I commenti stanno in una colonna da 18 caratteri: devono restare corti
+    # o il riquadro spezza le parole a meta'. La spiegazione lunga sta nella
+    # riga di aiuto sotto la tabella, dove c'e' spazio.
+    'quality.note_native': {'it': 'originale', 'en': 'original'},
+    'quality.note_ok': {'it': 'credibile', 'en': 'believable'},
+    'quality.note_soft': {'it': 'si ammorbidisce', 'en': 'goes soft'},
+    'quality.note_fake': {'it': 'solo piu\' pesante', 'en': 'just heavier'},
+    'quality.hint': {
+        'it': '[dim]★ la consigliata: si ferma al doppio, il limite oltre cui\n'
+              '  l\'ingrandimento non aggiunge dettaglio ma solo peso.[/dim]',
+        'en': '[dim]★ the suggested one: it stops at double, the limit past which\n'
+              '  upscaling adds no detail, only size.[/dim]',
+    },
+    'quality.prompt': {
+        'it': '\n[accent]Quale risoluzione[/accent] [dim](numero, invio per la consigliata)[/dim]: ',
+        'en': '\n[accent]Which resolution[/accent] [dim](number, enter for the suggested one)[/dim]: ',
+    },
+    'quality.custom_prompt': {
+        'it': '[accent]Altezza in pixel[/accent] [dim](es. 900)[/dim]: ',
+        'en': '[accent]Height in pixels[/accent] [dim](e.g. 900)[/dim]: ',
+    },
+    'quality.invalid': {
+        'it': '[warning]Scelta non valida:[/warning] [dim]uso quella consigliata.[/dim]',
+        'en': '[warning]Invalid choice:[/warning] [dim]using the suggested one.[/dim]',
+    },
 
     # ── Voci comuni ──────────────────────────────────────────────────────────
     'common.cancelled': {
@@ -259,8 +302,10 @@ TESTI: dict[str, dict[str, str]] = {
         'en': 'Preset to use; without it, the diagnosis picks one',
     },
     'cli.height': {
-        'it': 'Altezza di destinazione in pixel (es. 1080); senza, la decide il preset',
-        'en': 'Target height in pixels (e.g. 1080); without it, the preset decides',
+        'it': 'Risoluzione d\'arrivo: auto (fino al doppio), none (solo pulizia), '
+              'hd, 2k, 4k, oppure un\'altezza in pixel. Senza, la si sceglie a schermo',
+        'en': 'Target resolution: auto (up to double), none (cleanup only), '
+              'hd, 2k, 4k, or a height in pixels. Without it, you pick it on screen',
     },
     'cli.crf': {
         'it': 'Qualita\' di libx264: piu\' basso = migliore e piu\' pesante (default {default})',

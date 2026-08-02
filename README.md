@@ -155,7 +155,7 @@ python PixDex.py                                      # rimasterizza un video sc
 - 13.3 [L'ordine dei filtri non è negoziabile](#lordine-dei-filtri-non-è-negoziabile)
 - 13.4 [I cinque preset](#i-cinque-preset)
 - 13.5 [La diagnosi](#la-diagnosi)
-- 13.6 [Fin dove ingrandisce](#fin-dove-ingrandisce)
+- 13.6 [Fin dove ingrandisce, e come sceglierlo](#fin-dove-ingrandisce-e-come-sceglierlo)
 - 13.7 [Il confronto prima/dopo](#il-confronto-primadopo)
 - 13.8 [Codifica: software o GPU](#codifica-software-o-gpu)
 - 13.9 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-pixdex)
@@ -1016,9 +1016,45 @@ Nessuna delle tre richiede di decodificare il video, quindi il consiglio arriva 
 python PixDex.py -i video.mp4 --info      # analizza e consiglia, non scrive nulla
 ```
 
-### Fin dove ingrandisce
+### Fin dove ingrandisce, e come sceglierlo
 
-Mai oltre il **doppio** dell'originale. Sopra quella soglia l'interpolazione non ha più pixel veri da cui partire e restituisce un'immagine molle, che la nitidezza può solo peggiorare: **meglio un 720p onesto di un 4K finto**. Un 360p arriva quindi a 720p, un 540p a 1080p. Con `--height` si può forzare un valore diverso, assumendosene il risultato.
+**Al terzo passo PixDex ti fa scegliere**, mostrando per ogni modalità il risultato su *quel* file — non l'etichetta commerciale:
+
+```
+┌────┬────────────────┬───────────────────────┬────────────────────┐
+│  # │ Come           │             Risultato │ Quanto vale        │
+├────┼────────────────┼───────────────────────┼────────────────────┤
+│  1 │ ★ Automatica   │    360p → 720p  2.00× │ credibile          │
+│  2 │ Solo pulizia   │           360p  1.00× │ originale          │
+│  3 │ HD  1080p      │   360p → 1080p  3.00× │ si ammorbidisce    │
+│  4 │ 2K  1440p      │   360p → 1440p  4.00× │ solo più pesante   │
+│  5 │ 4K  2160p      │   360p → 2160p  6.00× │ solo più pesante   │
+│  6 │ Altra altezza… │                       │                    │
+└────┴────────────────┴───────────────────────┴────────────────────┘
+```
+
+È il punto in cui il programma è più onesto: **la stessa tabella che ti offre il 4K ti dice, sulla stessa riga, che da un 360p quel 4K non aggiunge un solo dettaglio vero** — solo un file più pesante. Le soglie sono queste:
+
+| Fattore | Giudizio | Cosa succede davvero |
+|---|---|---|
+| **fino a 2×** | 🟢 credibile | l'interpolazione ha abbastanza pixel veri da cui partire |
+| **fino a 3×** | 🟡 si ammorbidisce | regge, ma l'immagine perde mordente |
+| **oltre 3×** | 🔴 solo più pesante | si sta solo scrivendo un numero più grande nei metadati |
+
+**Puoi scegliere il 4K comunque.** PixDex ti avvisa una volta, nel piano di lavoro, e poi fa quello che gli hai chiesto senza rimproverarti a ogni lancio.
+
+L'**automatica** (★) si ferma al doppio e sale al gradino successivo della scala standard: un 360p arriva a 720p, un 540p a 1080p. È l'unico valore difendibile senza aver visto il file, ed è quello che vale con `--yes`.
+
+Da riga di comando la stessa scelta si fissa con `--height`:
+
+```bash
+python PixDex.py -i video.mp4 --height auto   # fino al doppio (default)
+python PixDex.py -i video.mp4 --height none   # solo pulizia, risoluzione originale
+python PixDex.py -i video.mp4 --height hd     # 1080p
+python PixDex.py -i video.mp4 --height 2k     # 1440p
+python PixDex.py -i video.mp4 --height 4k     # 2160p
+python PixDex.py -i video.mp4 --height 900    # altezza esatta in pixel
+```
 
 ### Il confronto prima/dopo
 
@@ -1044,7 +1080,7 @@ L'**audio non viene mai ricodificato**: viene copiato identico dal file di parte
 | `--output` | `-o` | *accanto all'originale* | File di destinazione. L'originale non viene **mai** sovrascritto |
 | `--base` | `-b` | `download_audio` | Cartella in cui cercare i video |
 | `--preset` | `-p` | *(dalla diagnosi)* | `pulito`, `standard`, `forte`, `animazione`, `vecchio` |
-| `--height` | | *(dal preset)* | Altezza di destinazione in pixel (es. `1080`) |
+| `--height` | | `auto` | `auto` (fino al doppio), `none` (solo pulizia), `hd`, `2k`, `4k`, o un'altezza in pixel. Senza, la si sceglie a schermo |
 | `--crf` | | `18` | Qualità di libx264: più basso = migliore e più pesante |
 | `--gpu` | | *spento* | Codifica sulla GPU AMD |
 | `--no-compare` | | *spento* | Non salvare l'immagine di confronto |
@@ -1177,6 +1213,7 @@ Dettagli tecnici:
 **Nuovo**
 
 - 🎞 **PixDex — rimasterizzatore video.** `PixDex.py` prende un video di qualità scarsa e lo ripulisce: toglie i quadretti della compressione, appiana le bande a scalini nei cieli e nelle dissolvenze, e ingrandisce con Lanczos. **Cinque preset** (Pulito, Standard, Forte, Animazione, Vecchio) scelti automaticamente da una **diagnosi** che legge risoluzione, bit per pixel e ordine dei campi senza decodificare il file. La sbandatura è svolta a **10 bit**, perché a 8 bit il rimedio genera bande nuove. A fine lavoro salva un PNG col **confronto prima/dopo**, i due fotogrammi alla stessa altezza per non barare. Non inventa dettaglio: lavora in sottrazione. Vedi [PixDex](#-pixdex--rimasterizzare-un-video)
+- 🎚 **Scelta della risoluzione d'arrivo al terzo passo**, con una tabella che per ogni modalità mostra il risultato su *quel* file, il fattore di ingrandimento e quanto vale davvero: la stessa riga che offre il 4K dice che da un 360p non aggiunge un solo dettaglio. Da riga di comando `--height auto|none|hd|2k|4k|PIXEL`. Vedi [Fin dove ingrandisce](#fin-dove-ingrandisce-e-come-sceglierlo)
 - 🖥 **Sezione Rimasterizza video nella GUI**, con la diagnosi mostrata *prima* di impegnare ore di lavorazione e il confronto prima/dopo direttamente nella finestra
 
 **Modifiche**

@@ -160,7 +160,7 @@ python PixDex.py                                      # remaster a downloaded vi
 - 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
 - 13.4 [The five presets](#the-five-presets)
 - 13.5 [The diagnosis](#the-diagnosis)
-- 13.6 [How far it upscales](#how-far-it-upscales)
+- 13.6 [How far it upscales, and how to choose](#how-far-it-upscales-and-how-to-choose)
 - 13.7 [The before/after comparison](#the-beforeafter-comparison)
 - 13.8 [Encoding: software or GPU](#encoding-software-or-gpu)
 - 13.9 [Command-line options](#command-line-options-pixdex)
@@ -1021,9 +1021,45 @@ None of the three requires decoding the video, so the advice arrives **instantly
 python PixDex.py -i video.mp4 --info      # analyse and advise, writes nothing
 ```
 
-### How far it upscales
+### How far it upscales, and how to choose
 
-Never beyond **twice** the original. Past that threshold interpolation has no real pixels left to work from and returns a soft image that sharpening can only make worse: **an honest 720p beats a fake 4K**. So 360p reaches 720p, 540p reaches 1080p. `--height` forces a different value, at your own risk.
+**At the third step PixDex lets you choose**, showing for each mode the result on *that* file — not the marketing label:
+
+```
+┌────┬────────────────┬───────────────────────┬────────────────────┐
+│  # │ How            │                Result │ What it is worth   │
+├────┼────────────────┼───────────────────────┼────────────────────┤
+│  1 │ ★ Automatic    │    360p → 720p  2.00× │ believable         │
+│  2 │ Cleanup only   │           360p  1.00× │ original           │
+│  3 │ HD  1080p      │   360p → 1080p  3.00× │ goes soft          │
+│  4 │ 2K  1440p      │   360p → 1440p  4.00× │ just heavier       │
+│  5 │ 4K  2160p      │   360p → 2160p  6.00× │ just heavier       │
+│  6 │ Another height…│                       │                    │
+└────┴────────────────┴───────────────────────┴────────────────────┘
+```
+
+This is where the program is at its most honest: **the very table that offers you 4K tells you, on the same row, that from a 360p source that 4K adds not one real detail** — only a heavier file. The thresholds:
+
+| Factor | Verdict | What actually happens |
+|---|---|---|
+| **up to 2×** | 🟢 believable | interpolation has enough real pixels to work from |
+| **up to 3×** | 🟡 goes soft | it holds, but the picture loses bite |
+| **beyond 3×** | 🔴 just heavier | you are only writing a bigger number in the metadata |
+
+**You can pick 4K anyway.** PixDex warns you once, in the work plan, then does what you asked without nagging on every run.
+
+The **automatic** mode (★) stops at double and climbs to the next step of the standard ladder: 360p reaches 720p, 540p reaches 1080p. It is the only defensible value without having seen the file, and it is what `--yes` uses.
+
+From the command line the same choice is pinned with `--height`:
+
+```bash
+python PixDex.py -i video.mp4 --height auto   # up to double (default)
+python PixDex.py -i video.mp4 --height none   # cleanup only, original resolution
+python PixDex.py -i video.mp4 --height hd     # 1080p
+python PixDex.py -i video.mp4 --height 2k     # 1440p
+python PixDex.py -i video.mp4 --height 4k     # 2160p
+python PixDex.py -i video.mp4 --height 900    # exact height in pixels
+```
 
 ### The before/after comparison
 
@@ -1049,7 +1085,7 @@ Both frames are brought to **the same height**: otherwise upscaling would make t
 | `--output` | `-o` | *next to the original* | Destination file. The original is **never** overwritten |
 | `--base` | `-b` | `download_audio` | Folder to look for videos in |
 | `--preset` | `-p` | *(from the diagnosis)* | `pulito`, `standard`, `forte`, `animazione`, `vecchio` |
-| `--height` | | *(from the preset)* | Target height in pixels (e.g. `1080`) |
+| `--height` | | `auto` | `auto` (up to double), `none` (cleanup only), `hd`, `2k`, `4k`, or a height in pixels. Without it, you pick it on screen |
 | `--crf` | | `18` | libx264 quality: lower = better and heavier |
 | `--gpu` | | *off* | Encode on the AMD GPU |
 | `--no-compare` | | *off* | Do not save the comparison image |
@@ -1182,6 +1218,7 @@ Technical details:
 **New**
 
 - 🎞 **PixDex — video remasterer.** `PixDex.py` takes a poor-quality video and cleans it up: it removes compression blocking, smooths stepped banding in skies and fades, and upscales with Lanczos. **Five presets** (Clean, Standard, Strong, Animation, Vintage) picked automatically by a **diagnosis** that reads resolution, bits per pixel and field order without decoding the file. Debanding is done at **10 bits**, because at 8 bits the cure creates new bands. When it finishes it saves a PNG with the **before/after comparison**, both frames at the same height so the comparison stays honest. It invents no detail: it works by subtraction. See [PixDex](#-pixdex--remastering-a-video)
+- 🎚 **Target resolution chosen at the third step**, with a table that for each mode shows the result on *that* file, the upscaling factor and what it is actually worth: the very row that offers 4K says it adds not one detail from a 360p source. From the command line, `--height auto|none|hd|2k|4k|PIXELS`. See [How far it upscales](#how-far-it-upscales-and-how-to-choose)
 - 🖥 **Remaster video section in the GUI**, with the diagnosis shown *before* committing hours of processing and the before/after comparison right there in the window
 
 **Changes**
