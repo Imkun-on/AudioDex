@@ -69,6 +69,7 @@ TESTI_APP: dict[str, dict[str, str]] = {
     'app.subtitle':     {'it': 'Scarica  ·  Masterizza  ·  Rimasterizza',
                          'en': 'Download  ·  Burn  ·  Remaster'},
     'app.author':       {'it': 'di Imkun-on', 'en': 'by Imkun-on'},
+    'app.language':     {'it': 'Lingua', 'en': 'Language'},
     'menu.audio':       {'it': 'Audio', 'en': 'Audio'},
     'menu.burn':        {'it': 'Masterizzazione', 'en': 'Burning'},
     'menu.pix':         {'it': 'Rimasterizza', 'en': 'Remaster'},
@@ -268,6 +269,8 @@ class Api:
                 'titolo': v.get('title', ''),
                 'durata': self._durata(v.get('duration')),
                 'canale': v.get('uploader') or v.get('channel') or '',
+                'viste': self._viste(v.get('views')),
+                'miniatura': self._miniatura(v.get('id')),
             } for v in self._risultati],
         })
 
@@ -333,6 +336,31 @@ class Api:
                 self._occupato = False
 
         threading.Thread(target=guscio, daemon=True).start()
+
+    @staticmethod
+    def _miniatura(video_id) -> str:
+        """Indirizzo della miniatura, ricavato dall'identificativo del video.
+
+        YouTube le serve a un indirizzo prevedibile, quindi non serve nessuna
+        chiamata in piu': l'identificativo sta gia' dentro la entry che il
+        motore produce, e il motore non va toccato per averla.
+        """
+        return f'https://i.ytimg.com/vi/{video_id}/mqdefault.jpg' if video_id else ''
+
+    @staticmethod
+    def _viste(numero) -> str:
+        """Abbrevia il numero di visualizzazioni: 1.243.905 diventa 1,2 Mln."""
+        try:
+            n = int(numero or 0)
+        except (TypeError, ValueError):
+            return ''
+        if n >= 1_000_000_000:
+            return f'{n / 1_000_000_000:.1f}'.replace('.', ',') + ' Mrd'
+        if n >= 1_000_000:
+            return f'{n / 1_000_000:.1f}'.replace('.', ',') + ' Mln'
+        if n >= 1_000:
+            return f'{n / 1_000:.0f} K'
+        return str(n) if n else ''
 
     @staticmethod
     def _durata(secondi) -> str:

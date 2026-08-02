@@ -87,8 +87,8 @@ function classeRiga(testo) {
 }
 
 window.cambiaStato = (stato) => {
-  const pallino = $('#pallino-stato');
-  pallino.className = 'pallino-stato ' + (stato === 'idle' ? '' : stato);
+  const spia = $('#spia');
+  spia.className = 'spia ' + (stato === 'idle' ? '' : stato);
   $('#stato').textContent = t('status.' + stato);
 
   const inCorso = stato === 'working';
@@ -108,20 +108,53 @@ window.mostraRisultati = (dati) => {
   if (!dati.voci || !dati.voci.length) { svuotaRisultati(); return; }
 
   dati.voci.forEach((v, i) => {
-    const riga = document.createElement('div');
-    riga.className = 'voce-risultato';
-    riga.innerHTML =
-      '<div class="voce-numero">' + String(i + 1).padStart(2, '0') + '</div>' +
-      '<div class="voce-testo">' +
-        '<div class="voce-titolo"></div>' +
-        '<div class="voce-canale"></div>' +
+    const scheda = document.createElement('div');
+    scheda.className = 'scheda';
+    // Le schede compaiono a cascata invece che tutte insieme: su venti
+    // risultati la differenza fra "e' apparso un muro" e "si sta popolando"
+    // e' tutta qui, e costa una riga.
+    scheda.style.animationDelay = Math.min(i * 22, 420) + 'ms';
+
+    scheda.innerHTML =
+      '<div class="miniatura">' +
+        '<div class="numero">' + String(i + 1).padStart(2, '0') + '</div>' +
+        (v.durata ? '<div class="durata-sopra"></div>' : '') +
       '</div>' +
-      '<div class="voce-durata"></div>';
-    // I titoli arrivano da YouTube: si scrivono come testo, mai come HTML.
-    riga.querySelector('.voce-titolo').textContent = v.titolo || '';
-    riga.querySelector('.voce-canale').textContent = v.canale || '';
-    riga.querySelector('.voce-durata').textContent = v.durata || '';
-    elenco.appendChild(riga);
+      '<div class="scheda-testo">' +
+        '<div class="scheda-titolo"></div>' +
+        '<div class="scheda-sotto"></div>' +
+      '</div>';
+
+    // Titoli e nomi di canale arrivano da YouTube: si scrivono sempre come
+    // testo, mai come HTML, o un titolo con dentro un tag diventerebbe parte
+    // della pagina.
+    scheda.querySelector('.scheda-titolo').textContent = v.titolo || '';
+    if (v.durata) scheda.querySelector('.durata-sopra').textContent = v.durata;
+
+    const sotto = scheda.querySelector('.scheda-sotto');
+    const pezzi = [v.canale, v.viste ? v.viste + ' ▶' : ''].filter(Boolean);
+    pezzi.forEach((testo, k) => {
+      if (k) {
+        const punto = document.createElement('span');
+        punto.className = 'punto'; punto.textContent = '·';
+        sotto.appendChild(punto);
+      }
+      const span = document.createElement('span');
+      span.textContent = testo;
+      sotto.appendChild(span);
+    });
+
+    // La miniatura si aggiunge solo se arriva davvero: un riquadro con
+    // l'icona rotta sarebbe peggio del riquadro vuoto.
+    if (v.miniatura) {
+      const img = new Image();
+      img.loading = 'lazy';
+      img.alt = '';
+      img.onload = () => scheda.querySelector('.miniatura').prepend(img);
+      img.src = v.miniatura;
+    }
+
+    elenco.appendChild(scheda);
   });
 };
 
@@ -134,17 +167,29 @@ window.mostraRiepilogo = (dati) => {
 
 /* ── Cose che la pagina chiede a Python ──────────────────────────────────── */
 
+function statoVuoto(testo) {
+  const box = document.createElement('div');
+  box.className = 'vuoto';
+  box.innerHTML = '<svg class="icona" viewBox="0 0 24 24"><use href="#i-vuoto"/></svg>';
+  const p = document.createElement('div');
+  p.textContent = testo;
+  box.appendChild(p);
+  return box;
+}
+
 function svuotaRisultati() {
   const e = $('#risultati');
   e.dataset.pieno = '';
-  e.innerHTML = '<div class="vuoto">' + t('audio.results.empty') + '</div>';
+  e.innerHTML = '';
+  e.appendChild(statoVuoto(t('audio.results.empty')));
   $('#conteggio').textContent = '';
 }
 
 function svuotaDiario() {
   const d = $('#diario');
   d.dataset.pieno = '';
-  d.innerHTML = '<div class="vuoto">' + t('log.empty') + '</div>';
+  d.innerHTML = '';
+  d.appendChild(statoVuoto(t('log.empty')));
 }
 
 function errore(messaggio) {

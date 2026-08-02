@@ -7,50 +7,96 @@
 </head>
 <body>
 
-  <!-- Lo sfondo: tre strati di luce che si muovono lentamente e una griglia in
-       prospettiva. Nessun file video, nessun download: sono gradienti animati,
-       e pesano zero byte. -->
+  <!-- Sfondo: quattro strati sovrapposti, tutti generati dal CSS.
+       Nessun file, nessun download, niente da inizializzare. -->
   <div class="sfondo" aria-hidden="true">
     <div class="alone alone-1"></div>
     <div class="alone alone-2"></div>
     <div class="alone alone-3"></div>
     <div class="griglia"></div>
-    <div class="velo"></div>
+    <div class="grana"></div>
+    <div class="vignetta"></div>
   </div>
+
+  <!-- Le icone stanno qui una volta sola e si richiamano con <use>: cosi'
+       non si ripete lo stesso disegno dieci volte nel documento. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <g id="i-audio" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>
+      </g>
+      <g id="i-disco" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>
+      </g>
+      <g id="i-video" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.5"/>
+        <path d="M2.5 9.5h19M7 5v4.5M17 5v4.5M7 19v-4.5M17 19v-4.5M2.5 14.5h19"/>
+      </g>
+      <g id="i-forbici" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/>
+        <path d="M20 4L8.5 15.5M14.5 14.5L20 20M8.5 8.5l3 3"/>
+      </g>
+      <g id="i-cerca" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round">
+        <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>
+      </g>
+      <g id="i-scarica" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12M7.5 10.5L12 15l4.5-4.5M4 19h16"/>
+      </g>
+      <g id="i-cartella" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      </g>
+      <g id="i-vuoto" fill="none" stroke="currentColor" stroke-width="1.3"
+         stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+        <path d="M3 10h18M8.5 14.5h7"/>
+      </g>
+    </defs>
+  </svg>
 
   <div class="guscio">
 
     <aside class="barra">
       <div class="marchio">
-        <div class="logo" data-t="app.title">AudioDex</div>
+        <div class="logo">AudioDex</div>
         <div class="sottotitolo" data-t="app.subtitle"></div>
       </div>
 
       <nav class="menu">
         <button class="voce attiva" data-sezione="audio">
-          <span class="pallino"></span>
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-audio"/></svg>
           <span data-t="menu.audio"></span>
         </button>
-        <button class="voce disabilitata" disabled>
-          <span class="pallino"></span>
+        <button class="voce" disabled>
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-disco"/></svg>
           <span data-t="menu.burn"></span>
           <span class="presto" data-t="menu.soon"></span>
         </button>
-        <button class="voce disabilitata" disabled>
-          <span class="pallino"></span>
+        <button class="voce" disabled>
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-video"/></svg>
           <span data-t="menu.pix"></span>
           <span class="presto" data-t="menu.soon"></span>
         </button>
-        <button class="voce disabilitata" disabled>
-          <span class="pallino"></span>
+        <button class="voce" disabled>
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-forbici"/></svg>
           <span data-t="menu.clip"></span>
           <span class="presto" data-t="menu.soon"></span>
         </button>
       </nav>
 
       <div class="piede">
-        <label class="etichetta-piccola">Lingua</label>
-        <select id="lingua" class="campo">
+        <label class="etichetta" data-t="app.language"></label>
+        <select id="lingua" class="campo compatto">
           <option value="it">Italiano</option>
           <option value="en">English</option>
         </select>
@@ -65,41 +111,45 @@
         <p data-t="audio.desc"></p>
       </header>
 
-      <section class="pannello">
+      <section class="vetro comandi">
         <div class="riga">
-          <div class="campo-gruppo stretto">
+          <div class="gruppo stretto">
             <label data-t="audio.mode"></label>
             <select id="modo" class="campo">
               <option value="url" data-t="audio.mode.url"></option>
               <option value="search" data-t="audio.mode.search"></option>
             </select>
           </div>
-          <div class="campo-gruppo largo">
+          <div class="gruppo largo">
             <label id="etichetta-input"></label>
-            <input id="ingresso" class="campo" type="text" spellcheck="false">
+            <div class="campo-icona">
+              <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-cerca"/></svg>
+              <input id="ingresso" class="campo con-icona" type="text" spellcheck="false">
+            </div>
           </div>
         </div>
 
         <div class="riga">
-          <div class="campo-gruppo largo">
+          <div class="gruppo largo">
             <label data-t="audio.output"></label>
-            <div class="con-bottone">
-              <input id="cartella" class="campo" type="text" spellcheck="false">
-              <button id="sfoglia" class="bottone contorno">…</button>
+            <div class="campo-icona">
+              <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-cartella"/></svg>
+              <input id="cartella" class="campo con-icona con-coda" type="text" spellcheck="false">
+              <button id="sfoglia" class="coda" title="…">…</button>
             </div>
           </div>
-          <div class="campo-gruppo stretto">
+          <div class="gruppo stretto">
             <label data-t="audio.media"></label>
             <select id="media" class="campo">
               <option value="audio" data-t="audio.media.audio"></option>
               <option value="video" data-t="audio.media.video"></option>
             </select>
           </div>
-          <div class="campo-gruppo stretto">
+          <div class="gruppo mini">
             <label data-t="audio.format"></label>
             <select id="formato" class="campo"></select>
           </div>
-          <div class="campo-gruppo minuscolo">
+          <div class="gruppo mini">
             <label data-t="audio.workers"></label>
             <input id="paralleli" class="campo" type="number" min="1" max="8" value="3">
           </div>
@@ -119,33 +169,40 @@
         </div>
 
         <div class="azioni">
-          <button id="analizza" class="bottone contorno" data-t="audio.analyze"></button>
+          <button id="analizza" class="bottone contorno">
+            <svg class="icona" viewBox="0 0 24 24"><use href="#i-cerca"/></svg>
+            <span data-t="audio.analyze"></span>
+          </button>
           <div class="spazio"></div>
-          <button id="scarica" class="bottone pieno" data-t="audio.start"></button>
+          <button id="scarica" class="bottone pieno">
+            <svg class="icona" viewBox="0 0 24 24"><use href="#i-scarica"/></svg>
+            <span data-t="audio.start"></span>
+          </button>
         </div>
       </section>
 
       <div class="avanzamento" id="avanzamento">
-        <div class="barra-esterna"><div class="barra-interna" id="barra"></div></div>
+        <div class="binario"><div class="cursa" id="barra"></div></div>
         <div class="avanzamento-testo" id="avanzamento-testo"></div>
       </div>
 
       <div class="due-colonne">
-        <section class="pannello scorrevole">
+        <section class="vetro colonna">
           <div class="titolo-pannello">
             <span data-t="audio.results"></span>
-            <span class="conteggio" id="conteggio"></span>
+            <div class="spazio"></div>
+            <span class="targhetta" id="conteggio"></span>
           </div>
           <div id="risultati" class="elenco"></div>
         </section>
 
-        <section class="pannello scorrevole">
+        <section class="vetro colonna">
           <div class="titolo-pannello">
-            <span class="pallino-stato" id="pallino-stato"></span>
+            <span class="spia" id="spia"></span>
             <span data-t="log.title"></span>
             <span class="stato" id="stato"></span>
             <div class="spazio"></div>
-            <button id="svuota" class="bottone testo" data-t="log.clear"></button>
+            <button id="svuota" class="bottone nudo" data-t="log.clear"></button>
           </div>
           <div id="diario" class="diario"></div>
         </section>
