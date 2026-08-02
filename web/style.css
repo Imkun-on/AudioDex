@@ -185,7 +185,6 @@ html, body {
   font-size: 9.5px; color: var(--t2); font-weight: 700;
   text-transform: uppercase; letter-spacing: .7px;
 }
-.autore { font-size: 10.5px; color: var(--t2); margin-top: var(--s2); }
 
 .corpo {
   flex: 1; min-width: 0; overflow: hidden;
@@ -709,28 +708,11 @@ select.campo { cursor: pointer; appearance: none; padding-right: 30px;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 20px #39ff8859);
 }
-.logo::before, .logo::after {
-  content: 'AudioDex'; position: absolute; left: 0; top: 0;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  pointer-events: none;
-}
-.logo::before {
-  background: var(--verde); clip-path: inset(0 0 62% 0);
-  animation: scarto-a 5.7s steps(1) infinite;
-}
-.logo::after {
-  background: var(--giallo); clip-path: inset(58% 0 0 0);
-  animation: scarto-b 8.1s steps(1) infinite;
-}
-@keyframes scarto-a {
-  0%, 92%  { transform: none; opacity: 0; }
-  92.4%    { transform: translate(-2px, -1px); opacity: .85; }
-  93%      { transform: none; opacity: 0; }
-}
-@keyframes scarto-b {
-  0%, 88%  { transform: none; opacity: 0; }
-  88.5%    { transform: translate(2px, 1px); opacity: .7; }
-  89.2%    { transform: none; opacity: 0; }
+.logo { animation: scarto 9.4s steps(1) infinite; }
+@keyframes scarto {
+  0%, 96%   { filter: drop-shadow(0 0 20px #39ff8859); }
+  96.4%     { filter: drop-shadow(-2px 0 0 #ff4d3d99) drop-shadow(2px 0 0 #86ff5e99); }
+  96.9%     { filter: drop-shadow(0 0 20px #39ff8859); }
 }
 
 /* La griglia diventa piu' fitta e piu' fioca: un reticolo di servizio, non
@@ -826,7 +808,7 @@ select.campo {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sfondo::after, .guscio, .logo::before, .logo::after { animation: none; }
+  .sfondo::after, .guscio, .logo { animation: none; }
   .sezione.attiva, .sezione.uscita { animation: none; }
 }
 
@@ -865,7 +847,11 @@ select.campo {
 }
 
 .tendina-pannello {
-  position: fixed; z-index: 80;
+  /* La larghezza non segue piu' quella del bottone: i campi vanno da cento
+     pixel a tutta riga, e i pannelli finivano larghi il triplo l'uno
+     dell'altro. Ora partono da una misura comune e crescono solo se il testo
+     lo richiede. */
+  position: fixed; z-index: 80; min-width: 172px; max-width: 380px;
   display: flex; flex-direction: column; gap: 2px;
   padding: 5px; overflow-y: auto;
   background: linear-gradient(168deg, #101f13f7, #0b160df7);
@@ -880,8 +866,11 @@ select.campo {
   opacity: 1; pointer-events: auto; transform: none;
 }
 .tendina-voce {
-  display: block; width: 100%; text-align: left;
-  padding: 8px 11px; border: 0; border-radius: var(--r-s);
+  /* Altezza fissa e testo su una riga sola: senza, una voce lunga andava a
+     capo e diventava alta il doppio delle altre, e l'elenco sembrava fatto
+     di pezzi diversi. */
+  display: flex; align-items: center; width: 100%; text-align: left;
+  min-height: 34px; padding: 0 12px; border: 0; border-radius: var(--r-s);
   background: transparent; color: var(--t1);
   font: inherit; font-size: 12.5px; cursor: pointer;
   transition: background .12s, color .12s;

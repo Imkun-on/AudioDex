@@ -98,8 +98,12 @@ function potenzia(select) {
     const r = bottone.getBoundingClientRect();
     const altezzaMax = Math.min(280, window.innerHeight - r.bottom - 16);
     const sopra = altezzaMax < 140 && r.top > 160;
+    // Larghezza minima quella del bottone, ma libera di crescere fino al
+    // massimo previsto dal CSS: cosi' i pannelli di campi stretti e larghi
+    // hanno la stessa aria, invece di essere uno il triplo dell'altro.
+    pannello.style.width = 'auto';
+    pannello.style.minWidth = r.width + 'px';
     pannello.style.left = r.left + 'px';
-    pannello.style.width = r.width + 'px';
     pannello.style.maxHeight = (sopra ? Math.min(280, r.top - 16) : altezzaMax) + 'px';
     if (sopra) {
       pannello.style.top = 'auto';
@@ -109,6 +113,13 @@ function potenzia(select) {
       pannello.style.top = (r.bottom + 6) + 'px';
     }
     pannello.classList.add('visibile', sopra ? 'verso-alto' : 'verso-basso');
+
+    // Se crescendo e' uscito dal bordo destro lo si riporta dentro: un
+    // elenco tagliato a meta' e' peggio di uno stretto.
+    const largo = pannello.getBoundingClientRect();
+    if (largo.right > window.innerWidth - 12) {
+      pannello.style.left = Math.max(12, window.innerWidth - 12 - largo.width) + 'px';
+    }
     evidenzia(select.selectedIndex);
   }
 

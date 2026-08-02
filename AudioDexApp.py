@@ -77,7 +77,6 @@ TESTI_APP: dict[str, dict[str, str]] = {
     'app.title':        {'it': 'AudioDex', 'en': 'AudioDex'},
     'app.subtitle':     {'it': 'Scarica  ·  Masterizza  ·  Rimasterizza',
                          'en': 'Download  ·  Burn  ·  Remaster'},
-    'app.author':       {'it': 'di Imkun-on', 'en': 'by Imkun-on'},
     'app.language':     {'it': 'Lingua', 'en': 'Language'},
     'menu.audio':       {'it': 'Audio', 'en': 'Audio'},
     'menu.burn':        {'it': 'Masterizzazione', 'en': 'Burning'},
