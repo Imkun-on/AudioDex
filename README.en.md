@@ -130,19 +130,21 @@ python PixDex.py                                      # remaster a downloaded vi
 - 7.4 [Parallelism and progress](#4-parallelism-and-progress)
 - 7.5 [Duplicate detection and retries](#5-duplicate-detection-and-retries)
 
-**Chapter 8 — [🔢 Track ordering](#-track-ordering)**
+**Chapter 8 — [📀 Whole albums split into tracks](#-whole-albums-split-into-tracks)**
+
+**Chapter 9 — [🔢 Track ordering](#-track-ordering)**
 - 8.1 [The problem](#the-problem)
 - 8.2 [How it is solved](#how-it-is-solved)
 - 8.3 [Partial selections and playlists with gaps](#partial-selections-and-playlists-with-gaps)
 - 8.4 [Numbering already-downloaded files](#numbering-already-downloaded-files)
 
-**Chapter 9 — [🧾 Metadata tagging](#-metadata-tagging)**
+**Chapter 10 — [🧾 Metadata tagging](#-metadata-tagging)**
 
-**Chapter 10 — [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
+**Chapter 11 — [🎵 Synced lyrics (karaoke)](#-synced-lyrics-karaoke)**
 
-**Chapter 11 — [💾 Output formats](#-output-formats)**
+**Chapter 12 — [💾 Output formats](#-output-formats)**
 
-**Chapter 12 — [💿 BurnDex — burning an audio CD](#-burndex--burning-an-audio-cd)**
+**Chapter 13 — [💿 BurnDex — burning an audio CD](#-burndex--burning-an-audio-cd)**
 - 12.1 [What it is for, and why an audio CD](#what-it-is-for-and-why-an-audio-cd)
 - 12.2 [Additional requirements](#additional-requirements)
 - 12.3 [The four-step flow](#the-four-step-flow)
@@ -155,7 +157,7 @@ python PixDex.py                                      # remaster a downloaded vi
 - 12.9 [Audio CD limits](#audio-cd-limits)
 - 12.10 [Error diagnosis](#error-diagnosis)
 
-**Chapter 13 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
+**Chapter 14 — [🎞 PixDex — remastering a video](#-pixdex--remastering-a-video)**
 - 13.1 [What it does, and above all what it does not](#what-it-does-and-above-all-what-it-does-not)
 - 13.2 [Why it works anyway](#why-it-works-anyway)
 - 13.3 [The filter order is not negotiable](#the-filter-order-is-not-negotiable)
@@ -168,19 +170,19 @@ python PixDex.py                                      # remaster a downloaded vi
 - 13.10 [Command-line options](#command-line-options-pixdex)
 - 13.11 [In the GUI](#in-the-gui)
 
-**Chapter 14 — [🧩 Project architecture](#-project-architecture)**
+**Chapter 15 — [🧩 Project architecture](#-project-architecture)**
 
-**Chapter 15 — [📊 Global database](#-global-database)**
+**Chapter 16 — [📊 Global database](#-global-database)**
 
-**Chapter 16 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
+**Chapter 17 — [🧯 Error handling and failed tracks](#-error-handling-and-failed-tracks)**
 
-**Chapter 17 — [📚 Libraries used, and why](#-libraries-used-and-why)**
+**Chapter 18 — [📚 Libraries used, and why](#-libraries-used-and-why)**
 
-**Chapter 18 — [📝 Changelog](#-changelog)**
+**Chapter 19 — [📝 Changelog](#-changelog)**
 
-**Chapter 19 — [📜 Legal notes](#-legal-notes)**
+**Chapter 20 — [📜 Legal notes](#-legal-notes)**
 
-**Chapter 20 — [📄 Licence](#-licence)**
+**Chapter 21 — [📄 Licence](#-licence)**
 
 ---
 
@@ -535,6 +537,8 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implied
 | `--workers <n>` | `-w` | `3` | Number of parallel downloads |
 | `--max-results <n>` | — | `15` | Maximum number of search results |
 | `--no-lyrics` | — | off | Do not look up synced lyrics on LRCLIB |
+| `--split` | — | off | Split into tracks the videos whose chapters look like an album — see [Whole albums split into tracks](#-whole-albums-split-into-tracks) |
+| `--no-split` | — | off | Never ask about splitting, not even in interactive mode |
 | `--cookies-from-browser <browser>` | — | — | Use browser cookies (`firefox`, `chrome`, `edge`, …) to reach **private** playlists and videos |
 
 > Without `--search` or `--url`, **interactive mode** starts.
@@ -614,6 +618,68 @@ Downloads run on a `ThreadPoolExecutor` (3 threads by default). A yt-dlp *progre
 - Before downloading, the title — sanitised of Windows-forbidden characters, of the Unicode look-alikes yt-dlp substitutes for them, and of emoji — is compared against the files already in the folder: if a valid file exists (>10 KB), the track is marked `skip`. The comparison happens **within the same media type**: an already-downloaded `.m4a` does not suppress the same title requested as video, and vice versa.
 - The downloaded file's name is then cleaned the same way: no emoji, no full-width characters (e.g. `⧸ ： ｜`), so songs copy to a phone over USB without errors.
 - On error it retries up to **4 times** with exponential backoff plus random jitter, so retries neither hammer the server nor synchronise across threads.
+
+---
+
+## 📀 Whole albums split into tracks
+
+A great many uploads are **"Full Album"**: a single three-quarter-hour video with chapters written by whoever uploaded it. AudioDex recognises them and, if you ask, cuts them into the individual tracks — **without re-encoding**, so in seconds and without losing a bit.
+
+### The point is not cutting: it is knowing *whether* to cut
+
+On YouTube chapters are used for everything. A tutorial has five, a review three, an interview uses them for the questions: splitting a ten-minute video into five two-minute pieces pleases nobody. For AudioDex to offer the split, **all** of these must hold:
+
+| Criterion | Threshold | Why |
+|---|---|---|
+| Number of chapters | **≥ 3** | with two it is almost always "intro + the rest" |
+| Video duration | **≥ 10 min** | below that, however long it looks, it is not a record |
+| Chapter duration | **≥ 30 s** for at least 80% | below that they are markers, not songs |
+| Coverage | chapters cover **≥ 80%** of the video | covering a third means indexing a part, not the whole |
+| Order | increasing, non-overlapping times | if the data is inconsistent, cutting blindly produces overlapping tracks |
+
+If even one fails, **nothing is asked**: pointless questions teach people to ignore prompts, including the ones that matter.
+
+When everything holds:
+
+```
+This looks like an album: 8 chapters, averaging 2:10 each.
+   1. Apertura  2:10
+   2. Il secondo brano  2:10
+   3. Interludio: pioggia  2:10
+  … and 5 more
+
+Split it into its tracks? (y/n — the whole file is kept anyway):
+```
+
+### What you get
+
+A folder named after the video, holding the **numbered and tagged** tracks:
+
+```
+download_audio/
+├── Gruppo di Prova - Disco Finto Completo (Full Album).m4a   ← the whole file, kept
+└── Gruppo di Prova - Disco Finto Completo (Full Album)/
+    ├── 01 - Apertura.m4a
+    ├── 02 - Il secondo brano.m4a
+    └── …
+```
+
+Every track carries **title** (from the chapter), **album** (from the video title), **track number** and cover art. The folder is already in the shape BurnDex expects: you can burn it straight away, and the order on the CD will be right.
+
+The **whole file is kept** and sits *outside* the tracks folder — deliberately: BurnDex scans a whole folder, and finding the 45-minute album in there would mean seeing it in the running order as a track to burn.
+
+### How to drive it
+
+| | What it does |
+|---|---|
+| *(nothing, in interactive mode)* | asks, but **only** if the criteria hold |
+| `--split` | always splits when the criteria hold, without asking |
+| `--no-split` | never asks and never splits |
+| `--url` / `--search` without `--split` | does not split: there is nobody there to answer, and silently reorganising folders inside a script is not done |
+
+> ✂️ **On video the cut snaps to the keyframe.** In copy mode you cannot cut in the middle of a group of frames compressed together, so the start may drift by a few seconds. On audio the granularity is milliseconds and it does not show. Then again, hand-written YouTube chapters are not frame-accurate either.
+
+> 🗃 **The carved-out tracks do not go into the global database**: the source file stays registered, which is what was actually downloaded.
 
 ---
 
@@ -1260,6 +1326,7 @@ Technical details:
 
 **New**
 
+- 📀 **Whole albums split into their tracks.** A great many uploads are "Full Album": a single three-quarter-hour video with chapters. AudioDex recognises them and cuts them **without re-encoding**, into a numbered, tagged folder already fit for BurnDex. The point is not cutting but knowing *whether* to cut: five criteria tell a record from an index, and if even one fails nothing is asked. From the command line, `--split` and `--no-split`. See [Whole albums split into tracks](#-whole-albums-split-into-tracks)
 - 🔊 **16-bit dithering in BurnDex, always on.** The reduction to 16 bit was done by truncation, which produces distortion *correlated with the signal* — what you hear as a dirty sound on quiet passages. Measured on a −70 dBFS tone, the energy on the harmonics drops from +46.9 dB to +31.1 dB relative to the fundamental. See [What happens to the audio before burning](#what-happens-to-the-audio-before-burning)
 - ⚖️ **`--level` in BurnDex**: evens out the volume across tracks to the EBU R128 standard, respecting true peak. On three songs at −7, −14 and −21 dB the spread goes from 14.0 dB to **0.59 dB**
 - ✂️ **`--trim` in BurnDex**: trims the silence at the start and end of each track, which adds to the 2-second gap inserted by IMAPI2. On the test collection, 3.4 seconds per track

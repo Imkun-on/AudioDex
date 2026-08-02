@@ -62,6 +62,42 @@ TESTI: dict[str, dict[str, str]] = {
         'it': 'Usa i cookie del browser indicato per accedere a playlist/video privati',
         'en': 'Use cookies from the given browser to reach private playlists/videos',
     },
+    # ── Divisione di un album in tracce ──────────────────────────────────────
+    'split.detected': {
+        'it': "[accent]Questo sembra un disco:[/accent] {n} capitoli, "
+              "in media {media} l'uno.",
+        'en': '[accent]This looks like an album:[/accent] {n} chapters, '
+              'averaging {media} each.',
+    },
+    'split.sample': {
+        'it': '  [dim]{n:>2}.[/dim] {titolo}  [dim]{durata}[/dim]',
+        'en': '  [dim]{n:>2}.[/dim] {titolo}  [dim]{durata}[/dim]',
+    },
+    'split.more': {
+        'it': '  [dim]… e altri {n}[/dim]',
+        'en': '  [dim]… and {n} more[/dim]',
+    },
+    'split.ask': {
+        'it': '\n[accent]Lo divido nelle sue tracce?[/accent] '
+              '[dim](s/n — il file intero resta comunque)[/dim]: ',
+        'en': '\n[accent]Split it into its tracks?[/accent] '
+              '[dim](y/n — the whole file is kept anyway)[/dim]: ',
+    },
+    'split.done': {
+        'it': '{sym} Diviso in [bold]{n}[/bold] tracce: [dim]{cartella}[/dim]',
+        'en': '{sym} Split into [bold]{n}[/bold] tracks: [dim]{cartella}[/dim]',
+    },
+    'cli.split': {
+        'it': 'Divide in tracce i video che hanno i capitoli di un disco '
+              '(album interi caricati come un unico video)',
+        'en': 'Split into tracks the videos whose chapters look like an album '
+              '(whole records uploaded as a single video)',
+    },
+    'cli.no_split': {
+        'it': 'Non chiedere mai di dividere, nemmeno in modalita\' interattiva',
+        'en': 'Never ask about splitting, not even in interactive mode',
+    },
+
     # ── Verifica d'integrita' ────────────────────────────────────────────────
     # Sono messaggi che finiscono nell'elenco dei brani falliti: devono dire
     # cosa non va in modo che si capisca se val la pena ritentare.
@@ -229,6 +265,10 @@ TESTI: dict[str, dict[str, str]] = {
     'summary.title': {'it': 'Riepilogo', 'en': 'Summary'},
     'summary.total': {'it': 'Tracce totali', 'en': 'Total tracks'},
     'summary.downloaded': {'it': 'Scaricate', 'en': 'Downloaded'},
+    'summary.split': {
+        'it': 'Tracce ricavate dai capitoli',
+        'en': 'Tracks carved out of the chapters',
+    },
     'summary.lyrics': {'it': 'Testi karaoke', 'en': 'Karaoke lyrics'},
     'summary.already': {'it': 'Gia\' presenti', 'en': 'Already there'},
     'summary.failed': {'it': 'Fallite', 'en': 'Failed'},

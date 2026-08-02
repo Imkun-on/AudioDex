@@ -55,6 +55,7 @@ from rich.align import Align
 from rich.box import DOUBLE, ROUNDED
 from rich.console import Group
 from rich.live import Live
+from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import (
     Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn,
@@ -239,6 +240,149 @@ _EMOJI_RE = re.compile(
     '︀-️'           # selettori di variazione (emoji a colori)
     '‍]+'                # giunzione a larghezza zero (emoji composte)
 )
+
+
+# ── Divisione di un album in tracce ──────────────────────────────────────────
+#
+# Moltissimi caricamenti sono "Full Album" da tre quarti d'ora con i capitoli
+# messi da chi ha caricato. yt-dlp quei capitoli li porta gia' a casa — la
+# scheda del video li conta — e FFmpeg sa tagliare senza ricodificare, quindi
+# la divisione costa qualche secondo e non perde un bit.
+#
+# Il problema vero non e' tagliare: e' capire *se* tagliare. I capitoli su
+# YouTube servono a tutto — un tutorial ne ha cinque, una recensione ne ha
+# tre, un'intervista li usa per le domande — e dividere un video di dieci
+# minuti in cinque spezzoni da due non fa piacere a nessuno. I criteri qui
+# sotto servono a distinguere un disco da un indice.
+
+CAPITOLI_MINIMI = 3          # con due capitoli e' quasi sempre "intro + resto"
+DURATA_MINIMA_ALBUM = 600    # dieci minuti: sotto, per lungo che sia, non e' un disco
+DURATA_MINIMA_TRACCIA = 30   # sotto e' un segnaposto, non un brano
+QUOTA_TRACCE_VALIDE = 0.8    # tolleranza per l'intro o lo stacco di coda
+COPERTURA_MINIMA = 0.8       # i capitoli devono coprire quasi tutto il video
+
+
+def _capitoli_album(info: dict) -> list[dict] | None:
+    """Decide se i capitoli di un video sono le tracce di un disco.
+
+    Restituisce l'elenco normalizzato ``[{'n', 'inizio', 'fine', 'titolo'}]``
+    se la divisione ha senso, altrimenti None. Non chiede niente e non tocca
+    niente: serve solo a rispondere alla domanda "questo si puo' dividere?".
+    """
+    capitoli = info.get('chapters') or []
+    if len(capitoli) < CAPITOLI_MINIMI:
+        return None
+
+    durata_totale = float(info.get('duration') or 0)
+    if durata_totale < DURATA_MINIMA_ALBUM:
+        return None
+
+    normalizzati: list[dict] = []
+    precedente = -1.0
+    for i, cap in enumerate(capitoli, 1):
+        try:
+            inizio = float(cap.get('start_time'))
+            fine = float(cap.get('end_time'))
+        except (TypeError, ValueError):
+            return None
+        # Capitoli disordinati o sovrapposti: i dati non sono affidabili e
+        # tagliare alla cieca produrrebbe tracce che si accavallano.
+        if fine <= inizio or inizio < precedente:
+            return None
+        precedente = inizio
+        normalizzati.append({
+            'n': i,
+            'inizio': inizio,
+            'fine': min(fine, durata_totale) if durata_totale else fine,
+            'titolo': (cap.get('title') or '').strip() or f'Traccia {i}',
+        })
+
+    lunghe = sum(1 for c in normalizzati
+                 if c['fine'] - c['inizio'] >= DURATA_MINIMA_TRACCIA)
+    if lunghe < len(normalizzati) * QUOTA_TRACCE_VALIDE:
+        return None
+
+    coperto = sum(c['fine'] - c['inizio'] for c in normalizzati)
+    if durata_totale and coperto < durata_totale * COPERTURA_MINIMA:
+        return None
+
+    return normalizzati
+
+
+def _chiedi_divisione(info: dict) -> bool:
+    """Se il video sembra un disco, chiede se dividerlo. Altrimenti tace.
+
+    La domanda si pone solo quando i capitoli superano i criteri: proporla
+    su un video qualunque sarebbe una domanda in piu' a ogni download, e le
+    domande inutili si imparano a ignorare — anche quelle che contano.
+    """
+    capitoli = _capitoli_album(info)
+    if not capitoli:
+        return False
+
+    durata = sum(c['fine'] - c['inizio'] for c in capitoli) / len(capitoli)
+    console.print()
+    console.print(t('split.detected', n=len(capitoli),
+                    media=_format_duration(durata)))
+    # Le prime tre bastano a far riconoscere il disco senza riempire lo
+    # schermo con la scaletta di un album da venti tracce.
+    for cap in capitoli[:3]:
+        console.print(t('split.sample', n=cap['n'],
+                        titolo=escape(cap['titolo']),
+                        durata=_format_duration(cap['fine'] - cap['inizio'])))
+    if len(capitoli) > 3:
+        console.print(t('split.more', n=len(capitoli) - 3))
+
+    return i18n.is_yes(console.input(t('split.ask')))
+
+
+def _dividi_per_capitoli(src: str, capitoli: list[dict], cartella: str,
+                         *, artista: str | None = None,
+                         album: str | None = None,
+                         copertina: str | None = None) -> list[str]:
+    """Taglia il file nei suoi capitoli dentro ``cartella``, senza ricodificare.
+
+    Il taglio e' in copia: costa secondi invece di minuti e non perde nulla.
+    Il prezzo e' che sui *video* l'inizio si aggancia al fotogramma chiave
+    piu' vicino, quindi puo' scostarsi di qualche secondo; sull'audio la
+    granularita' e' di pochi millisecondi e non si nota. Del resto nemmeno i
+    capitoli scritti a mano su YouTube sono precisi al fotogramma.
+
+    I capitoli del file di partenza non vengono ereditati dagli spezzoni
+    (``-map_chapters -1``): una traccia che dichiara al suo interno l'indice
+    dell'intero disco confonde i lettori.
+
+    Restituisce l'elenco dei file prodotti.
+    """
+    os.makedirs(cartella, exist_ok=True)
+    _ext = os.path.splitext(src)[1]
+    totale = len(capitoli)
+    prodotti: list[str] = []
+
+    for cap in capitoli:
+        durata = cap['fine'] - cap['inizio']
+        nome = _track_prefix(cap['n'], totale) + _sanitize_filename(cap['titolo'])
+        dst = os.path.join(cartella, nome + _ext)
+        try:
+            subprocess.run(
+                ['ffmpeg', '-v', 'error', '-y',
+                 '-ss', f"{cap['inizio']:.3f}", '-t', f'{durata:.3f}',
+                 '-i', src, '-c', 'copy', '-map_chapters', '-1',
+                 '-avoid_negative_ts', 'make_zero', dst],
+                capture_output=True, check=True, timeout=300,
+            )
+        except (subprocess.SubprocessError, OSError) as exc:
+            log.error('Taglio del capitolo %s fallito: %s', cap['n'], exc)
+            continue
+
+        # Il tag ©lyr e i tag iTunes vivono nel container MP4: valgono per
+        # .m4a e .mp4, non per il Matroska o l'Ogg.
+        if _ext.lower() in ('.m4a', '.mp4'):
+            _tag_m4a(dst, title=cap['titolo'], artist=artista, album=album,
+                     track_num=cap['n'], thumbnail_url=copertina)
+        prodotti.append(dst)
+
+    return prodotti
 
 
 # ── Verifica che il file scaricato sia intero ────────────────────────────────
@@ -934,6 +1078,11 @@ def _display_download_summary(results: list[dict]) -> None:
 
     summary_table.add_row(t('summary.total'), f'[bold]{len(results)}[/bold]')
     summary_table.add_row(f"{SYM_OK} {t('summary.downloaded')}", f'[success]{ok}[/success]')
+    tracce_divise = sum(r.get('tracce', 0) for r in results)
+    if tracce_divise:
+        summary_table.add_row(f"{SYM_NOTE} {t('summary.split')}",
+                              f'[info]{tracce_divise}[/info]')
+
     lyrics_found = sum(1 for r in results if r.get('lyrics'))
     if lyrics_found > 0:
         summary_table.add_row(f"{SYM_NOTE} {t('summary.lyrics')}", f'[info]{lyrics_found}[/info]')
@@ -1255,7 +1404,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                     progress: Progress | None = None, task_id=None,
                     fetch_lyrics: bool = True, total_tracks: int | None = None,
                     numbered: bool = False, on_phase=None,
-                    media: str = 'audio') -> dict:
+                    media: str = 'audio', dividi: bool = False) -> dict:
     """Scarica una singola traccia e ne registra i metadati.
 
     Con media='audio' (default) scarica il solo flusso audio; con
@@ -1279,7 +1428,8 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
     url = entry.get('url', '')
     uploader = entry.get('uploader', '')
 
-    result = {'title': title, 'status': 'fail', 'file': '', 'error': '', 'lyrics': False}
+    result = {'title': title, 'status': 'fail', 'file': '', 'error': '',
+              'lyrics': False, 'tracce': 0}
 
     if _shutdown_event.is_set():
         result['error'] = 'shutdown'
@@ -1446,6 +1596,33 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
                             pass
                         return result
 
+                    # Divisione in tracce, se richiesta e se i capitoli
+                    # sembrano davvero quelli di un disco. Va fatta qui:
+                    # dopo la verifica, perché tagliare un file troncato
+                    # moltiplicherebbe il danno, e prima dei tag, perché è
+                    # ogni singola traccia a doverli avere, non l'album.
+                    if dividi:
+                        capitoli = _capitoli_album(info)
+                        if capitoli:
+                            cartella = os.path.join(
+                                os.path.dirname(final_file),
+                                _sanitize_filename(info.get('title', title)))
+                            pezzi = _dividi_per_capitoli(
+                                final_file, capitoli, cartella,
+                                artista=(info.get('artist')
+                                         or info.get('uploader') or uploader),
+                                album=info.get('title', title),
+                                copertina=info.get('thumbnail'),
+                            )
+                            result['tracce'] = len(pezzi)
+                            log.info('Diviso in %d tracce: %s',
+                                     len(pezzi), cartella)
+                            # Detto a schermo, non solo nel log: chi ha appena
+                            # risposto "sì" vuole sapere dove sono finite.
+                            console.print(t('split.done', sym=SYM_OK,
+                                            n=len(pezzi),
+                                            cartella=escape(cartella)))
+
                     # Testo: incorporato direttamente nei tag del file audio
                     # (formato LRC con i timestamp), così il brano resta un
                     # file unico che porta con sé anche il testo.
@@ -1513,7 +1690,7 @@ def download_single(entry: dict, output_dir: str, audio_format: str = 'm4a',
 def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4a',
                    album: str | None = None, max_workers: int = MAX_DOWNLOAD_WORKERS,
                    fetch_lyrics: bool = True, numbered: bool = False,
-                   media: str = 'audio') -> list[dict]:
+                   media: str = 'audio', dividi: bool = False) -> list[dict]:
     """Scarica più tracce in parallelo mostrando le barre di avanzamento.
 
     Usa un pool di thread (max_workers download simultanei) e due barre
@@ -1627,7 +1804,7 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                     fetch_lyrics=fetch_lyrics,
                     total_tracks=highest, numbered=numbered,
                     on_phase=lambda name, k=i: phases.done(k, name),
-                    media=media,
+                    media=media, dividi=dividi,
                 )
                 futures[future] = i
 
@@ -1875,12 +2052,18 @@ def main() -> None:
                         help=t('cli.max_results', n=MAX_SEARCH_RESULTS))
     parser.add_argument('--no-lyrics', action='store_true',
                         help=t('cli.no_lyrics'))
+    parser.add_argument('--split', action='store_true', help=t('cli.split'))
+    parser.add_argument('--no-split', action='store_true', help=t('cli.no_split'))
     parser.add_argument('--cookies-from-browser', type=str, default=None,
                         choices=['firefox', 'chrome', 'edge', 'brave', 'opera', 'vivaldi'],
                         help=t('cli.cookies'))
 
     args = parser.parse_args()
     fetch_lyrics = not args.no_lyrics
+    # Fuori dalla modalita' interattiva non c'e' nessuno a rispondere:
+    # senza --split non si divide, per non riorganizzare cartelle a
+    # sorpresa dentro uno script.
+    dividi = args.split and not args.no_split
 
     # Tipo di media e formato: coerenti tra loro. Un --format video implica
     # --media video (e viceversa), così non serve ricordarsi entrambi.
@@ -1966,7 +2149,7 @@ def main() -> None:
                     mtype, mfmt = choice
                     album_name = _sanitize_filename(title)
                     sub_dir = os.path.join(output_dir, album_name)
-                    results = download_batch(entries, sub_dir, mfmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=mtype)
+                    results = download_batch(entries, sub_dir, mfmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=mtype, dividi=dividi)
                 else:
                     console.print(t('interactive.fetching_video'))
                     info = get_video_details(query)
@@ -1981,7 +2164,10 @@ def main() -> None:
                     if not choice:
                         continue
                     mtype, mfmt = choice
-                    results = download_batch(entries, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype)
+                    dividi_ora = dividi
+                    if not args.split and not args.no_split:
+                        dividi_ora = _chiedi_divisione(info)
+                    results = download_batch(entries, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype, dividi=dividi_ora)
 
                 _display_download_summary(results)
                 _export_failed(output_dir, results, entries)
@@ -1998,7 +2184,7 @@ def main() -> None:
                 if not choice:
                     continue
                 mtype, mfmt = choice
-                dl_results = download_batch(selected, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype)
+                dl_results = download_batch(selected, output_dir, mfmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=mtype, dividi=dividi)
                 _display_download_summary(dl_results)
                 _export_failed(output_dir, dl_results, selected)
 
@@ -2019,7 +2205,7 @@ def main() -> None:
         selected = _select_from_results(results)
         if not selected:
             return
-        dl_results = download_batch(selected, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media)
+        dl_results = download_batch(selected, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media, dividi=dividi)
         _display_download_summary(dl_results)
         _export_failed(output_dir, dl_results, selected)
         return
@@ -2044,7 +2230,7 @@ def main() -> None:
             _display_search_results(entries, table_title=t('table.playlist_tracks'))
             album_name = _sanitize_filename(title)
             sub_dir = os.path.join(output_dir, album_name)
-            results = download_batch(entries, sub_dir, fmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=media)
+            results = download_batch(entries, sub_dir, fmt, album=title, max_workers=args.workers, fetch_lyrics=fetch_lyrics, numbered=True, media=media, dividi=dividi)
         else:
             info = get_video_details(args.url)
             if not info:
@@ -2054,7 +2240,7 @@ def main() -> None:
             # --url si è già dichiarato cosa si vuole scaricare.
             _display_video_card(info)
             entries = [_entry_from_info(info, args.url)]
-            results = download_batch(entries, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media)
+            results = download_batch(entries, output_dir, fmt, max_workers=args.workers, fetch_lyrics=fetch_lyrics, media=media, dividi=dividi)
 
         _display_download_summary(results)
         _export_failed(output_dir, results, entries)

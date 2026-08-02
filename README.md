@@ -125,19 +125,21 @@ python PixDex.py                                      # rimasterizza un video sc
 - 7.4 [Parallelismo e avanzamento](#4-parallelismo-e-avanzamento)
 - 7.5 [Anti-duplicati e retry](#5-anti-duplicati-e-retry)
 
-**Capitolo 8 — [🔢 L'ordine delle tracce](#-lordine-delle-tracce)**
+**Capitolo 8 — [📀 Album interi divisi in tracce](#-album-interi-divisi-in-tracce)**
+
+**Capitolo 9 — [🔢 L'ordine delle tracce](#-lordine-delle-tracce)**
 - 8.1 [Il problema](#il-problema)
 - 8.2 [Come viene risolto](#come-viene-risolto)
 - 8.3 [Selezioni parziali e playlist con buchi](#selezioni-parziali-e-playlist-con-buchi)
 - 8.4 [Numerazione dei file già scaricati](#numerazione-dei-file-già-scaricati)
 
-**Capitolo 9 — [🧾 Tagging dei metadati](#-tagging-dei-metadati)**
+**Capitolo 10 — [🧾 Tagging dei metadati](#-tagging-dei-metadati)**
 
-**Capitolo 10 — [🎵 Testi sincronizzati (karaoke)](#-testi-sincronizzati-karaoke)**
+**Capitolo 11 — [🎵 Testi sincronizzati (karaoke)](#-testi-sincronizzati-karaoke)**
 
-**Capitolo 11 — [💾 Formati di output](#-formati-di-output)**
+**Capitolo 12 — [💾 Formati di output](#-formati-di-output)**
 
-**Capitolo 12 — [💿 BurnDex — masterizzare un CD audio](#-burndex--masterizzare-un-cd-audio)**
+**Capitolo 13 — [💿 BurnDex — masterizzare un CD audio](#-burndex--masterizzare-un-cd-audio)**
 - 12.1 [A cosa serve e perché un CD audio](#a-cosa-serve-e-perché-un-cd-audio)
 - 12.2 [Requisiti aggiuntivi](#requisiti-aggiuntivi)
 - 12.3 [Il flusso in quattro passi](#il-flusso-in-quattro-passi)
@@ -150,7 +152,7 @@ python PixDex.py                                      # rimasterizza un video sc
 - 12.10 [I limiti del CD audio](#i-limiti-del-cd-audio)
 - 12.11 [Diagnosi degli errori](#diagnosi-degli-errori)
 
-**Capitolo 13 — [🎞 PixDex — rimasterizzare un video](#-pixdex--rimasterizzare-un-video)**
+**Capitolo 14 — [🎞 PixDex — rimasterizzare un video](#-pixdex--rimasterizzare-un-video)**
 - 13.1 [A cosa serve, e soprattutto cosa non fa](#a-cosa-serve-e-soprattutto-cosa-non-fa)
 - 13.2 [Perché funziona lo stesso](#perché-funziona-lo-stesso)
 - 13.3 [L'ordine dei filtri non è negoziabile](#lordine-dei-filtri-non-è-negoziabile)
@@ -163,19 +165,19 @@ python PixDex.py                                      # rimasterizza un video sc
 - 13.10 [Opzioni della riga di comando](#opzioni-della-riga-di-comando-pixdex)
 - 13.11 [Nella GUI](#nella-gui)
 
-**Capitolo 14 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
+**Capitolo 15 — [🧩 Architettura del progetto](#-architettura-del-progetto)**
 
-**Capitolo 15 — [📊 Database globale](#-database-globale)**
+**Capitolo 16 — [📊 Database globale](#-database-globale)**
 
-**Capitolo 16 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
+**Capitolo 17 — [🧯 Gestione degli errori e tracce fallite](#-gestione-degli-errori-e-tracce-fallite)**
 
-**Capitolo 17 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
+**Capitolo 18 — [📚 Librerie usate e perché](#-librerie-usate-e-perché)**
 
-**Capitolo 18 — [📝 Changelog](#-changelog)**
+**Capitolo 19 — [📝 Changelog](#-changelog)**
 
-**Capitolo 19 — [📜 Note legali](#-note-legali)**
+**Capitolo 20 — [📜 Note legali](#-note-legali)**
 
-**Capitolo 20 — [📄 Licenza](#-licenza)**
+**Capitolo 21 — [📄 Licenza](#-licenza)**
 
 ---
 
@@ -530,6 +532,8 @@ python AudioDex.py --url "https://..." --format mkv     # --media video implicit
 | `--workers <n>` | `-w` | `3` | Numero di download paralleli |
 | `--max-results <n>` | — | `15` | Numero massimo di risultati di ricerca |
 | `--no-lyrics` | — | disattivato | Non cercare i testi sincronizzati su LRCLIB |
+| `--split` | — | disattivato | Divide in tracce i video che hanno i capitoli di un disco — vedi [Album interi divisi in tracce](#-album-interi-divisi-in-tracce) |
+| `--no-split` | — | disattivato | Non chiedere mai di dividere, nemmeno in modalità interattiva |
 | `--cookies-from-browser <browser>` | — | — | Usa i cookie del browser (`firefox`, `chrome`, `edge`, …) per accedere a playlist e video **privati** |
 
 > Senza `--search` né `--url` si avvia la **modalità interattiva**.
@@ -609,6 +613,68 @@ I download girano su un `ThreadPoolExecutor` (default 3 thread). Un *progress ho
 - Prima di scaricare, il titolo — sanificato dai caratteri vietati di Windows, dai "sosia" Unicode che yt-dlp usa al loro posto e dalle emoji — viene confrontato con i file già presenti nella cartella: se esiste un file valido (>10 KB), la traccia è marcata `skip`. Il confronto avviene **tra formati dello stesso tipo**: un `.m4a` già scaricato non fa saltare lo stesso titolo richiesto in video, e viceversa.
 - Il nome del file scaricato viene poi ripulito allo stesso modo: niente emoji né caratteri a tutta larghezza (es. `⧸ ： ｜`), così i brani si copiano sul telefono via cavo USB senza errori.
 - In caso di errore si riprova fino a **4 volte** con backoff esponenziale + jitter casuale, per non riprovare a raffica e non sincronizzare i retry dei vari thread.
+
+---
+
+## 📀 Album interi divisi in tracce
+
+Moltissimi caricamenti sono **"Full Album"**: un unico video da tre quarti d'ora con i capitoli scritti da chi ha caricato. AudioDex li riconosce e, se glielo chiedi, li taglia nelle singole tracce — **senza ricodificare**, quindi in pochi secondi e senza perdere un bit.
+
+### Il punto non è tagliare: è capire *se* tagliare
+
+Su YouTube i capitoli servono a tutto. Un tutorial ne ha cinque, una recensione tre, un'intervista li usa per le domande: dividere un video di dieci minuti in cinque spezzoni da due non fa piacere a nessuno. Perché AudioDex proponga la divisione devono reggere **tutti** questi criteri:
+
+| Criterio | Soglia | Perché |
+|---|---|---|
+| Numero di capitoli | **≥ 3** | con due è quasi sempre "intro + resto" |
+| Durata del video | **≥ 10 min** | sotto, per lungo che sembri, non è un disco |
+| Durata dei capitoli | **≥ 30 s** per almeno l'80% | sotto sono segnaposto, non brani |
+| Copertura | i capitoli coprono **≥ 80%** del video | se ne coprono un terzo, indicizzano un pezzo, non l'insieme |
+| Ordine | tempi crescenti e non sovrapposti | se i dati sono incoerenti, tagliare alla cieca produce tracce accavallate |
+
+Se anche uno solo non regge, **non viene chiesto niente**: le domande inutili si imparano a ignorare, comprese quelle che contano.
+
+Quando invece regge tutto:
+
+```
+Questo sembra un disco: 8 capitoli, in media 2:10 l'uno.
+   1. Apertura  2:10
+   2. Il secondo brano  2:10
+   3. Interludio: pioggia  2:10
+  … e altri 5
+
+Lo divido nelle sue tracce? (s/n — il file intero resta comunque):
+```
+
+### Cosa ottieni
+
+Una cartella col titolo del video, con dentro le tracce **numerate e taggate**:
+
+```
+download_audio/
+├── Gruppo di Prova - Disco Finto Completo (Full Album).m4a   ← il file intero, resta
+└── Gruppo di Prova - Disco Finto Completo (Full Album)/
+    ├── 01 - Apertura.m4a
+    ├── 02 - Il secondo brano.m4a
+    └── …
+```
+
+Ogni traccia porta **titolo** (dal capitolo), **album** (dal titolo del video), **numero di traccia** e copertina. La cartella è già nella forma che si aspetta BurnDex: si può masterizzare direttamente, e l'ordine sul CD sarà quello giusto.
+
+Il **file intero resta** e sta *fuori* dalla cartella delle tracce — di proposito: BurnDex scandisce una cartella intera, e trovarci dentro anche l'album da 45 minuti significherebbe ritrovarselo in scaletta come traccia da masterizzare.
+
+### Come si comanda
+
+| | Cosa fa |
+|---|---|
+| *(niente, in modalità interattiva)* | chiede, ma **solo** se i criteri reggono |
+| `--split` | divide sempre che i criteri reggano, senza chiedere |
+| `--no-split` | non chiede e non divide mai |
+| `--url` / `--search` senza `--split` | non divide: non c'è nessuno a rispondere, e riorganizzare cartelle a sorpresa dentro uno script non si fa |
+
+> ✂️ **Sui video il taglio si aggancia al fotogramma chiave.** In copia non si può tagliare a metà di un gruppo di immagini compresse insieme, quindi l'inizio può scostarsi di qualche secondo. Sull'audio la granularità è di millisecondi e non si nota. Del resto nemmeno i capitoli scritti a mano su YouTube sono precisi al fotogramma.
+
+> 🗃 **Le tracce ricavate non finiscono nel database globale**: resta registrato il file di origine, che è ciò che è stato effettivamente scaricato.
 
 ---
 
@@ -1255,6 +1321,7 @@ Dettagli tecnici:
 
 **Nuovo**
 
+- 📀 **Album interi divisi nelle loro tracce.** Moltissimi caricamenti sono "Full Album": un unico video da tre quarti d'ora con i capitoli. AudioDex li riconosce e li taglia **senza ricodificare**, in una cartella numerata e taggata già pronta per BurnDex. Il punto non è tagliare ma capire *se* tagliare: cinque criteri distinguono un disco da un indice, e se anche uno solo non regge non viene chiesto niente. Da riga di comando `--split` e `--no-split`. Vedi [Album interi divisi in tracce](#-album-interi-divisi-in-tracce)
 - 🔊 **Dither a 16 bit in BurnDex, sempre attivo.** La riduzione a 16 bit avveniva per troncatura, che genera distorsione *correlata al segnale* — quella che sui passaggi deboli si sente come suono sporco. Misurato su un tono a −70 dBFS, l'energia sulle armoniche scende da +46,9 dB a +31,1 dB rispetto alla fondamentale. Vedi [Cosa succede all'audio prima di incidere](#cosa-succede-allaudio-prima-di-incidere)
 - ⚖️ **`--level` in BurnDex**: livella il volume fra le tracce secondo lo standard EBU R128, rispettando il picco reale. Su tre brani a −7, −14 e −21 dB lo scarto passa da 14,0 dB a **0,59 dB**
 - ✂️ **`--trim` in BurnDex**: rifila i silenzi a inizio e fine traccia, che si sommano ai 2 secondi di stacco inseriti da IMAPI2. Sulla raccolta di prova, 3,4 secondi per traccia
