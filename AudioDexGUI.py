@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import sys
 import threading
+import time
 import traceback
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -36,6 +38,7 @@ i18n.register(TESTI_BURN)
 # quindi carichiamo AudioDex/BurnDex al primo uso di ciascuna sezione.
 _audiodex_mod = None
 _burndex_mod = None
+_pixdex_mod = None
 
 
 def _load_audiodex():
@@ -54,12 +57,21 @@ def _load_burndex():
     return _burndex_mod
 
 
+def _load_pixdex():
+    global _pixdex_mod
+    if _pixdex_mod is None:
+        import PixDex as _px  # noqa: WPS433
+        _pixdex_mod = _px
+    return _pixdex_mod
+
+
 # ── Testi propri della GUI ───────────────────────────────────────────────────
 GUI_TESTI: dict[str, dict[str, str]] = {
     'gui.app_title':      {'it': 'AudioDex Suite', 'en': 'AudioDex Suite'},
-    'gui.subtitle':       {'it': 'Download & Masterizzazione', 'en': 'Download & Burning'},
+    'gui.subtitle':       {'it': 'Download · Masterizzazione · Video', 'en': 'Download · Burning · Video'},
     'gui.menu.audio':     {'it': 'Audio', 'en': 'Audio'},
     'gui.menu.burn':      {'it': 'Masterizzazione', 'en': 'Burning'},
+    'gui.menu.pix':       {'it': 'Rimasterizza video', 'en': 'Remaster video'},
     'gui.menu.settings':  {'it': 'Impostazioni', 'en': 'Settings'},
     'gui.language':       {'it': 'Lingua', 'en': 'Language'},
     'gui.theme':          {'it': 'Tema', 'en': 'Theme'},
@@ -142,6 +154,39 @@ GUI_TESTI: dict[str, dict[str, str]] = {
     'gui.err.no_folder':  {'it': 'Seleziona una cartella con i brani da masterizzare.', 'en': 'Select a folder with tracks to burn.'},
     'gui.err.win_only':   {'it': 'La masterizzazione è disponibile solo su Windows (IMAPI2/pywin32).',
                            'en': 'Burning is available on Windows only (IMAPI2/pywin32).'},
+    # ── Sezione Rimasterizza video (PixDex) ──────────────────────────────────
+    'gui.pix.title':      {'it': 'Rimasterizza un video', 'en': 'Remaster a video'},
+    'gui.pix.desc':       {'it': 'Toglie i difetti della compressione, appiana le bande e ingrandisce. '
+                                 'Non inventa dettaglio: lavora in sottrazione.',
+                           'en': 'Removes compression artifacts, smooths banding and upscales. '
+                                 'It invents no detail: it works by subtraction.'},
+    'gui.pix.file':       {'it': 'Video da rimasterizzare', 'en': 'Video to remaster'},
+    'gui.pix.file.hint':  {'it': 'Percorso del file, oppure usa Sfoglia', 'en': 'File path, or use Browse'},
+    'gui.pix.pick':       {'it': 'Sfoglia', 'en': 'Browse'},
+    'gui.pix.preset':     {'it': 'Preset', 'en': 'Preset'},
+    'gui.pix.preset.auto': {'it': 'Automatico (dalla diagnosi)', 'en': 'Automatic (from diagnosis)'},
+    'gui.pix.height':     {'it': 'Risoluzione finale', 'en': 'Final resolution'},
+    'gui.pix.height.auto': {'it': 'Automatica', 'en': 'Automatic'},
+    'gui.pix.gpu':        {'it': 'Codifica su GPU AMD (veloce, un filo meno pulita)',
+                           'en': 'Encode on the AMD GPU (fast, slightly less clean)'},
+    'gui.pix.compare':    {'it': 'Salva immagine di confronto prima/dopo',
+                           'en': 'Save a before/after comparison image'},
+    'gui.pix.action.analyze': {'it': 'Analizza', 'en': 'Analyse'},
+    'gui.pix.action.start': {'it': 'Rimasterizza', 'en': 'Remaster'},
+    'gui.pix.diag.title': {'it': 'Diagnosi', 'en': 'Diagnosis'},
+    'gui.pix.diag.empty': {'it': 'Scegli un video e premi Analizza: qui compare cosa c\'è da sistemare.',
+                           'en': 'Pick a video and press Analyse: what needs fixing shows up here.'},
+    'gui.pix.diag.suggested': {'it': 'Preset consigliato', 'en': 'Suggested preset'},
+    'gui.pix.preview':    {'it': 'Confronto prima / dopo', 'en': 'Before / after comparison'},
+    'gui.pix.preview.empty': {'it': 'A lavoro finito, qui vedi lo stesso fotogramma prima e dopo.',
+                              'en': 'When it is done, the same frame before and after shows up here.'},
+    'gui.pix.progress':   {'it': 'Rimasterizzazione in corso', 'en': 'Remastering'},
+    'gui.pix.err.no_file': {'it': 'Scegli il video da rimasterizzare.', 'en': 'Pick the video to remaster.'},
+    'gui.pix.err.probe':  {'it': 'Nessun flusso video leggibile in questo file.',
+                           'en': 'No readable video stream in this file.'},
+    'gui.pix.err.ffmpeg': {'it': 'FFmpeg non è nel PATH: installalo con  winget install Gyan.FFmpeg',
+                           'en': 'FFmpeg is not in PATH: install it with  winget install Gyan.FFmpeg'},
+    'gui.pix.done':       {'it': 'Fatto: {file}', 'en': 'Done: {file}'},
 }
 i18n.register(GUI_TESTI)
 
@@ -290,6 +335,29 @@ class ProgressPanel:
         color = Colors.OK if ok else Colors.ERR
         self.detail.value = f'{prefix}  [{self.done}/{self.total or "?"}]  {name}'
         self.detail.color = color
+        self._update()
+
+    def seek(self, done: int, total: int | None, detail: str = ''):
+        """Porta la barra a un valore assoluto, invece di avanzare di uno.
+
+        ``step()`` va bene quando le unità sono poche e ognuna ha un nome — i
+        brani di una playlist. Per una codifica video le unità sono decine di
+        migliaia di fotogrammi: chiamare ``step()`` per ognuno significherebbe
+        altrettanti ridisegni della finestra, che da soli rallenterebbero la
+        codifica. Qui si scrive direttamente dove è arrivata, e chi chiama
+        decide ogni quanto farlo.
+        """
+        self.total = total or 0
+        self.done = done
+        if self.total > 0:
+            frac = min(1.0, done / self.total)
+            self.progress.value = frac
+            self.percent.value = f'{int(frac * 100)}%'
+        else:
+            self.progress.value = None
+            self.percent.value = '···'
+        self.detail.value = detail
+        self.detail.color = Colors.TEXT_DIM
         self._update()
 
     def end(self, ok: bool, message: str):
@@ -536,13 +604,16 @@ def build_sidebar(state: 'AppState') -> ft.Container:
                 logo,
                 ft.Container(height=28),
                 ft.Text(
-                    i18n.t('gui.menu.audio').upper() + ' / ' + i18n.t('gui.menu.burn').upper(),
+                    i18n.t('gui.menu.audio').upper() + ' / ' + i18n.t('gui.menu.burn').upper()
+                    + ' / ' + i18n.t('gui.menu.pix').upper(),
                     color=Colors.TEXT_DIM, size=10, weight=ft.FontWeight.W_700,
                 ),
                 ft.Container(height=8),
                 menu_item(ft.Icons.MUSIC_NOTE, 'gui.menu.audio', 'audio'),
                 ft.Container(height=6),
                 menu_item(ft.Icons.ALBUM, 'gui.menu.burn', 'burn'),
+                ft.Container(height=6),
+                menu_item(ft.Icons.AUTO_FIX_HIGH, 'gui.menu.pix', 'pix'),
                 ft.Container(expand=True),
                 ft.Divider(color=Colors.STROKE, height=1),
                 ft.Container(height=10),
@@ -1592,6 +1663,420 @@ def build_burn_view(state: AppState, log_view: ft.ListView,
     )
 
 
+# ── Sezione Rimasterizza video (PixDex) ──────────────────────────────────────
+def build_pix_view(state: AppState, log_view: ft.ListView,
+                   status_ctrl: ft.Text) -> ft.Control:
+    """Sezione della GUI che pilota PixDex.
+
+    Rispetto alle altre due sezioni ha una particolarità: mostra la diagnosi
+    *prima* di lavorare. Una rimasterizzazione dura minuti od ore, e vedere
+    scritto cosa non va nel file — e quale preset lo affronta — evita di
+    scoprire a lavoro finito di aver scelto il trattamento sbagliato.
+    """
+    file_field = ft.Ref[ft.TextField]()
+    preset_field = ft.Ref[ft.Dropdown]()
+    height_field = ft.Ref[ft.Dropdown]()
+    gpu_switch = ft.Ref[ft.Switch]()
+    compare_switch = ft.Ref[ft.Switch]()
+    presets = state.presets
+
+    # Ultima diagnosi calcolata: evita di rileggere il file al momento di
+    # partire e ricorda quale preset applicare quando la scelta è "automatico".
+    diagnosi_corrente: dict = {}
+
+    diag_column = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
+    # ``src`` è obbligatorio in Flet 0.86: nasce vuota e invisibile, e prende
+    # il percorso del PNG solo quando il confronto è stato prodotto davvero.
+    preview_image = ft.Image(src='', fit=ft.BoxFit.CONTAIN, visible=False,
+                             border_radius=10, expand=True)
+    preview_placeholder = ft.Text(i18n.t('gui.pix.preview.empty'),
+                                  color=Colors.TEXT_DIM, size=12, italic=True,
+                                  text_align=ft.TextAlign.CENTER)
+
+    def _persist(_e=None):
+        presets.set('pix_preset', preset_field.current.value if preset_field.current else 'auto')
+        presets.set('pix_height', height_field.current.value if height_field.current else 'auto')
+        presets.set('pix_gpu', gpu_switch.current.value if gpu_switch.current else False)
+        presets.set('pix_compare', compare_switch.current.value if compare_switch.current else True)
+
+    def log(msg: str, color: str = Colors.TEXT):
+        log_view.controls.append(ft.Text(msg, color=color, size=12, selectable=True,
+                                         font_family='JetBrains Mono'))
+        state.page.update()
+
+    def set_status(text: str, color: str = Colors.NEON_CYAN):
+        status_ctrl.value = text
+        status_ctrl.color = color
+        state.page.update()
+
+    def run_bg(fn):
+        if state.working:
+            return
+        state.working = True
+        set_status(i18n.t('gui.status.working'), Colors.NEON_CYAN)
+
+        def wrap():
+            sink = LogSink(log_view, state.page)
+            try:
+                with redirect_stdout(sink), redirect_stderr(sink):
+                    fn()
+                set_status(i18n.t('gui.status.done'), Colors.OK)
+            except Exception as exc:  # noqa: BLE001
+                log(f'{exc}', Colors.ERR)
+                log(traceback.format_exc(), Colors.ERR)
+                set_status(i18n.t('gui.status.error'), Colors.ERR)
+            finally:
+                sink.flush()
+                state.working = False
+
+        state.worker_thread = threading.Thread(target=wrap, daemon=True)
+        state.worker_thread.start()
+
+    file_picker = ft.FilePicker()
+    (state.page.services.append(file_picker) if hasattr(state.page, 'services')
+     else state.page.overlay.append(file_picker))
+
+    def pick_file(_e):
+        try:
+            scelti = file_picker.pick_files(
+                dialog_title=i18n.t('gui.pix.file'),
+                allowed_extensions=[e.lstrip('.') for e in sorted(_load_pixdex().VIDEO_EXTS)],
+                allow_multiple=False,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log(f'{exc}', Colors.ERR)
+            return
+        if scelti:
+            file_field.current.value = scelti[0].path
+            state.page.update()
+            on_analyze(None)
+
+    def _riga_diagnosi(testo: str, icona=ft.Icons.ARROW_RIGHT, colore=None) -> ft.Control:
+        return ft.Row(
+            spacing=8, vertical_alignment=ft.CrossAxisAlignment.START,
+            controls=[
+                ft.Icon(icona, color=colore or Colors.NEON_CYAN, size=14),
+                ft.Text(testo, color=Colors.TEXT, size=12, expand=True,
+                        no_wrap=False),
+            ],
+        )
+
+    def _mostra_diagnosi(info: dict, problemi: list[str], consigliato: str):
+        px = _load_pixdex()
+        diag_column.controls.clear()
+        diag_column.controls.append(
+            _riga_diagnosi(
+                f"{os.path.basename(info['path'])}  ·  {info['width']}×{info['height']}"
+                f"  ·  {info['fps']:.0f} fps  ·  {info['bitrate'] // 1000} kbit/s",
+                ft.Icons.MOVIE, Colors.NEON_PURPLE,
+            )
+        )
+        diag_column.controls.append(ft.Divider(color=Colors.STROKE, height=12))
+        for p in problemi:
+            diag_column.controls.append(_riga_diagnosi(p))
+        diag_column.controls.append(ft.Container(height=6))
+        diag_column.controls.append(
+            ft.Row(spacing=8, controls=[
+                ft.Text(i18n.t('gui.pix.diag.suggested') + ':',
+                        color=Colors.TEXT_DIM, size=12),
+                ft.Text(px.PRESETS[consigliato]['nome'](), color=Colors.OK,
+                        size=12, weight=ft.FontWeight.W_800),
+            ])
+        )
+        state.page.update()
+
+    def _percorso() -> str:
+        grezzo = (file_field.current.value or '') if file_field.current else ''
+        return grezzo.strip().strip('"')
+
+    def on_analyze(_e):
+        path = _percorso()
+        if not path:
+            log(i18n.t('gui.pix.err.no_file'), Colors.ERR)
+            return
+        if not shutil.which('ffprobe'):
+            log(i18n.t('gui.pix.err.ffmpeg'), Colors.ERR)
+            return
+        px = _load_pixdex()
+        info = px.probe(path)
+        if not info:
+            log(i18n.t('gui.pix.err.probe'), Colors.ERR)
+            return
+        problemi, consigliato = px.diagnosi(info)
+        diagnosi_corrente.clear()
+        diagnosi_corrente.update({'info': info, 'preset': consigliato})
+        _mostra_diagnosi(info, problemi, consigliato)
+
+    def on_start(_e):
+        path = _percorso()
+        if not path:
+            log(i18n.t('gui.pix.err.no_file'), Colors.ERR)
+            return
+        if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+            log(i18n.t('gui.pix.err.ffmpeg'), Colors.ERR)
+            return
+
+        _persist()
+        px = _load_pixdex()
+        scelta_preset = preset_field.current.value if preset_field.current else 'auto'
+        scelta_altezza = height_field.current.value if height_field.current else 'auto'
+        usa_gpu = bool(gpu_switch.current.value) if gpu_switch.current else False
+        vuole_confronto = bool(compare_switch.current.value) if compare_switch.current else True
+
+        def action():
+            info = diagnosi_corrente.get('info')
+            consigliato = diagnosi_corrente.get('preset', 'standard')
+            # La diagnosi in memoria vale solo se riguarda proprio questo file:
+            # cambiare percorso senza premere Analizza non deve far applicare
+            # il preset consigliato per il video precedente.
+            if not info or info.get('path') != path:
+                info = px.probe(path)
+                if not info:
+                    log(i18n.t('gui.pix.err.probe'), Colors.ERR)
+                    return
+                problemi, consigliato = px.diagnosi(info)
+                _mostra_diagnosi(info, problemi, consigliato)
+
+            preset = consigliato if scelta_preset == 'auto' else scelta_preset
+            altezza = px.altezza_obiettivo(
+                info, None if scelta_altezza == 'auto' else int(scelta_altezza), preset)
+            catena = px.catena_filtri(preset, info, altezza)
+            dst = px.nome_uscita(path, altezza or info['height'], None)
+
+            totale = info['frames'] or 0
+            state.progress.begin(totale or None, i18n.t('gui.pix.progress'))
+
+            # La finestra si ridisegna al massimo tre volte al secondo: FFmpeg
+            # riporta l'avanzamento molto più spesso, e inseguirlo fotogramma
+            # per fotogramma ruberebbe alla codifica la CPU che le serve.
+            ultimo = [0.0]
+
+            def avanzamento(n: int, tot: int, velocita: str):
+                adesso = time.monotonic()
+                if adesso - ultimo[0] < 0.33 and (not tot or n < tot):
+                    return
+                ultimo[0] = adesso
+                dettaglio = f'{n}/{tot}' if tot else str(n)
+                if velocita:
+                    dettaglio += f'  ·  {velocita}'
+                state.progress.seek(n, tot or None, dettaglio)
+
+            ok = px.rimasterizza(info, dst, catena, usa_gpu, px.CRF_DEFAULT,
+                                 avanzamento=avanzamento)
+            if not ok:
+                state.progress.end(False, i18n.t('gui.progress.err'))
+                return
+
+            if vuole_confronto:
+                # Il fotogramma si prende a un terzo del video: l'inizio è
+                # quasi sempre una sigla o una schermata nera, dove nessun
+                # filtro avrebbe niente da mostrare.
+                istante = max(info['duration'] / 3, 0.0)
+                png = px.confronto(path, dst,
+                                   os.path.splitext(dst)[0] + ' [confronto].png',
+                                   istante)
+                if png:
+                    preview_image.src = png
+                    preview_image.visible = True
+                    preview_placeholder.visible = False
+
+            state.progress.end(True, i18n.t('gui.progress.done'))
+            log(i18n.t('gui.pix.done', file=os.path.basename(dst)), Colors.OK)
+            state.page.update()
+
+        run_bg(action)
+
+    header = ft.Column(
+        spacing=6,
+        controls=[
+            ft.Text(i18n.t('gui.pix.title'), color=Colors.TEXT, size=22,
+                    weight=ft.FontWeight.W_800, font_family='Orbitron'),
+            ft.Text(i18n.t('gui.pix.desc'), color=Colors.TEXT_DIM, size=12),
+        ],
+    )
+
+    file_row = ft.Row(
+        spacing=10,
+        controls=[
+            ft.TextField(
+                ref=file_field, expand=True,
+                label=i18n.t('gui.pix.file'),
+                hint_text=i18n.t('gui.pix.file.hint'),
+                border_color=Colors.STROKE,
+                focused_border_color=Colors.NEON_PURPLE,
+                color=Colors.TEXT, bgcolor=Colors.BG_PANEL_2,
+                text_size=13, dense=True,
+                label_style=ft.TextStyle(color=Colors.TEXT_DIM, size=11),
+                data='pix-file',
+                on_submit=on_analyze,
+            ),
+            ft.OutlinedButton(
+                content=i18n.t('gui.pix.pick'), icon=ft.Icons.VIDEO_FILE,
+                on_click=pick_file,
+                style=ft.ButtonStyle(
+                    color=Colors.NEON_CYAN,
+                    side=ft.BorderSide(1, Colors.STROKE),
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.Padding.symmetric(horizontal=16, vertical=18),
+                ),
+                data='pix-pick',
+            ),
+        ],
+    )
+
+    _px = _load_pixdex()
+    opts_row = ft.ResponsiveRow(
+        columns=12, spacing=10, run_spacing=10,
+        controls=[
+            ft.Dropdown(
+                ref=preset_field, value=presets.get('pix_preset') or 'auto',
+                col={'xs': 12, 'md': 7}, label=i18n.t('gui.pix.preset'),
+                options=[ft.dropdown.Option('auto', i18n.t('gui.pix.preset.auto'))] + [
+                    ft.dropdown.Option(chiave, _px.PRESETS[chiave]['nome']())
+                    for chiave in ('pulito', 'standard', 'forte', 'animazione', 'vecchio')
+                ],
+                border_color=Colors.STROKE, focused_border_color=Colors.NEON_PURPLE,
+                color=Colors.TEXT, bgcolor=Colors.BG_PANEL_2,
+                text_size=13, dense=True,
+                label_style=ft.TextStyle(color=Colors.TEXT_DIM, size=11),
+                on_select=_persist,
+            ),
+            ft.Dropdown(
+                ref=height_field, value=presets.get('pix_height') or 'auto',
+                col={'xs': 12, 'md': 5}, label=i18n.t('gui.pix.height'),
+                options=[
+                    ft.dropdown.Option('auto', i18n.t('gui.pix.height.auto')),
+                    ft.dropdown.Option('720', '720p'),
+                    ft.dropdown.Option('1080', '1080p'),
+                    ft.dropdown.Option('1440', '1440p'),
+                    ft.dropdown.Option('2160', '2160p'),
+                ],
+                border_color=Colors.STROKE, focused_border_color=Colors.NEON_PURPLE,
+                color=Colors.TEXT, bgcolor=Colors.BG_PANEL_2,
+                text_size=13, dense=True,
+                label_style=ft.TextStyle(color=Colors.TEXT_DIM, size=11),
+                on_select=_persist,
+            ),
+        ],
+    )
+
+    _confronto_salvato = presets.get('pix_compare')
+    toggles = ft.Column(
+        spacing=8,
+        controls=[
+            ft.Row(spacing=10, controls=[
+                ft.Switch(ref=gpu_switch, value=bool(presets.get('pix_gpu')),
+                          active_color=Colors.NEON_PURPLE, on_change=_persist),
+                ft.Text(i18n.t('gui.pix.gpu'), color=Colors.TEXT_DIM, size=12,
+                        expand=True, no_wrap=False),
+            ]),
+            ft.Row(spacing=10, controls=[
+                ft.Switch(ref=compare_switch,
+                          value=True if _confronto_salvato is None else bool(_confronto_salvato),
+                          active_color=Colors.NEON_PURPLE, on_change=_persist),
+                ft.Text(i18n.t('gui.pix.compare'), color=Colors.TEXT_DIM, size=12,
+                        expand=True, no_wrap=False),
+            ]),
+        ],
+    )
+
+    actions = ft.Row(
+        spacing=10,
+        controls=[
+            ft.OutlinedButton(
+                content=i18n.t('gui.pix.action.analyze'), icon=ft.Icons.TROUBLESHOOT,
+                on_click=on_analyze,
+                style=ft.ButtonStyle(
+                    color=Colors.NEON_CYAN,
+                    side=ft.BorderSide(1, Colors.NEON_CYAN),
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.Padding.symmetric(horizontal=18, vertical=18),
+                ),
+                data='pix-analyze',
+            ),
+            ft.Container(expand=True),
+            ft.ElevatedButton(
+                content=i18n.t('gui.pix.action.start'), icon=ft.Icons.AUTO_FIX_HIGH,
+                on_click=on_start,
+                bgcolor=Colors.NEON_MAGENTA, color=Colors.BG_DEEP,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.Padding.symmetric(horizontal=24, vertical=18),
+                ),
+                data='pix-start',
+            ),
+        ],
+    )
+
+    form_panel = ft.Container(
+        padding=16, border_radius=14, bgcolor=Colors.BG_PANEL,
+        border=ft.Border.all(1, Colors.STROKE),
+        content=ft.Column(spacing=14, controls=[file_row, opts_row, toggles, actions]),
+    )
+
+    diag_column.controls.append(
+        ft.Container(
+            padding=16, alignment=ft.Alignment.CENTER,
+            content=ft.Text(i18n.t('gui.pix.diag.empty'), color=Colors.TEXT_DIM,
+                            size=12, italic=True,
+                            text_align=ft.TextAlign.CENTER),
+        )
+    )
+    diag_panel = ft.Container(
+        padding=14, border_radius=14, bgcolor=Colors.BG_PANEL,
+        border=ft.Border.all(1, Colors.STROKE), height=250,
+        content=ft.Column(
+            expand=True, spacing=8,
+            controls=[
+                ft.Row(spacing=8, controls=[
+                    ft.Icon(ft.Icons.TROUBLESHOOT, color=Colors.NEON_CYAN, size=16),
+                    ft.Text(i18n.t('gui.pix.diag.title'), color=Colors.TEXT,
+                            size=13, weight=ft.FontWeight.W_700),
+                ]),
+                ft.Container(expand=True, content=diag_column),
+            ],
+        ),
+    )
+
+    preview_panel = ft.Container(
+        padding=14, border_radius=14, bgcolor=Colors.BG_PANEL,
+        border=ft.Border.all(1, Colors.STROKE), height=250,
+        content=ft.Column(
+            expand=True, spacing=8,
+            controls=[
+                ft.Row(spacing=8, controls=[
+                    ft.Icon(ft.Icons.COMPARE, color=Colors.NEON_CYAN, size=16),
+                    ft.Text(i18n.t('gui.pix.preview'), color=Colors.TEXT,
+                            size=13, weight=ft.FontWeight.W_700),
+                ]),
+                ft.Container(
+                    expand=True, alignment=ft.Alignment.CENTER,
+                    content=ft.Stack(expand=True, controls=[
+                        ft.Container(expand=True, alignment=ft.Alignment.CENTER,
+                                     content=preview_placeholder),
+                        preview_image,
+                    ]),
+                ),
+            ],
+        ),
+    )
+
+    return ft.Column(
+        expand=True, spacing=16,
+        controls=[
+            header,
+            form_panel,
+            ft.ResponsiveRow(
+                columns=12, spacing=16, run_spacing=16,
+                controls=[
+                    ft.Container(col={'xs': 12, 'md': 6}, content=diag_panel),
+                    ft.Container(col={'xs': 12, 'md': 6}, content=preview_panel),
+                ],
+            ),
+        ],
+    )
+
+
 # ── Pannello log condiviso ───────────────────────────────────────────────────
 def build_log_panel(state: AppState) -> tuple[ft.Container, ft.ListView, ft.Text]:
     log_view = ft.ListView(expand=True, spacing=1, auto_scroll=True)
@@ -1679,6 +2164,8 @@ def main(page: ft.Page):
         log_panel, log_view, status_ctrl = build_log_panel(state)
         if state.section == 'audio':
             content = build_audio_view(state, log_view, status_ctrl)
+        elif state.section == 'pix':
+            content = build_pix_view(state, log_view, status_ctrl)
         else:
             content = build_burn_view(state, log_view, status_ctrl)
 
