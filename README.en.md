@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="image.png" alt="MediaDex — the Burning section" width="900">
-
 # 🎧 MediaDex
 
 <b>AudioDex</b> · <b>BurnDex</b> · <b>PixDex</b> · <b>ClipDex</b><br>
@@ -116,6 +114,12 @@ pip install -r requirements.txt
 > The terminal transcripts throughout this document were captured before the English
 > interface existed, so they show the Italian output verbatim; the layout is identical
 > in English, only the words differ.
+
+<p align="center">
+  <img src="screenshot.png" alt="MediaDex — the Burning section" width="900">
+</p>
+
+<p align="center"><i>The Burning section: a folder of tracks becomes a real audio CD.</i></p>
 
 ---
 

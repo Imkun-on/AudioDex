@@ -1,8 +1,6 @@
 
 <div align="center">
 
-<img src="image.png" alt="MediaDex — la sezione Masterizzazione" width="900">
-
 # 🎧 MediaDex
 
 <b>AudioDex</b> · <b>BurnDex</b> · <b>PixDex</b> · <b>ClipDex</b><br>
@@ -113,6 +111,12 @@ pip install -r requirements.txt
 > `git clone`): sta come allegato della [Release `assets-v1`](https://github.com/Imkun-on/MediaDex/releases/tag/assets-v1)
 > e viene scaricato **una volta sola al primo avvio**, in background. La finestra si apre subito:
 > finché il download non è finito — o se non riesce — lo sfondo sono i gradienti verdi del tema, che reggono benissimo da soli.
+
+<p align="center">
+  <img src="screenshot.png" alt="MediaDex — la sezione Masterizzazione" width="900">
+</p>
+
+<p align="center"><i>La sezione Masterizzazione: una cartella di brani diventa un CD audio vero.</i></p>
 
 ---
 
