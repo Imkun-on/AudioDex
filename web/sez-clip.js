@@ -131,8 +131,11 @@ window.clipFinito = (dati) => {
   box.innerHTML = '';
   const img = new Image();
   img.alt = ''; img.className = 'immagine-piena';
-  img.src = dati.anteprima + '?v=' + Date.now();
+  // Prima il ripiego, poi l'indirizzo: dare src fa partire il caricamento
+  // all'istante, e un errore immediato scivolerebbe via prima che ci sia
+  // qualcuno ad ascoltarlo.
   img.onerror = () => svuotaRisultatoClip();
+  img.src = dati.anteprima + '?v=' + Date.now();
   box.appendChild(img);
 };
 

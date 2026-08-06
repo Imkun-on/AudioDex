@@ -46,10 +46,6 @@
   API native di Windows, nessun programma di masterizzazione esterno.
 </p>
 
-<p align="center">
-  🇮🇹 <b>Italiano</b>  ·  <a href="README.en.md">🇬🇧 English</a>
-</p>
-
 </div>
 
 **Scarica** [**`AudioDex.exe`**](https://github.com/Imkun-on/MediaDex/releases/latest) e fai doppio clic: niente Python da installare, nessun file `.py` in vista. Serve solo FFmpeg, che si mette una volta sola, e il programma te lo ricorda da solo se manca:
@@ -1404,10 +1400,12 @@ AudioDex/
 ├── PixDex.py                 # 🎞 Rimasterizzatore video (FFmpeg, multipiattaforma)
 ├── ClipDex.py                # ✂ Montaggio: taglia, unisci, GIF, provini, compatibilità
 ├── AudioDexApp.py            # 🖥 Interfaccia grafica: apre la finestra ed espone il motore
+├── AudioDex.spec             # Istruzioni per costruire AudioDex.exe con PyInstaller
 ├── web/                      # L'interfaccia vera e propria
 │   ├── index.html            # Struttura delle quattro sezioni
 │   ├── style.css             # Tema e sfondo animato
 │   ├── app.js                # Nucleo e sezione Audio
+│   ├── tendine.js            # Menu a tendina disegnati dalla pagina, non dal sistema
 │   ├── sez-burn.js           # Sezione Masterizzazione
 │   ├── sez-pix.js            # Sezione Rimasterizza
 │   └── sez-clip.js           # Sezione Montaggio
@@ -1415,6 +1413,9 @@ AudioDex/
 │   ├── __init__.py
 │   ├── logger_setup.py       # Logger su file + tema/simboli Rich condivisi
 │   ├── i18n.py               # Motore delle lingue (la scelta vive nella GUI)
+│   ├── percorsi.py           # Dove stanno le cose, dentro e fuori dall'eseguibile
+│   ├── avvio.py              # Misure e colore della barra sulla schermata di avvio
+│   ├── spia_avanzamento.py   # Fa uscire dai motori l'avanzamento che già calcolano
 │   ├── strings_audiodex.py   # Testi di AudioDex, italiano e inglese
 │   ├── strings_burndex.py    # Testi di BurnDex, italiano e inglese
 │   ├── strings_pixdex.py     # Testi di PixDex, italiano e inglese
@@ -1423,7 +1424,12 @@ AudioDex/
 ├── Database_Globale/
 │   ├── scraper_db.py         # Database SQLite globale dei download
 │   └── scraper_metadata.db   # Il database (creato automaticamente, escluso da git)
-├── assets/                   # Sfondo della GUI (scaricato al primo avvio, escluso da git)
+├── assets/
+│   ├── AudioDex.ico          # Icona dell'eseguibile e della finestra
+│   ├── AudioDex.png          # Il marchio da solo
+│   ├── caricamento.png       # Schermata di avvio, col binario vuoto della barra
+│   ├── binario.py            # Ci disegna dentro quel binario (si lancia a mano)
+│   └── cyberpunk-citadel.mp4 # Sfondo della GUI (facoltativo, escluso da git)
 ├── download_audio/           # Cartella di output (creata automaticamente, esclusa da git)
 │   └── <Artista> - <Album>/  # Una cartella per playlist, con le tracce numerate
 │       └── ordine.txt        # (opzionale) scaletta manuale per BurnDex
@@ -1434,8 +1440,7 @@ AudioDex/
 │   └── clipdex.log           # Log dei montaggi (escluso da git)
 ├── settings.json             # Lingua scelta nella GUI (escluso da git: è di chi usa)
 ├── requirements.txt          # Dipendenze Python
-├── README.md                 # Questo file
-└── README.en.md              # Versione inglese
+└── README.md                 # Questo file
 ```
 
 I moduli `Shared/` e `Database_Globale/` sono progettati per essere **condivisi tra più scraper** (audio, manga, anime): stesso tema grafico, stesso logging, stesso database con colonne specifiche per tipo.

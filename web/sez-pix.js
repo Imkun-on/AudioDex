@@ -120,10 +120,13 @@ window.pixFinito = (dati) => {
   const img = new Image();
   img.alt = '';
   img.className = 'immagine-piena';
+  // Il ripiego si aggancia prima di dare l'indirizzo: assegnare src fa partire
+  // il caricamento subito, e un file gia' in cache o gia' sparito puo' fallire
+  // prima che la riga dopo abbia messo il gestore, lasciando un riquadro rotto.
+  img.onerror = () => svuotaAnteprima();
   // Un parametro finto in coda costringe il WebView a rileggere il file: senza,
   // dopo la seconda rimasterizzazione mostrerebbe ancora la prima immagine.
   img.src = dati.confronto + '?v=' + Date.now();
-  img.onerror = () => svuotaAnteprima();
   box.appendChild(img);
 };
 

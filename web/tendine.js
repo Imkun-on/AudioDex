@@ -79,6 +79,12 @@ function potenzia(select) {
   }
 
   function scegli(i) {
+    // Un elenco ancora vuoto - le unita' prima che Python risponda, i
+    // trattamenti prima di analizzare un video - ha selectedIndex a -1, e da li'
+    // arriva evidenziato. Assegnarlo al <select> lo lascerebbe senza voce
+    // scelta: da quel momento .value e' la stringa vuota e chi la legge non
+    // trova piu' niente.
+    if (i < 0 || i >= select.options.length) { chiudi(); return; }
     select.selectedIndex = i;
     // L'evento va lanciato a mano: cambiare selectedIndex da codice non ne
     // genera uno, e tutto il resto del programma ascolta 'change'.

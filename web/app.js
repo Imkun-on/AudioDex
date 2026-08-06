@@ -396,10 +396,24 @@ const T_AVVIO = performance.now();
 const PASSI_AVVIO = 7;
 let passiFatti = 0;
 
+/* Ma i passi non cominciano qui. Prima che questa pagina esistesse, Python ha
+ * gia' caricato Rich e il ponte con WebView2, e l'ha raccontato sulla barra
+ * della schermata di avvio: quella che si vede dal doppio clic. Questo velo ne
+ * e' la seconda meta', quindi la sua barra riparte da dove l'altra si e'
+ * fermata invece che da zero - e' lo stesso valore di APERTURA in
+ * AudioDexApp.py. Ripartire da zero farebbe tornare indietro una barra che si
+ * sta guardando, che e' il modo piu' rapido di far sembrare rotto un avvio che
+ * sta andando bene. */
+const BASE_AVVIO = 0.60;
+
+function quotaAvvio() {
+  return BASE_AVVIO + (1 - BASE_AVVIO) * (passiFatti / PASSI_AVVIO);
+}
+
 function passoAvvio() {
   passiFatti = Math.min(passiFatti + 1, PASSI_AVVIO);
   const b = document.querySelector('.avvio-barra span');
-  if (b) b.style.width = (passiFatti / PASSI_AVVIO * 100).toFixed(0) + '%';
+  if (b) b.style.width = (quotaAvvio() * 100).toFixed(0) + '%';
 }
 
 /* Toglie il velo di caricamento. Si puo' chiamare quante volte si vuole.
@@ -424,6 +438,14 @@ function togliVelo() {
 }
 
 function avvia() {
+  /* La barra parte gia' riempita di cio' che Python ha fatto prima che questa
+   * pagina esistesse. Si scrive subito, prima del primo disegno: cosi' il primo
+   * fotogramma del velo mostra gia' la barra al punto giusto, invece di farla
+   * scivolare da zero sotto gli occhi di chi la stava guardando ferma piu'
+   * avanti un istante prima. */
+  const b0 = document.querySelector('.avvio-barra span');
+  if (b0) b0.style.width = (BASE_AVVIO * 100).toFixed(0) + '%';
+
   /* Se l'apertura si inceppa - un errore nel motore, una chiamata che non
    * torna - il velo deve comunque andarsene: meglio un'interfaccia a meta',
    * che si vede e si puo' chiudere, che una schermata di caricamento

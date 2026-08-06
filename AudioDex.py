@@ -1862,7 +1862,6 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
     os.makedirs(output_dir, exist_ok=True)
     total = len(entries)
     results_by_index: dict[int, dict] = {}
-    stopped_early = False
 
     # Larghezza dello zero-padding: la dimensione della playlist di origine
     # se nota, altrimenti il numero di traccia più alto da scaricare.
@@ -1941,7 +1940,6 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
 
             for i, entry in enumerate(entries):
                 if _shutdown_event.is_set():
-                    stopped_early = True
                     break
                 track_num = entry.get('index') or (i + 1)
                 tid = file_progress.add_task(
@@ -1986,7 +1984,6 @@ def download_batch(entries: list[dict], output_dir: str, audio_format: str = 'm4
                     file_progress.remove_task(tid)
 
                 if _shutdown_event.is_set():
-                    stopped_early = True
                     for f in futures:
                         f.cancel()
                     break

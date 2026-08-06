@@ -49,13 +49,57 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+# ── La barra della schermata di avvio ────────────────────────────────────────
+#
+# Questo blocco viene prima di ogni import pesante, e non e' un dettaglio di
+# stile: sono proprio quegli import l'attesa che la barra deve raccontare. Rich
+# e il ponte con WebView2 - che si porta dietro pythonnet e il runtime .NET -
+# prendono insieme la maggior parte dei secondi fra il doppio clic e la
+# finestra. Importandoli prima di poter disegnare, la barra resterebbe ferma
+# proprio mentre succede tutto.
+#
+# Fuori dall'eseguibile il modulo pyi_splash non esiste e non c'e' nessuna
+# schermata: `_avanza` diventa un giro a vuoto e il programma parte come sempre.
+try:
+    import pyi_splash as _splash          # type: ignore[import-not-found]
+except ImportError:
+    # Fuori dall'eseguibile il modulo non esiste, e non c'e' nemmeno niente da
+    # scompattare: non c'e' immagine da chiudere.
+    _splash = None
+
+from Shared.avvio import barra as _barra_avvio
+
+# Il punto in cui questa schermata passa la mano alla pagina: da li' in poi a
+# riempire e' il velo di caricamento dentro la finestra, che riparte esattamente
+# da questo valore (BASE_AVVIO in web/app.js) invece che da zero. E' l'unica
+# ragione per cui le due schermate sembrano una barra sola.
+APERTURA = 0.60
+
+
+def _avanza(quota: float) -> None:
+    """Porta la barra della schermata di avvio a ``quota`` (da 0 a 1)."""
+    if _splash is None:
+        return
+    try:
+        _splash.update_text(_barra_avvio(quota))
+    except Exception:
+        # La schermata puo' essere gia' stata chiusa: non e' un guasto, e non
+        # deve certo impedire al programma di finire di avviarsi.
+        pass
+
+
+_avanza(0.0)
+
 from Shared.percorsi import dati as _dati, risorsa as _risorsa
-from Shared import spia_avanzamento as _spia
-
-import webview
-
 from Shared import i18n
 from Shared.strings_audiodex import TESTI as TESTI_AUDIO
+_avanza(0.08)               # i testi: sono dizionari, e' immediato
+
+from Shared import spia_avanzamento as _spia
+_avanza(0.24)               # la spia, che si porta dietro Rich
+
+import webview
+_avanza(APERTURA)           # il ponte con WebView2: il tratto piu' lungo
 
 i18n.register(TESTI_AUDIO)
 
@@ -81,28 +125,26 @@ _DLG_APRI = getattr(getattr(webview, 'FileDialog', None), 'OPEN',
 # doppio clic sembra non aver funzionato e se ne fa un altro, avviando due
 # copie. La sequenza e' questa:
 #
-#   1. il bootloader di PyInstaller mostra assets/caricamento.png;
-#   2. il programma parte e prepara la finestra, ma la tiene *nascosta*;
+#   1. il bootloader di PyInstaller mostra assets/caricamento.png, che porta
+#      gia' disegnato il binario vuoto della barra;
+#   2. il programma parte e riempie quella barra a ogni pezzo caricato (vedi
+#      _avanza in cima al file), mentre prepara la finestra ma la tiene
+#      *nascosta*;
 #   3. la pagina si carica e chiama avvio(): li' la finestra compare, ma
 #      l'immagine resta ancora sopra;
 #   4. al primo fotogramma davvero disegnato la pagina chiama dipinta(), e
 #      l'immagine se ne va scoprendo il velo di caricamento - stesso marchio,
-#      stesso verde, nessuno stacco;
-#   5. la barra del velo si riempie per passi veri (testi arrivati, quattro
-#      sezioni pronte, tutto tradotto) e arrivata in fondo sfuma
+#      stesso verde, e la barra del velo riparte da dove quella dell'immagine
+#      si era fermata, quindi non si vede nessuno scambio;
+#   5. la barra del velo finisce di riempirsi per passi veri (testi arrivati,
+#      quattro sezioni pronte, tutto tradotto) e arrivata in fondo sfuma
 #      sull'interfaccia.
 #
-# Il punto 2 e' quello che conta. Mostrando la finestra subito, per un
-# istante si vedrebbe il bianco con cui WebView2 dipinge se stesso finche' non
-# ha finito di inizializzarsi: un lampo bianco in un programma tutto nero e
-# verde e' esattamente cio' che si nota di piu'.
-
-try:
-    import pyi_splash as _splash          # type: ignore[import-not-found]
-except ImportError:
-    # Fuori dall'eseguibile il modulo non esiste, e non c'e' nemmeno niente da
-    # scompattare: non c'e' immagine da chiudere.
-    _splash = None
+# E' una barra sola, disegnata due volte da due programmi diversi. Il punto 2 e'
+# quello che conta per la finestra: mostrandola subito, per un istante si
+# vedrebbe il bianco con cui WebView2 dipinge se stesso finche' non ha finito di
+# inizializzarsi: un lampo bianco in un programma tutto nero e verde e'
+# esattamente cio' che si nota di piu'.
 
 _gia_mostrata = False
 _gia_chiusa = False
@@ -355,6 +397,21 @@ TESTI_APP: dict[str, dict[str, str]] = {
 i18n.register(TESTI_APP)
 
 
+# ── Dalla fase finita alla fase in corso ─────────────────────────────────────
+#
+# AudioDex riferisce la fase *conclusa*: ``_PhaseTracker.done`` si legge "la
+# traccia ha superato la fase indicata", e infatti ``phase('convert')`` sta
+# subito sotto il commento "FFmpeg ha finito". La pastiglia accanto alla traccia
+# dice invece cosa sta succedendo adesso, che e' l'unica cosa utile mentre si
+# guarda: passando il nome cosi' com'e', diceva "converto" a conversione finita
+# e "scrivo i tag" a lavoro concluso - un passo indietro su tutta la riga.
+#
+# Fra le due letture c'e' esattamente un passo, ed e' questa tabella. 'tag' e'
+# l'ultima: dopo di lei non c'e' una fase successiva da annunciare, e un istante
+# dopo arriva comunque tracciaFinita a scrivere l'esito.
+_DOPO = {'download': 'convert', 'convert': 'lyrics', 'lyrics': 'tag', 'tag': 'tag'}
+
+
 # ── Moduli del motore, caricati alla prima richiesta ──────────────────────────
 # Importare AudioDex costa qualche secondo (yt-dlp non e' leggero): farlo qui
 # invece che all'avvio fa comparire la finestra subito, che e' la prima cosa
@@ -397,6 +454,27 @@ def _clipdex():
     return _clip
 
 
+def _json_per_js(valore) -> str:
+    """JSON valido anche come pezzo di codice JavaScript.
+
+    JSON e JavaScript non coincidono del tutto: U+2028 e U+2029 sono caratteri
+    legittimi dentro una stringa JSON ma terminano una riga in JavaScript,
+    quindi finirebbero dentro ``window.funzione(...)`` spezzando l'istruzione a
+    meta'. Un titolo di video che li contiene farebbe fallire la chiamata in
+    silenzio - l'errore lo vedrebbe solo la console della pagina, che qui non si
+    apre, e i risultati non comparirebbero senza che niente lo spieghi. Si
+    riscrivono nella loro forma con la barra rovesciata, che JSON accetta e
+    JavaScript legge come lo stesso carattere.
+
+    ``default=str`` copre l'altro modo di fallire in silenzio: un valore che
+    json non sa serializzare - una durata come Decimal, un percorso come Path -
+    farebbe alzare un'eccezione a meta' della riga, e la pagina non riceverebbe
+    niente. Meglio la sua forma testuale che il nulla.
+    """
+    return (json.dumps(valore, ensure_ascii=False, default=str)
+            .replace('\u2028', '\\u2028').replace('\u2029', '\\u2029'))
+
+
 def _verso_pagina(funzione: str, *argomenti) -> None:
     """Esegue una funzione JavaScript della pagina, da qualunque thread.
 
@@ -407,7 +485,7 @@ def _verso_pagina(funzione: str, *argomenti) -> None:
     if _finestra is None:
         return
     try:
-        args = ', '.join(json.dumps(a, ensure_ascii=False) for a in argomenti)
+        args = ', '.join(_json_per_js(a) for a in argomenti)
         _finestra.evaluate_js(f'window.{funzione}({args})')
     except Exception:
         # Una finestra chiusa mentre un thread stava ancora riferendo non e'
@@ -462,7 +540,38 @@ class Api:
 
     def __init__(self):
         self._occupato = False
+        # Il posto e' uno solo, e chi lo prende deve poterlo fare senza che un
+        # secondo clic si infili fra il controllo e la presa: vedi _occupa().
+        self._serratura = threading.Lock()
         self._risultati: list[dict] = []
+
+    # ── Il posto di lavoro, che e' uno solo ──────────────────────────────────
+
+    def _occupa(self) -> bool:
+        """Prende il posto se e' libero, e dice se c'e' riuscito.
+
+        Controllare ``_occupato`` e poi metterlo a True sono due gesti, e fra i
+        due c'e' una fessura: due clic ravvicinati - o Ctrl+Invio tenuto premuto
+        - la trovano tutt'e due aperta e partono in due. Non e' solo un lavoro
+        doppio: ``_in_thread`` dirotta ``sys.stdout`` sul diario e lo rimette a
+        posto alla fine, e con due lavori intrecciati il secondo a finire
+        rimette il diario del primo, lasciando l'uscita standard dirottata su un
+        oggetto morto per il resto della sessione. Da li' in poi nessun modulo
+        riesce piu' a scrivere una riga.
+
+        La serratura chiude la fessura: il controllo e la presa diventano un
+        gesto solo.
+        """
+        with self._serratura:
+            if self._occupato:
+                return False
+            self._occupato = True
+            return True
+
+    def _libera(self) -> None:
+        """Rende il posto. Chiamarla piu' di una volta non fa danni."""
+        with self._serratura:
+            self._occupato = False
 
     # ── Avvio ────────────────────────────────────────────────────────────────
 
@@ -533,11 +642,13 @@ class Api:
         avvisata a cose fatte. Cosi' la finestra non si congela nei secondi in
         cui yt-dlp interroga YouTube.
         """
-        if self._occupato:
-            return {'ok': False, 'errore': i18n.t('err.busy')}
         testo = (testo or '').strip()
         if not testo:
             return {'ok': False, 'errore': i18n.t('err.no_input')}
+        # Il posto si prende dopo i controlli, non prima: un modulo compilato
+        # male non deve lasciare il programma occupato senza che giri niente.
+        if not self._occupa():
+            return {'ok': False, 'errore': i18n.t('err.busy')}
 
         self._in_thread(self._analizza_davvero, testo, modo)
         return {'ok': True, 'avviato': True}
@@ -572,10 +683,10 @@ class Api:
 
     def scarica(self, opzioni: dict) -> dict:
         """Avvia il download di cio' che l'analisi ha trovato."""
-        if self._occupato:
-            return {'ok': False, 'errore': i18n.t('err.busy')}
         if not self._risultati:
             return {'ok': False, 'errore': i18n.t('err.nothing')}
+        if not self._occupa():
+            return {'ok': False, 'errore': i18n.t('err.busy')}
 
         self._in_thread(self._scarica_davvero, opzioni)
         return {'ok': True, 'avviato': True}
@@ -647,7 +758,13 @@ class Api:
 
             def byte(scaricati: int, totali: int, k=indice) -> None:
                 frazione = min(scaricati / totali, 1.0) if totali else 0.0
-                quote[k] = frazione
+                # Sotto serratura perche' riferisci() somma questo stesso
+                # dizionario: aggiungere una chiave mentre un altro thread lo
+                # sta scorrendo fa alzare a Python un RuntimeError, e questa
+                # funzione gira dentro il gancio di yt-dlp, dove un'eccezione
+                # abortisce un download altrimenti sano.
+                with serratura:
+                    quote[k] = frazione
                 _verso_pagina('tracciaAvanza', k, round(frazione, 4))
                 riferisci()
 
@@ -658,7 +775,8 @@ class Api:
                 fetch_lyrics=bool(opzioni.get('testi', True)),
                 media=opzioni.get('media', 'audio'),
                 dividi=bool(opzioni.get('dividi', False)),
-                on_phase=lambda fase, k=indice: _verso_pagina('tracciaFase', k, fase),
+                on_phase=lambda fase, k=indice: _verso_pagina('tracciaFase', k,
+                                                             _DOPO.get(fase, fase)),
                 on_progress=byte,
             )
             with serratura:
@@ -731,19 +849,29 @@ class Api:
             if not bd._HAS_PYWIN32:
                 return {'ok': False, 'errore': i18n.t('burn.no_pywin32'), 'unita': []}
             import pythoncom
+            # Ogni CoInitialize vuole il suo CoUninitialize: senza, il conteggio
+            # di COM su questo thread - che e' quello della finestra, e vive
+            # quanto il programma - cresce a ogni chiamata. E questa viene
+            # chiamata a ogni apertura della sezione e a ogni cambio di lingua,
+            # non una volta sola.
             pythoncom.CoInitialize()
-            unita = [{'indice': i, 'nome': bd._nome_unita(r)}
-                     for i, r in enumerate(bd._elenca_unita())]
+            try:
+                # I dizionari portano via solo stringhe e numeri: gli oggetti
+                # COM non escono da qui, quindi si puo' chiudere subito dopo.
+                unita = [{'indice': i, 'nome': bd._nome_unita(r)}
+                         for i, r in enumerate(bd._elenca_unita())]
+            finally:
+                pythoncom.CoUninitialize()
             return {'ok': True, 'unita': unita,
                     'errore': '' if unita else i18n.t('burn.no_drive')}
         except Exception as exc:                       # noqa: BLE001
             return {'ok': False, 'errore': str(exc), 'unita': []}
 
     def burn_masterizza(self, opzioni: dict) -> dict:
-        if self._occupato:
-            return {'ok': False, 'errore': i18n.t('err.busy')}
         if not (opzioni.get('cartella') or '').strip():
             return {'ok': False, 'errore': i18n.t('burn.no_folder')}
+        if not self._occupa():
+            return {'ok': False, 'errore': i18n.t('err.busy')}
         self._in_thread(self._burn_davvero, opzioni)
         return {'ok': True, 'avviato': True}
 
@@ -854,10 +982,10 @@ class Api:
         }
 
     def pix_rimasterizza(self, opzioni: dict) -> dict:
-        if self._occupato:
-            return {'ok': False, 'errore': i18n.t('err.busy')}
         if not (opzioni.get('file') or '').strip():
             return {'ok': False, 'errore': i18n.t('err.no_file')}
+        if not self._occupa():
+            return {'ok': False, 'errore': i18n.t('err.busy')}
         self._in_thread(self._pix_davvero, opzioni)
         return {'ok': True, 'avviato': True}
 
@@ -908,9 +1036,7 @@ class Api:
     # ── Montaggio ────────────────────────────────────────────────────────────
 
     def clip_esegui(self, opzioni: dict) -> dict:
-        if self._occupato:
-            return {'ok': False, 'errore': i18n.t('err.busy')}
-        # Il controllo si fa qui e non nel thread: rispondere 'avviato' per
+        # I controlli si fanno qui e non nel thread: rispondere 'avviato' per
         # poi dire nel diario che mancava il file lascia il programma
         # occupato per un istante senza motivo, e la risposta era una bugia.
         sorgenti = [f.strip().strip('"') for f in (opzioni.get('file') or []) if f.strip()]
@@ -921,6 +1047,8 @@ class Api:
         mancanti = [f for f in sorgenti if not os.path.isfile(f)]
         if mancanti:
             return {'ok': False, 'errore': i18n.t('err.no_file')}
+        if not self._occupa():
+            return {'ok': False, 'errore': i18n.t('err.busy')}
         self._in_thread(self._clip_davvero, opzioni)
         return {'ok': True, 'avviato': True}
 
@@ -1013,12 +1141,16 @@ class Api:
     def _in_thread(self, funzione, *argomenti) -> None:
         """Fa girare il lavoro fuori dal thread della finestra.
 
+        Il posto e' gia' stato preso da ``_occupa()`` prima di arrivare qui, e
+        qui lo si rende: prenderlo dentro al thread lo lascerebbe libero per
+        tutto il tempo fra la risposta alla pagina e la partenza del thread, che
+        e' esattamente la fessura che ``_occupa()`` serve a chiudere.
+
         L'output dei moduli viene dirottato al diario solo per la durata del
         lavoro: farlo per sempre catturerebbe anche i messaggi di pywebview,
         che alla pagina non servono.
         """
         def guscio():
-            self._occupato = True
             _verso_pagina('cambiaStato', 'working')
             diario = Diario()
             vecchio_out, vecchio_err = sys.stdout, sys.stderr
@@ -1033,7 +1165,7 @@ class Api:
             finally:
                 diario.flush()
                 sys.stdout, sys.stderr = vecchio_out, vecchio_err
-                self._occupato = False
+                self._libera()
 
         threading.Thread(target=guscio, daemon=True).start()
 
