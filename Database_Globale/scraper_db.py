@@ -299,16 +299,25 @@ def _now_iso() -> str:
 
 
 def _relative_path(path: str) -> str:
-    """Converte un percorso assoluto in relativo rispetto a questa cartella.
+    """Converte un percorso assoluto in relativo rispetto alla cartella del database.
 
     Salvare percorsi relativi mantiene validi i riferimenti anche se la
     cartella del progetto viene spostata o rinominata. Su Windows il
     calcolo fallisce tra dischi diversi (ValueError): in quel caso si
     salva il percorso assoluto così com'è.
+
+    Il riferimento è la cartella **del file .db**, non quella di questo
+    modulo. Fuori dall'eseguibile sono la stessa cosa, ed è il motivo per cui
+    la differenza non si notava; dentro no. Con ``__file__`` la base diventava
+    la cartella temporanea di PyInstaller, e ogni percorso registrato veniva
+    calcolato rispetto a una cartella che sarebbe stata cancellata pochi minuti
+    dopo: i riferimenti nascevano già rotti, e nessuno se ne accorgeva perché
+    la colonna la si guarda solo mesi dopo. Ancorandolo al database, il
+    percorso relativo significa sempre qualcosa rispetto a dove il database si
+    trova davvero.
     """
-    base = os.path.dirname(os.path.abspath(__file__))
     try:
-        return os.path.relpath(path, base)
+        return os.path.relpath(path, os.path.dirname(os.path.abspath(DB_PATH)))
     except ValueError:
         return path
 
