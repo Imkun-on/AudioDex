@@ -313,12 +313,19 @@ def probe(path: str) -> dict | None:
     if not frames and durata and fps:
         frames = int(durata * fps)
 
+    # Il codec audio non serve alla diagnosi ma al contenitore d'arrivo: si
+    # scrive sempre un .mp4, e non tutto cio' che entra in un .wmv o in un .avi
+    # ci puo' stare. Vedi _comando_audio.
+    audio = next((s for s in dati.get('streams', [])
+                  if s.get('codec_type') == 'audio'), None)
+
     return {
         'path': path,
         'width': larghezza,
         'height': altezza,
         'fps': fps,
         'codec': video.get('codec_name') or '?',
+        'audio_codec': (audio or {}).get('codec_name') or '',
         'pix_fmt': video.get('pix_fmt') or '?',
         'bitrate': bitrate,
         'duration': durata,
@@ -765,6 +772,41 @@ def _comando_encoder(gpu: bool, crf: int) -> list[str]:
     return ['-c:v', 'libx264', '-preset', 'medium', '-crf', str(crf)]
 
 
+# Codec audio che il contenitore MP4 sa ospitare. L'elenco e' volutamente
+# corto e conservativo: ci stanno quelli che arrivano davvero dai file che si
+# rimasterizzano, e per tutto il resto si ricodifica. Sbagliare per eccesso di
+# prudenza costa una ricodifica dell'audio; sbagliare nell'altro verso non
+# produce niente.
+_AUDIO_DA_MP4 = frozenset({'aac', 'mp3', 'ac3', 'eac3', 'alac', 'opus', 'mp2'})
+
+
+def _comando_audio(info: dict) -> list[str]:
+    """Come trattare la traccia audio: copiarla, o ricodificarla in AAC.
+
+    L'uscita e' sempre un .mp4 (vedi ``nome_uscita``), ma l'ingresso puo'
+    essere un .wmv, un .avi, un .flv: contenitori che ospitano codec che
+    l'MP4 non sa scrivere. Copiare la traccia cosi' com'e' faceva fallire
+    FFmpeg con "Could not find tag for codec wmav2 in stream #1", e cio' che
+    restava sul disco era un .mp4 da zero byte. Un intero formato di
+    partenza - tutti i .wmv - non si poteva rimasterizzare.
+
+    Copiare resta il caso normale, ed e' quello che conta: sulla stragrande
+    maggioranza dei file l'audio e' gia' AAC e attraversa il programma senza
+    essere toccato. La ricodifica scatta solo quando l'alternativa sarebbe
+    non produrre nulla.
+
+    Un file senza audio non ha bisogno di niente: senza flusso da mappare,
+    ``-c:a`` e' un'opzione che non si applica a nessuno.
+    """
+    codec = (info.get('audio_codec') or '').lower()
+    if not codec:
+        return []
+    if codec in _AUDIO_DA_MP4:
+        return ['-c:a', 'copy']
+    log.info("Audio '%s' non ospitabile in MP4: si ricodifica in AAC", codec)
+    return ['-c:a', 'aac', '-b:a', '192k']
+
+
 def _pannello_piano(info: dict, preset: str, altezza: int,
                     catena: str, gpu: bool, crf: int, dst: str) -> None:
     """Mostra cosa verra' fatto, prima di farlo.
@@ -851,7 +893,7 @@ def rimasterizza(info: dict, dst: str, catena: str, gpu: bool, crf: int,
            '-i', info['path'],
            '-vf', catena,
            *_comando_encoder(gpu, crf),
-           '-c:a', 'copy',
+           *_comando_audio(info),
            '-movflags', '+faststart',
            '-progress', 'pipe:1', '-nostats',
            dst]

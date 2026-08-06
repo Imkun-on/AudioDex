@@ -430,6 +430,36 @@ def _omogenei(infos: list[dict]) -> bool:
     )
 
 
+# Cosa sa ospitare il contenitore MP4. Gli elenchi sono volutamente corti e
+# conservativi: ci stanno i codec che arrivano davvero dai file che si
+# montano, e per tutto il resto si ricodifica. Sbagliare per eccesso di
+# prudenza costa una ricodifica; sbagliare nell'altro verso non produce nulla.
+_VIDEO_DA_MP4 = frozenset({'h264', 'hevc', 'mpeg4', 'av1', 'vp9', 'mpeg2video'})
+_AUDIO_DA_MP4 = frozenset({'aac', 'mp3', 'ac3', 'eac3', 'alac', 'opus', 'mp2'})
+
+
+def _copiabile(infos: list[dict], dst: str) -> bool:
+    """True se i flussi si possono travasare cosi' come sono nel file d'arrivo.
+
+    Essere omogenei fra loro non basta: bisogna anche starci dentro. La
+    destinazione qui e' sempre un .mp4, mentre i sorgenti possono essere .wmv
+    o .avi, che ospitano codec che l'MP4 non sa scrivere — msmpeg4v2 per il
+    video, wmav2 per l'audio. Copiandoli comunque, FFmpeg si fermava su
+    "Could not write header" e sul disco restava un file da zero byte: unire
+    due .wmv non riusciva mai, e il messaggio non diceva perche'.
+
+    Quando la risposta e' no non si perde niente: si prende la strada che
+    ricodifica, che esiste gia' ed e' quella che il programma usa per i file
+    disomogenei. Piu' lenta, ma un file lo produce.
+    """
+    if os.path.splitext(dst)[1].lower() not in ('.mp4', '.m4v', '.mov'):
+        return True         # altri contenitori sono molto piu' permissivi
+    if any((i['codec'] or '').lower() not in _VIDEO_DA_MP4 for i in infos):
+        return False
+    return all((i['audio_codec'] or '').lower() in _AUDIO_DA_MP4
+               for i in infos if i['has_audio'])
+
+
 def _scrivi_capitoli(infos: list[dict], percorso: str) -> None:
     """Scrive un file ffmetadata con un capitolo per ogni file di partenza.
 
@@ -466,7 +496,9 @@ def unisci(sorgenti: list[str], dst: str, *, capitoli: bool = True,
             return False
         infos.append(info)
 
-    copia = _omogenei(infos)
+    # Due condizioni, e servono tutt'e due: che i file siano compatibili fra
+    # loro, e che i loro flussi ci stiano nel contenitore d'arrivo.
+    copia = _omogenei(infos) and _copiabile(infos, dst)
     console.print(t('merge.mode_copy') if copia else t('merge.mode_encode'))
 
     with tempfile.TemporaryDirectory(prefix='clipdex_') as tmp:

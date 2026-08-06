@@ -20,7 +20,19 @@ from datetime import datetime, timezone
 log = logging.getLogger('scraper_db')
 
 # Il file .db vive accanto a questo modulo, condiviso da tutti gli scraper.
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scraper_metadata.db')
+#
+# «Accanto a questo modulo» pero' non si puo' calcolare da __file__: dentro
+# l'eseguibile costruito con PyInstaller quella cartella e' temporanea e viene
+# cancellata alla chiusura, quindi lo storico dei download sparirebbe a ogni
+# uscita dal programma e ogni avvio ripartirebbe da un database vuoto. E' lo
+# stesso motivo per cui i log e la lingua passano da Shared.percorsi: qui
+# mancava, ed era l'ultimo modulo rimasto indietro.
+#
+# Fuori dall'eseguibile il percorso e' identico a prima - Shared.percorsi
+# risolve nella cartella dei sorgenti - quindi il database gia' esistente resta
+# dov'e' e non se ne crea un secondo.
+from Shared.percorsi import dati as _dati
+DB_PATH = _dati('Database_Globale', 'scraper_metadata.db')
 
 # Una connessione per thread: sqlite3 vieta di usare la stessa connessione
 # da thread diversi, e gli scraper scrivono dai thread di download.
@@ -80,24 +92,45 @@ def _get_conn() -> sqlite3.Connection:
 
     La modalità WAL permette letture e scritture concorrenti dai vari
     thread di download senza che si blocchino a vicenda.
+
+    Lo schema viene applicato **qui**, alla nascita di ogni connessione, e non
+    solo in ``init_db()``. Il motivo e' che ``init_db()`` la chiamava una parte
+    sola del progetto: la riga di comando di AudioDex, dentro il suo ``main()``.
+    L'interfaccia grafica importa AudioDex come libreria e quel ``main()`` non
+    lo esegue mai, quindi la tabella non veniva creata e ogni download
+    registrato finiva contro un "no such table: downloads" - un warning nel log
+    e nient'altro. Dalla finestra lo storico restava vuoto per sempre, senza
+    che niente lo dicesse.
+
+    ``CREATE TABLE IF NOT EXISTS`` costa una lettura del catalogo di SQLite e
+    si puo' ripetere quanto si vuole: metterlo sulla strada obbligata di
+    chiunque apra il database e' piu' sicuro che ricordarsi di chiamare una
+    funzione di inizializzazione da ogni nuovo punto d'ingresso.
     """
     conn = getattr(_local, 'conn', None)
     if conn is None:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         conn.row_factory = sqlite3.Row
         _local.conn = conn
+        conn.executescript(_SCHEMA)
+        conn.commit()
+        _migrate_media_kind(conn)
     return conn
 
 
 def init_db() -> None:
-    """Crea tabella e indici se non esistono, e aggiorna gli schemi vecchi."""
+    """Apre il database e ne assicura lo schema.
+
+    Resta come punto d'ingresso esplicito per la riga di comando, che cosi'
+    segnala subito un database illeggibile invece di scoprirlo al primo
+    download. Il lavoro vero lo fa pero' ``_get_conn()``, che passa dalla
+    stessa strada anche quando nessuno chiama questa.
+    """
     try:
-        conn = _get_conn()
-        conn.executescript(_SCHEMA)
-        conn.commit()
-        _migrate_media_kind(conn)
+        _get_conn()
         log.debug("Database inizializzato: %s", DB_PATH)
     except Exception as e:
         log.warning("Errore init database: %s", e)

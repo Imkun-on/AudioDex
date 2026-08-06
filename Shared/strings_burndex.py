@@ -220,6 +220,13 @@ TESTI: dict[str, dict[str, str]] = {
         'it': '[bold]Quale? > [/bold]',
         'en': '[bold]Which one? > [/bold]',
     },
+    # Quando non c'e' un terminale a cui chiedere (l'interfaccia grafica): si
+    # prende la prima e lo si dice, invece di restare fermi ad aspettare una
+    # risposta che non puo' arrivare.
+    'drive.auto_first': {
+        'it': 'Piu\' di un masterizzatore: uso il primo, [accent]{name}[/accent].',
+        'en': 'More than one burner: using the first, [accent]{name}[/accent].',
+    },
     'drive.no_readable_disc': {
         'it': '\n[error]Nessun disco leggibile nell\'unita\'.[/error]',
         'en': '\n[error]No readable disc in the drive.[/error]',

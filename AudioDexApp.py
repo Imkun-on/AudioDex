@@ -831,6 +831,19 @@ class Api:
             return {'ok': False, 'errore': i18n.t('burn.no_audio')}
 
         durate = [bd._durata(p) for p in percorsi]
+
+        # Una traccia che ffprobe non sa leggere vale zero settori per
+        # _settori_totali, e a quel punto la barra della capienza direbbe che
+        # ci sta della roba che non ci sta - proprio nella schermata che serve
+        # a decidere se incidere. Masterizzare si fermerebbe comunque (lo fa
+        # gia' masterizza_cartella, con il nome del file), ma dopo aver detto
+        # il contrario. Meglio dirlo qui, dove si sta ancora scegliendo.
+        illeggibili = [os.path.basename(p) for p, d in zip(percorsi, durate) if not d]
+        if illeggibili:
+            return {'ok': False,
+                    'errore': bd.t('tracklist.unreadable',
+                                   files=', '.join(illeggibili))}
+
         settori = bd._settori_totali(durate)
         minuti = bd._sectors_to_minutes(settori)
         return {

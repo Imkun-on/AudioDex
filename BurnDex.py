@@ -342,18 +342,24 @@ def _chiedi(prompt: str) -> str:
         return ''
 
 
-def _check_temp_space() -> bool:
+def _check_temp_space(muto: bool = False) -> bool:
     """Controlla lo spazio per i file PCM temporanei (~850 MB per un CD pieno).
 
     Come in AudioDex: avvisa e chiede conferma, ma un errore di lettura non
     blocca nulla. Meglio tentare che fermarsi per un controllo accessorio.
+
+    Con ``muto`` l'avviso resta e la domanda no: chi chiama senza un terminale
+    - l'interfaccia grafica - non potrebbe rispondere, e resterebbe fermo
+    davanti a una richiesta invisibile. Si tira dritto perche' questo e'
+    davvero un controllo accessorio: se lo spazio non basta se ne accorge la
+    decodifica, che fallisce dicendo su quale traccia.
     """
     try:
         free_mb = shutil.disk_usage(tempfile.gettempdir()).free / 1048576
         if free_mb < MIN_FREE_MB:
             log.warning('Spazio temporaneo basso: %.0f MB liberi', free_mb)
             console.print(t('temp.low', free=f'{free_mb:.0f}', need=MIN_FREE_MB))
-            return i18n.is_yes(_chiedi(t('common.continue')))
+            return True if muto else i18n.is_yes(_chiedi(t('common.continue')))
         return True
     except OSError:
         return True
@@ -1045,7 +1051,7 @@ def _lettera_unita(rec) -> str:
     return (rec.VolumePathNames or ('',))[0].rstrip('\\') or '-'
 
 
-def _scegli_unita(indice: int | None = None):
+def _scegli_unita(indice: int | None = None, muto: bool = False):
     """Sceglie il masterizzatore da usare.
 
     Con un'unica unita' collegata — il caso normale — la sceglie da sola
@@ -1059,6 +1065,12 @@ def _scegli_unita(indice: int | None = None):
         unita' sono piu' d'una: serve agli usi automatizzati, dove un prompt
         bloccherebbe lo script. Un indice fuori intervallo produce un errore
         esplicito invece di ricadere silenziosamente sulla prima unita'.
+    muto : bool
+        Nessuna domanda, in nessun caso: con piu' unita' collegate prende la
+        prima e lo dice. Lo passa chi non ha un terminale a cui rispondere -
+        l'interfaccia grafica - dove la domanda finirebbe in un'uscita che
+        nessuno vede e il programma resterebbe fermo ad aspettare per sempre
+        una riga che non puo' arrivare.
 
     Ritorna None quando non c'e' nulla da usare o la scelta non e' valida.
     """
@@ -1082,6 +1094,14 @@ def _scegli_unita(indice: int | None = None):
     for i, rec in enumerate(unita):
         console.print(f'  [accent]{i}[/accent]  {escape(_nome_unita(rec))}'
                       f'  [dim]{escape(_lettera_unita(rec))}[/dim]')
+
+    if muto:
+        # Detto, non chiesto: chi guarda la finestra ha comunque il menu delle
+        # unita' e puo' rifare la scelta, mentre qui una domanda sarebbe una
+        # attesa senza fine.
+        console.print(t('drive.auto_first', name=escape(_nome_unita(unita[0]))))
+        return unita[0]
+
     try:
         return unita[int(_chiedi(t('drive.which')))]
     except (ValueError, IndexError):
@@ -1412,7 +1432,7 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
     if not auto_si:
         _passo(3, 4, t('step.disc_speed'))
 
-    recorder = _scegli_unita(indice_unita)
+    recorder = _scegli_unita(indice_unita, muto=auto_si)
     if recorder is None:
         return 1
 
@@ -1466,7 +1486,7 @@ def masterizza_cartella(cartella: str, *, speed_x: int | None, dry_run: bool,
         console.print(t('dry.nothing_touched'))
         return 0
 
-    if not _check_temp_space():
+    if not _check_temp_space(muto=auto_si):
         console.print(t('common.cancelled_op'))
         return 1
 
