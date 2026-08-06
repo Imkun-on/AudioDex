@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import threading
@@ -136,6 +137,23 @@ def init_db() -> None:
         log.warning("Errore init database: %s", e)
 
 
+def _istruzioni(schema: str) -> list[str]:
+    """Spezza uno schema SQL nelle sue istruzioni, una per elemento.
+
+    Serve perché la migrazione non può usare ``executescript``: quello
+    concluderebbe la transazione appena aperta. Le istruzioni vanno quindi
+    eseguite una per volta, e prima separate.
+
+    Non basta però tagliare sul punto e virgola. Lo schema qui sopra è
+    commentato riga per riga, e uno di quei commenti — quello su ``media_kind``
+    — un punto e virgola ce l'ha dentro: tagliando alla cieca, la CREATE TABLE
+    si spezzava a metà e SQLite rispondeva "incomplete input". I commenti si
+    tolgono prima, e il problema non si pone.
+    """
+    pulito = re.sub(r'--[^\n]*', '', schema)
+    return [i for i in (s.strip() for s in pulito.split(';')) if i]
+
+
 def _migrate_media_kind(conn: sqlite3.Connection) -> None:
     """Porta un database pre-esistente allo schema con 'media_kind'.
 
@@ -149,7 +167,25 @@ def _migrate_media_kind(conn: sqlite3.Connection) -> None:
     già aggiornato, si fa una **copia di sicurezza** del file prima di
     toccarlo, e la ricostruzione avviene in un'unica transazione (o
     riesce tutta, o il database resta com'era).
+
+    Sul terzo fronte la protezione era però solo dichiarata. Il blocco
+    ``with conn:`` sembra una transazione ma non lo era: il modulo sqlite3 di
+    Python ne apre una da sé soltanto prima di INSERT, UPDATE e DELETE, mai
+    prima del DDL, e ``executescript`` per giunta conclude quella eventualmente
+    aperta. ALTER TABLE e CREATE TABLE finivano quindi fuori da qualunque
+    transazione, e un guasto a metà strada lasciava i dati dentro
+    ``downloads_old`` con una ``downloads`` nuova e vuota accanto. Al lancio
+    successivo il controllo qui sopra trovava 'media_kind' e usciva subito:
+    lo storico restava lì, invisibile, e il programma diceva di non avere mai
+    scaricato niente. La copia di sicurezza c'era, ma nessuno sapeva di doverla
+    cercare.
+
+    Adesso la transazione si apre a mano su una connessione in autocommit, che
+    è l'unico modo di farci stare dentro anche il DDL, e ``_recupera_migrazione``
+    rimette a posto i database già rovinati dalla versione precedente.
     """
+    _recupera_migrazione(conn)
+
     columns = [r['name'] for r in conn.execute("PRAGMA table_info(downloads)")]
     if not columns or 'media_kind' in columns:
         return  # tabella appena creata dallo schema nuovo, o già migrata
@@ -173,11 +209,20 @@ def _migrate_media_kind(conn: sqlite3.Connection) -> None:
     shared = [c for c in columns if c != 'id']
     cols_sql = ', '.join(shared)
 
+    # Le PRAGMA sui vincoli non hanno effetto dentro una transazione, quindi
+    # vanno prima; e la transazione la si apre a mano, perché è l'unico modo di
+    # farci stare dentro anche ALTER TABLE e CREATE TABLE.
+    precedente = conn.isolation_level
     try:
         conn.execute("PRAGMA foreign_keys=OFF")
-        with conn:  # transazione: commit se tutto va bene, rollback se no
+        conn.isolation_level = None          # da qui le transazioni le apriamo noi
+        conn.execute("BEGIN")
+        try:
             conn.execute("ALTER TABLE downloads RENAME TO downloads_old")
-            conn.executescript(_SCHEMA)
+            # Una istruzione per volta invece di executescript, che concluderebbe
+            # la transazione appena aperta rendendo irreversibile ciò che segue.
+            for istruzione in _istruzioni(_SCHEMA):
+                conn.execute(istruzione)
             conn.execute(
                 f"INSERT INTO downloads ({cols_sql}) SELECT {cols_sql} FROM downloads_old"
             )
@@ -190,11 +235,62 @@ def _migrate_media_kind(conn: sqlite3.Connection) -> None:
                 "WHERE scraper_type='audio' AND (media_kind IS NULL OR media_kind='')"
             )
             conn.execute("DROP TABLE downloads_old")
-        conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
         moved = conn.execute("SELECT COUNT(*) FROM downloads").fetchone()[0]
         log.info("Migrazione completata: %d righe conservate", moved)
     except Exception as e:
         log.warning("Migrazione fallita (i dati restano intatti): %s", e)
+    finally:
+        conn.isolation_level = precedente
+        conn.execute("PRAGMA foreign_keys=ON")
+
+
+def _recupera_migrazione(conn: sqlite3.Connection) -> None:
+    """Rimette a posto una migrazione interrotta da una versione precedente.
+
+    Fino a poco fa la ricostruzione non era davvero in transazione, e un guasto
+    a metà strada lasciava sul disco due tabelle: una ``downloads`` nuova e
+    vuota, e una ``downloads_old`` con dentro tutto lo storico. Il controllo
+    all'inizio della migrazione trovava la colonna 'media_kind' nella tabella
+    nuova, concludeva che non c'era niente da fare, e i download di anni
+    restavano lì accanto senza che nulla li nominasse.
+
+    Qui si guarda solo se ``downloads_old`` esiste: se c'è, la migrazione
+    precedente non è arrivata in fondo e la si finisce. ``INSERT OR IGNORE``
+    perché una parte delle righe potrebbe essere già passata, e in quel caso
+    va tenuta quella nuova.
+    """
+    tabelle = {r[0] for r in
+               conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if 'downloads_old' not in tabelle or 'downloads' not in tabelle:
+        return
+
+    vecchie = [r['name'] for r in conn.execute("PRAGMA table_info(downloads_old)")]
+    nuove = {r['name'] for r in conn.execute("PRAGMA table_info(downloads)")}
+    comuni = [c for c in vecchie if c != 'id' and c in nuove]
+    if not comuni:
+        return
+    cols_sql = ', '.join(comuni)
+
+    log.warning("Trovata una migrazione interrotta: recupero le righe da downloads_old")
+    try:
+        conn.execute(
+            f"INSERT OR IGNORE INTO downloads ({cols_sql}) SELECT {cols_sql} FROM downloads_old")
+        if 'media_kind' in nuove:
+            conn.execute(
+                "UPDATE downloads SET media_kind='audio' "
+                "WHERE scraper_type='audio' AND (media_kind IS NULL OR media_kind='')")
+        conn.execute("DROP TABLE downloads_old")
+        conn.commit()
+        recuperate = conn.execute("SELECT COUNT(*) FROM downloads").fetchone()[0]
+        log.info("Recupero riuscito: %d righe di nuovo visibili", recuperate)
+    except Exception as e:
+        # Meglio lasciare downloads_old dov'è che perderla: se ne riparla al
+        # prossimo avvio, e intanto i dati non sono andati da nessuna parte.
+        log.warning("Recupero non riuscito, downloads_old resta sul posto: %s", e)
 
 
 def _now_iso() -> str:
