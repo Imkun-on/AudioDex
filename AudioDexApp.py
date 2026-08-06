@@ -171,6 +171,13 @@ def _chiudi_caricamento() -> None:
     subito, quei secondi sarebbero un rettangolo nero e vuoto; lasciandocela
     sopra, chi guarda continua a vedere il marchio finche' non c'e' altro da
     vedere.
+
+    «Sopra» dipende pero' da una riga che sta altrove: e' ``always_on_top``
+    nello Splash di AudioDex.spec. Con quella a False l'immagine non restava
+    sopra un bel niente - la finestra appena mostrata le passava davanti - e il
+    rettangolo vuoto si vedeva lo stesso, per un secondo e mezzo, con l'immagine
+    nascosta dietro. Le due cose vanno lette insieme, o questo commento descrive
+    un'intenzione invece di quello che succede.
     """
     global _gia_chiusa
     if _gia_chiusa or _splash is None:

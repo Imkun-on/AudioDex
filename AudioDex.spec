@@ -192,7 +192,19 @@ caricamento = Splash(
     text_color=_avvio.COLORE,
     text_default=_avvio.barra(0.0),
     minify_script=True,
-    always_on_top=False,        # stare davanti a tutto e' da finestra di errore
+    # Davanti a tutto, e per una ragione precisa. Il programma mostra la
+    # finestra appena la pagina da' il primo segno di vita e lascia l'immagine
+    # sopra finche' non ha davvero dipinto (vedi _chiudi_caricamento in
+    # AudioDexApp): il punto e' proprio che resti sopra. Con always_on_top a
+    # False non ci restava - la finestra appena mostrata le passava davanti - e
+    # per un secondo e mezzo si vedeva un rettangolo vuoto mentre l'immagine
+    # stava dietro a fare niente. Misurato: dal secondo 8,9 al 9,9.
+    #
+    # Il prezzo e' che l'immagine sta davanti anche alle altre finestre, che di
+    # solito e' un modo di fare da finestra di errore. Qui dura gli otto secondi
+    # dell'avvio e li' se ne va, e in cambio fra la schermata e l'interfaccia
+    # non si vede piu' un buco.
+    always_on_top=True,
 )
 
 exe = EXE(
